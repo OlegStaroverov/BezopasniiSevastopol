@@ -1,7 +1,7 @@
 {
-  "name": "Sevastopol Hub",
-  "short_name": "SevHub",
-  "description": "Все службы города в одном месте",
+  "name": "Безопасный Севастополь",
+  "short_name": "SafeSevastopol",
+  "description": "Сообщить о подозрительных объектах и граффити",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0c0c0e",
