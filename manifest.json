@@ -1,21 +1,60 @@
 {
   "name": "Безопасный Севастополь",
   "short_name": "SafeSevastopol",
-  "description": "Сообщить о подозрительных объектах и граффити",
-  "start_url": "/",
+  "description": "Безопасность каждого — ответственность всех",
+  "start_url": "/?startapp=",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0c0c0e",
   "theme_color": "#0066ff",
+  
   "icons": [
     {
       "src": "assets/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "assets/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  
+  "scope": "/",
+  "prefer_related_applications": false,
+  
+  "shortcuts": [
+    {
+      "name": "Точки Wi-Fi",
+      "short_name": "Wi-Fi",
+      "description": "Найти точку Wi-Fi",
+      "url": "/?startapp=wifi"
+    },
+    {
+      "name": "Сообщить о проблеме",
+      "short_name": "Безопасность",
+      "description": "Сообщить о подозрительном объекте",
+      "url": "/?startapp=security"
+    },
+    {
+      "name": "Граффити",
+      "short_name": "Граффити",
+      "description": "Сообщить о граффити",
+      "url": "/?startapp=graffiti"
+    }
+  ],
+  
+  "max_bridge": {
+    "version": "1.0",
+    "permissions": [
+      "location",
+      "camera",
+      "storage",
+      "contacts"
+    ],
+    "supported_platforms": ["ios", "android", "desktop", "web"]
+  }
 }
