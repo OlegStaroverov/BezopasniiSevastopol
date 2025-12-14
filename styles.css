@@ -2269,3 +2269,80 @@ h4 { font-size: 1.25rem; }
     margin-bottom: 16px;
     color: rgba(255, 255, 255, 0.5);
 }
+
+/* ===== FIX FOR MOBILE SCROLL ===== */
+html, body {
+    overscroll-behavior: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    overflow: hidden !important;
+    height: 100% !important;
+    width: 100% !important;
+    position: fixed !important;
+}
+
+/* Ограничиваем высоту всех скроллящихся контейнеров */
+.wifi-results,
+.security-reports-list,
+.graffiti-admin-list,
+.admin-table-container {
+    max-height: 400px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+/* Для больших экранов увеличиваем */
+@media (min-height: 800px) {
+    .wifi-results,
+    .security-reports-list,
+    .graffiti-admin-list,
+    .admin-table-container {
+        max-height: 500px !important;
+    }
+}
+
+/* Предотвращаем скролл при открытых модалках */
+.modal-open body,
+.modal-open .app-container,
+.modal-open .main-content {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+}
+
+/* Исправляем поведение на iOS */
+@supports (-webkit-touch-callout: none) {
+    body {
+        /* iOS specific */
+        height: -webkit-fill-available !important;
+    }
+    
+    .app-container {
+        height: -webkit-fill-available !important;
+        min-height: -webkit-fill-available !important;
+    }
+}
+
+/* Разрешаем скролл только внутри основного контента */
+.main-content {
+    height: calc(100vh - 250px) !important;
+    max-height: calc(100vh - 250px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+}
+
+/* Для скроллящихся блоков внутри */
+.wifi-results,
+.security-reports-list,
+.graffiti-admin-list,
+.admin-table-container {
+    max-height: 300px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+/* Блокировка скролла при открытых модалках */
+body.modal-open {
+    overflow: hidden !important;
+    position: fixed !important;
+}
