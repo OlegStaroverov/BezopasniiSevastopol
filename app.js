@@ -18,7 +18,9 @@ class SafeSevastopol {
         this.isAdmin = false;
         this.hasUnsavedChanges = false; // ДОБАВЬ для подтверждения закрытия
         this.startParam = null; // ДОБАВЬ для deep linking
-        
+        this.preventScroll = this.preventScroll.bind(this); 
+        this.isModalOpen = false;       
+
         // Важно: инициализируем maxBridge ПОСЛЕ всех полей
         this.maxBridge = window.WebApp || null;
         
@@ -37,6 +39,7 @@ class SafeSevastopol {
         this.checkAdminStatus();
         this.setupFormValidation();
         this.setupDragAndDrop();
+        this.setupScrollPrevention();
         
         this.showNotification('Добро пожаловать в Безопасный Севастополь!', 'success');
     }
@@ -1349,6 +1352,11 @@ async loadUserData() {
     // ===== МОДАЛЬНЫЕ ОКНА =====
     openLocationPicker(context) {
         this.locationContext = context;
+        this.isModalOpen = true;
+        
+        // Блокируем скролл
+        document.body.classList.add('modal-open');
+        document.body.style.overflow = 'hidden';
         
         document.getElementById('modalOverlay').style.display = 'block';
         document.getElementById('locationModal').style.display = 'block';
@@ -1406,6 +1414,12 @@ async loadUserData() {
     }
 
     closeModal() {
+        this.isModalOpen = false;
+        
+        // Разрешаем скролл
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = 'hidden'; // Оставляем hidden
+        
         document.getElementById('modalOverlay').style.display = 'none';
         document.querySelectorAll('.modal-container').forEach(modal => {
             modal.style.display = 'none';
@@ -1689,6 +1703,47 @@ async loadUserData() {
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
+    }
+
+    // ===== ФИКС СКРОЛЛА - ДОБАВЬ ЭТИ МЕТОДЫ =====
+    preventScroll(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    }
+
+    setupScrollPrevention() {
+        // Отключаем стандартный скролл на body
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+        
+        // Добавляем обработчики для тач-событий
+        document.addEventListener('touchmove', this.preventScroll, { passive: false });
+        document.addEventListener('touchstart', this.preventScroll, { passive: false });
+        
+        // Разрешаем скролл только в определенных контейнерах
+        const scrollableElements = document.querySelectorAll('.wifi-results, .security-reports-list, .main-content');
+        scrollableElements.forEach(el => {
+            el.addEventListener('touchstart', (e) => {
+                // Позволяем скролл только внутри этих элементов
+                e.stopPropagation();
+            });
+            
+            el.addEventListener('touchmove', (e) => {
+                // Проверяем, достигли ли мы границы контейнера
+                const { scrollTop, scrollHeight, clientHeight } = el;
+                const isAtTop = scrollTop === 0;
+                const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 1;
+                
+                if ((isAtTop && e.touches[0].clientY > 0) || 
+                    (isAtBottom && e.touches[0].clientY < 0)) {
+                    // Если пытаемся скроллить за границы - блокируем
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        });
     }
 }
 
