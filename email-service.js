@@ -28,8 +28,10 @@ class EmailService {
 
     async sendEmail(emailData) {
         try {
-            // В реальном приложении здесь будет отправка через сервер
-            console.log('Отправка email:', emailData);
+            console.log('📧 Отправка email:', {
+                to: emailData.to,
+                subject: emailData.subject
+            });
             
             // Симуляция отправки
             await this.simulateEmailSending(emailData);
@@ -40,7 +42,7 @@ class EmailService {
             return { success: true, message: 'Email отправлен' };
             
         } catch (error) {
-            console.error('Ошибка отправки email:', error);
+            console.error('❌ Ошибка отправки email:', error);
             return { success: false, error: error.message };
         }
     }
@@ -85,36 +87,6 @@ class EmailService {
         return logs.slice(0, limit);
     }
 
-    // Методы для работы с вложениями
-    async processAttachments(files) {
-        const attachments = [];
-        
-        for (const file of files) {
-            try {
-                const base64 = await this.fileToBase64(file);
-                attachments.push({
-                    filename: file.name,
-                    content: base64.split(',')[1], // Убираем data URL prefix
-                    encoding: 'base64',
-                    contentType: file.type || 'application/octet-stream'
-                });
-            } catch (error) {
-                console.error('Ошибка обработки вложения:', file.name, error);
-            }
-        }
-        
-        return attachments;
-    }
-
-    fileToBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        });
-    }
-
     // Методы для админ-панели
     updateAdminEmail(type, email) {
         if (this.config.adminEmails[type]) {
@@ -130,7 +102,6 @@ class EmailService {
     }
 
     testEmailConnection() {
-        // Тестирование подключения к email сервису
         return new Promise((resolve) => {
             setTimeout(() => {
                 resolve({
