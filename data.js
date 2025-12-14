@@ -1930,7 +1930,6 @@ function initCache() {
     try {
         // Проверяем наличие MAX Bridge SecureStorage
         if (window.WebApp && window.WebApp.SecureStorage) {
-            // Загружаем из SecureStorage
             window.WebApp.SecureStorage.getItem('favoriteWifiPoints').then(favorites => {
                 if (favorites) {
                     window.AppCache.favoritePoints = new Set(JSON.parse(favorites));
@@ -2037,9 +2036,3 @@ window.AppUtils = {
     saveToStorage,
     loadFromStorage
 };
-
-// Экспорт для MAX Bridge
-if (window.WebApp) {
-    // Помечаем что данные загружены
-    window.WebAppDataLoaded = true;
-}
