@@ -2,7 +2,7 @@
   "name": "Безопасный Севастополь",
   "short_name": "SafeSevastopol",
   "description": "Безопасность каждого — ответственность всех",
-  "start_url": "/?startapp=",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0c0c0e",
