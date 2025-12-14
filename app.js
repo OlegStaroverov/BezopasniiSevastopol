@@ -20,6 +20,10 @@ class SafeSevastopol {
         this.startParam = null;
         this.yandexMap = null;
         this.mapMarker = null;
+        this.selectedLocation = null;
+        this.locationContext = null;
+        this.confirmMap = null;
+        this.confirmMarker = null;
         
         // Инициализация
         this.init();
@@ -150,6 +154,11 @@ class SafeSevastopol {
             });
         });
 
+        // Выбор на карте для безопасности
+        document.getElementById('pickLocationFromMap')?.addEventListener('click', () => {
+            this.openLocationPicker('security');
+        });
+
         // Счетчик символов
         const descInput = document.getElementById('securityDescription');
         if (descInput) {
@@ -233,6 +242,19 @@ class SafeSevastopol {
         
         document.getElementById('confirmLocation')?.addEventListener('click', () => {
             this.confirmLocation();
+        });
+        
+        document.getElementById('closeConfirmModal')?.addEventListener('click', () => {
+            this.closeConfirmModal();
+        });
+        
+        document.getElementById('cancelConfirmLocation')?.addEventListener('click', () => {
+            this.closeConfirmModal();
+            this.openLocationPicker(this.locationContext);
+        });
+        
+        document.getElementById('acceptLocation')?.addEventListener('click', () => {
+            this.acceptLocation();
         });
 
         // Очистка поиска
@@ -499,14 +521,17 @@ class SafeSevastopol {
                 ${point.address ? `<div class="wifi-result-address">${point.address}</div>` : ''}
                 ${point.description ? `<div class="wifi-result-description">${point.description}</div>` : ''}
                 <div class="wifi-result-actions">
-                    <button class="btn-icon" onclick="app.toggleFavorite(${point.id}, event)">
+                    <button class="btn" onclick="app.toggleFavorite(${point.id}, event)">
                         <i class="${isFavorite ? 'fas' : 'far'} fa-star"></i>
+                        <span>${isFavorite ? 'В избранном' : 'В избранное'}</span>
                     </button>
-                    <button class="btn-icon" onclick="app.openInMaps(${point.id}, event)">
+                    <button class="btn btn-primary" onclick="app.showOnMap(${point.id}, event)">
                         <i class="fas fa-map-marked-alt"></i>
+                        <span>На карте</span>
                     </button>
-                    <button class="btn-icon" onclick="app.reportWifiProblem(${point.id}, event)">
-                        <i class="fas fa-exclamation-circle"></i>
+                    <button class="btn btn-secondary" onclick="app.buildRoute(${point.id}, event)">
+                        <i class="fas fa-route"></i>
+                        <span>Маршрут</span>
                     </button>
                 </div>
             </div>
@@ -545,26 +570,120 @@ class SafeSevastopol {
             const position = await this.getCurrentPosition();
             this.currentLocation = position;
             
-            // Тактильная обратная связь
-            this.hapticFeedback('medium');
-            
-            // Поиск ближайших точек
-            const nearestPoints = this.findNearestPoints(
-                position.coords.latitude, 
-                position.coords.longitude
-            );
-            
-            this.displayWifiPoints(nearestPoints);
-            
-            this.showNotification(`Найдено ${nearestPoints.length} точек поблизости`, 'success');
+            // Показываем модалку подтверждения с картой
+            this.showLocationConfirmation(position);
             
         } catch (error) {
             console.error('❌ Ошибка геолокации:', error);
-            this.showNotification('Не удалось определить местоположение', 'error');
+            this.showNotification('Не удалось определить местоположение. Выберите точку на карте вручную.', 'error');
             
-            // Показать все точки как fallback
-            this.loadWifiPoints();
+            // Предлагаем выбрать на карте
+            this.openLocationPicker('wifi_search');
         }
+    }
+
+    showLocationConfirmation(position) {
+        const modal = document.getElementById('confirmLocationModal');
+        const overlay = document.getElementById('modalOverlay');
+        
+        if (!modal || !overlay) return;
+        
+        // Показываем модалку
+        overlay.style.display = 'block';
+        modal.style.display = 'block';
+        
+        // Инициализируем карту подтверждения
+        this.initConfirmMap(position.coords.latitude, position.coords.longitude);
+        
+        // Обновляем информацию о местоположении
+        document.getElementById('selectedCoordinates').textContent = 
+            `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
+        
+        document.getElementById('locationAccuracy').textContent = 
+            `Точность: ${position.coords.accuracy ? `${Math.round(position.coords.accuracy)} м` : 'неизвестно'}`;
+    }
+
+    initConfirmMap(lat, lon) {
+        if (typeof ymaps === 'undefined') {
+            console.warn('⚠️ Яндекс Карты не загружены');
+            return;
+        }
+        
+        ymaps.ready(() => {
+            const mapContainer = document.getElementById('confirmMap');
+            if (!mapContainer) return;
+            
+            // Очищаем контейнер
+            mapContainer.innerHTML = '';
+            
+            // Создаем карту
+            this.confirmMap = new ymaps.Map('confirmMap', {
+                center: [lat, lon],
+                zoom: 16,
+                controls: ['zoomControl', 'fullscreenControl']
+            }, {
+                searchControlProvider: 'yandex#search'
+            });
+            
+            // Создаем маркер
+            this.confirmMarker = new ymaps.Placemark([lat, lon], {
+                hintContent: 'Ваше местоположение',
+                balloonContent: 'Ваше текущее местоположение'
+            }, {
+                preset: 'islands#blueCircleDotIcon',
+                draggable: false
+            });
+            
+            this.confirmMap.geoObjects.add(this.confirmMarker);
+            
+            // Добавляем круг точности если есть
+            if (navigator.geolocation) {
+                const accuracy = 50; // Примерная точность в метрах
+                const accuracyCircle = new ymaps.Circle([
+                    [lat, lon],
+                    accuracy
+                ], {}, {
+                    fillColor: '#0066ff33',
+                    strokeColor: '#0066ff',
+                    strokeWidth: 2,
+                    strokeOpacity: 0.5
+                });
+                
+                this.confirmMap.geoObjects.add(accuracyCircle);
+            }
+        });
+    }
+
+    acceptLocation() {
+        if (!this.currentLocation) return;
+        
+        // Закрываем модалку подтверждения
+        this.closeConfirmModal();
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('success');
+        
+        // Поиск ближайших точек
+        const nearestPoints = this.findNearestPoints(
+            this.currentLocation.coords.latitude, 
+            this.currentLocation.coords.longitude
+        );
+        
+        this.displayWifiPoints(nearestPoints);
+        
+        this.showNotification(`Найдено ${nearestPoints.length} точек поблизости`, 'success');
+    }
+
+    closeConfirmModal() {
+        const modal = document.getElementById('confirmLocationModal');
+        const overlay = document.getElementById('modalOverlay');
+        
+        if (modal) modal.style.display = 'none';
+        if (overlay) overlay.style.display = 'none';
+        
+        // Очищаем карту
+        this.confirmMap = null;
+        this.confirmMarker = null;
     }
 
     findNearestPoints(userLat, userLon, limit = 20) {
@@ -742,13 +861,13 @@ class SafeSevastopol {
                 </div>
                 
                 <div class="detail-actions">
-                    <button class="btn-primary" onclick="app.openInMaps(${point.id})">
+                    <button class="btn btn-primary btn-large" onclick="app.showOnMap(${point.id})">
                         <i class="fas fa-map-marked-alt"></i>
-                        <span>На карте</span>
+                        <span>Показать на карте</span>
                     </button>
-                    <button class="btn-secondary" onclick="app.buildRoute(${point.id})">
+                    <button class="btn btn-secondary btn-large" onclick="app.buildRoute(${point.id})">
                         <i class="fas fa-route"></i>
-                        <span>Маршрут</span>
+                        <span>Построить маршрут</span>
                     </button>
                 </div>
             </div>
@@ -781,11 +900,15 @@ class SafeSevastopol {
         this.hapticFeedback('light');
         
         // Обновление UI
-        const favoriteBtn = document.querySelector(`[data-id="${pointId}"] .btn-icon`);
+        const favoriteBtn = document.querySelector(`[data-id="${pointId}"] .btn`);
         if (favoriteBtn) {
             const icon = favoriteBtn.querySelector('i');
             if (icon) {
                 icon.className = this.favoritePoints.has(pointId) ? 'fas fa-star' : 'far fa-star';
+                const span = favoriteBtn.querySelector('span');
+                if (span) {
+                    span.textContent = this.favoritePoints.has(pointId) ? 'В избранном' : 'В избранное';
+                }
             }
         }
         
@@ -807,7 +930,7 @@ class SafeSevastopol {
         }
     }
 
-    openInMaps(pointId, event) {
+    showOnMap(pointId, event) {
         if (event) event.stopPropagation();
         
         const point = window.wifiPoints?.find(p => p.id === pointId);
@@ -825,7 +948,9 @@ class SafeSevastopol {
         this.hapticFeedback('light');
     }
 
-    buildRoute(pointId) {
+    buildRoute(pointId, event) {
+        if (event) event.stopPropagation();
+        
         const point = window.wifiPoints?.find(p => p.id === pointId);
         if (!point) return;
         
@@ -842,11 +967,14 @@ class SafeSevastopol {
                 }
                 
             }, () => {
-                this.openInMaps(pointId);
+                this.showOnMap(pointId);
             });
         } else {
-            this.openInMaps(pointId);
+            this.showOnMap(pointId);
         }
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
     }
 
     async submitWifiProblem() {
@@ -1165,8 +1293,7 @@ class SafeSevastopol {
             }
         } catch (error) {
             console.error('❌ Ошибка геолокации:', error);
-            this.showNotification('Не удалось определить местоположение. Укажите адрес вручную.', 'error');
-            this.showAddressInput();
+            this.showNotification('Не удалось определить местоположение. Укажите адрес вручную или выберите на карте.', 'error');
         }
     }
 
@@ -1640,6 +1767,41 @@ class SafeSevastopol {
         
         ymaps.ready(() => {
             console.log('✅ Яндекс Карты готовы');
+        });
+    }
+
+    // ===== МОДАЛЬНЫЕ ОКНА =====
+    openLocationPicker(context) {
+        this.locationContext = context;
+        this.selectedLocation = null;
+        
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modal = document.getElementById('locationModal');
+        
+        if (modalOverlay) modalOverlay.style.display = 'block';
+        if (modal) modal.style.display = 'block';
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('medium');
+        
+        // Инициализация карты
+        this.initLocationMap();
+    }
+
+    initLocationMap() {
+        if (typeof ymaps === 'undefined') {
+            console.warn('⚠️ Яндекс Карты не загружены');
+            return;
+        }
+        
+        ymaps.ready(() => {
+            const mapContainer = document.getElementById('yandexMap');
+            if (!mapContainer) return;
+            
+            // Очищаем контейнер
+            mapContainer.innerHTML = '';
+            
+            // Создаем карту
             this.yandexMap = new ymaps.Map('yandexMap', {
                 center: [44.6166, 33.5254], // Севастополь
                 zoom: 12,
@@ -1682,26 +1844,6 @@ class SafeSevastopol {
         });
     }
 
-    // ===== МОДАЛЬНЫЕ ОКНА =====
-    openLocationPicker(context) {
-        this.locationContext = context;
-        this.selectedLocation = null;
-        
-        const modalOverlay = document.getElementById('modalOverlay');
-        const modal = document.getElementById('locationModal');
-        
-        if (modalOverlay) modalOverlay.style.display = 'block';
-        if (modal) modal.style.display = 'block';
-        
-        // Тактильная обратная связь
-        this.hapticFeedback('medium');
-        
-        // Инициализация карты если еще не инициализирована
-        if (!this.yandexMap && typeof ymaps !== 'undefined') {
-            this.initYandexMaps();
-        }
-    }
-
     confirmLocation() {
         if (this.selectedLocation) {
             let locationText = `${this.selectedLocation.lat.toFixed(6)}, ${this.selectedLocation.lon.toFixed(6)}`;
@@ -1719,6 +1861,29 @@ class SafeSevastopol {
                 if (addressInput) {
                     addressInput.value = `Геолокация: ${locationText}`;
                 }
+                
+                // Переход к следующему шагу если мы на шаге 2
+                if (this.securityReport.step === 2) {
+                    this.nextSecurityStep();
+                }
+            } else if (this.locationContext === 'wifi_search') {
+                this.currentLocation = {
+                    coords: {
+                        latitude: this.selectedLocation.lat,
+                        longitude: this.selectedLocation.lon,
+                        accuracy: 50
+                    }
+                };
+                
+                // Поиск ближайших точек
+                const nearestPoints = this.findNearestPoints(
+                    this.selectedLocation.lat, 
+                    this.selectedLocation.lon
+                );
+                
+                this.displayWifiPoints(nearestPoints);
+                
+                this.showNotification(`Найдено ${nearestPoints.length} точек поблизости`, 'success');
             }
             
             this.closeModal();
@@ -1740,6 +1905,11 @@ class SafeSevastopol {
         modals.forEach(modal => {
             modal.style.display = 'none';
         });
+        
+        // Очищаем карту
+        this.yandexMap = null;
+        this.mapMarker = null;
+        this.selectedLocation = null;
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
@@ -2007,12 +2177,23 @@ class SafeSevastopol {
         } 
         // Иначе используем стандартный способ
         else {
+            // Прямой вызов через tel: протокол
             const link = document.createElement('a');
             link.href = telUrl;
             link.style.display = 'none';
             document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            
+            // Пытаемся сделать вызов
+            try {
+                link.click();
+            } catch (error) {
+                console.error('❌ Ошибка вызова:', error);
+                this.showNotification(`Не удалось совершить вызов ${number}. Проверьте возможность совершения звонков.`, 'error');
+            }
+            
+            setTimeout(() => {
+                document.body.removeChild(link);
+            }, 100);
         }
         
         // Тактильная обратная связь
@@ -2043,18 +2224,6 @@ class SafeSevastopol {
         
         // Тактильная обратная связь
         this.hapticFeedback('medium');
-    }
-
-    showOnMap(pointId, event) {
-        if (event) event.stopPropagation();
-        
-        const point = window.wifiPoints?.find(p => p.id === pointId);
-        if (!point) return;
-        
-        this.openInMaps(pointId);
-        
-        // Тактильная обратная связь
-        this.hapticFeedback('light');
     }
 }
 
