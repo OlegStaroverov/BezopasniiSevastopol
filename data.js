@@ -1894,7 +1894,7 @@ window.wifiPoints = [
 
 // Конфигурация приложения
 window.AppConfig = {
-    name: "Sevastopol Hub",
+    name: "Безопасный Севастополь",
     version: "1.0.0",
     city: "Севастополь",
     coordinates: { lat: 44.6166, lon: 33.5254 },
@@ -1928,14 +1928,31 @@ window.AppCache = {
 // Инициализация кэша
 function initCache() {
     try {
-        const savedFavorites = localStorage.getItem('favoriteWifiPoints');
-        if (savedFavorites) {
-            window.AppCache.favoritePoints = new Set(JSON.parse(savedFavorites));
-        }
-        
-        const savedSettings = localStorage.getItem('appSettings');
-        if (savedSettings) {
-            window.AppCache.settings = JSON.parse(savedSettings);
+        // Проверяем наличие MAX Bridge SecureStorage
+        if (window.WebApp && window.WebApp.SecureStorage) {
+            // Загружаем из SecureStorage
+            window.WebApp.SecureStorage.getItem('favoriteWifiPoints').then(favorites => {
+                if (favorites) {
+                    window.AppCache.favoritePoints = new Set(JSON.parse(favorites));
+                }
+            });
+            
+            window.WebApp.SecureStorage.getItem('appSettings').then(settings => {
+                if (settings) {
+                    window.AppCache.settings = JSON.parse(settings);
+                }
+            });
+        } else {
+            // Fallback на localStorage
+            const savedFavorites = localStorage.getItem('favoriteWifiPoints');
+            if (savedFavorites) {
+                window.AppCache.favoritePoints = new Set(JSON.parse(savedFavorites));
+            }
+            
+            const savedSettings = localStorage.getItem('appSettings');
+            if (savedSettings) {
+                window.AppCache.settings = JSON.parse(savedSettings);
+            }
         }
     } catch (error) {
         console.error('Ошибка инициализации кэша:', error);
@@ -1976,5 +1993,53 @@ function generateReportId() {
     return `RPT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 }
 
+// Сохранение в MAX SecureStorage или localStorage
+async function saveToStorage(key, value) {
+    try {
+        if (window.WebApp && window.WebApp.SecureStorage) {
+            await window.WebApp.SecureStorage.setItem(key, JSON.stringify(value));
+        } else {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+        return true;
+    } catch (error) {
+        console.error('Ошибка сохранения:', error);
+        return false;
+    }
+}
+
+// Загрузка из MAX SecureStorage или localStorage
+async function loadFromStorage(key) {
+    try {
+        if (window.WebApp && window.WebApp.SecureStorage) {
+            const data = await window.WebApp.SecureStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        } else {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки:', error);
+        return null;
+    }
+}
+
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', initCache);
+
+// Экспорт функций для использования в app.js
+window.AppUtils = {
+    calculateDistance,
+    formatDistance,
+    getCurrentTimestamp,
+    validatePhone,
+    generateReportId,
+    saveToStorage,
+    loadFromStorage
+};
+
+// Экспорт для MAX Bridge
+if (window.WebApp) {
+    // Помечаем что данные загружены
+    window.WebAppDataLoaded = true;
+}
