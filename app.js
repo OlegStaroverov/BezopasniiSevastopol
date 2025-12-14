@@ -11,7 +11,6 @@ class SafeSevastopol {
             data: {}
         };
         this.graffitiReport = {
-            urgency: 'low',
             photos: []
         };
         this.mediaFiles = [];
@@ -22,8 +21,6 @@ class SafeSevastopol {
         this.mapMarker = null;
         this.selectedLocation = null;
         this.locationContext = null;
-        this.confirmMap = null;
-        this.confirmMarker = null;
         
         // Инициализация
         this.init();
@@ -93,6 +90,19 @@ class SafeSevastopol {
         if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
             document.body.style.overscrollBehavior = 'none';
         }
+        
+        // Предотвращаем выход за пределы экрана
+        const style = document.createElement('style');
+        style.textContent = `
+            * {
+                max-width: 100vw;
+                box-sizing: border-box;
+            }
+            .app-container {
+                overflow-x: hidden;
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     setupEventListeners() {
@@ -109,12 +119,17 @@ class SafeSevastopol {
             this.searchWifiPoints(e.target.value);
         });
         
-        document.getElementById('findNearbyWifi')?.addEventListener('click', () => {
-            this.findNearbyWifi();
+        document.getElementById('searchButton')?.addEventListener('click', () => {
+            const query = document.getElementById('wifiSearch')?.value || '';
+            if (!query.trim()) {
+                this.showNotification('Заполните поле поиска', 'warning');
+                return;
+            }
+            this.searchWifiPoints(query);
         });
         
-        document.getElementById('sortWifi')?.addEventListener('change', (e) => {
-            this.sortWifiPoints(e.target.value);
+        document.getElementById('findNearbyWifi')?.addEventListener('click', () => {
+            this.findNearbyWifi();
         });
 
         // Фильтры Wi-Fi
@@ -125,10 +140,10 @@ class SafeSevastopol {
             });
         });
 
-        // Избранное
-        document.getElementById('toggleFavorite')?.addEventListener('click', () => {
-            this.toggleCurrentFavorite();
-        });
+        // Избранное - УБРАНО
+        // document.getElementById('toggleFavorite')?.addEventListener('click', () => {
+        //     this.toggleCurrentFavorite();
+        // });
 
         // Форма безопасности
         document.getElementById('nextStep')?.addEventListener('click', () => {
@@ -177,13 +192,6 @@ class SafeSevastopol {
         });
 
         // Граффити
-        document.querySelectorAll('.urgency-option').forEach(option => {
-            option.addEventListener('click', (e) => {
-                const urgency = e.currentTarget.dataset.urgency;
-                this.setGraffitiUrgency(urgency);
-            });
-        });
-
         document.getElementById('selectGraffitiLocation')?.addEventListener('click', () => {
             this.openLocationPicker('graffiti');
         });
@@ -262,6 +270,32 @@ class SafeSevastopol {
             document.getElementById('wifiSearch').value = '';
             this.searchWifiPoints('');
         });
+        
+        // Переключение темы
+        document.getElementById('themeToggleSmall')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleTheme();
+        });
+    }
+
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', newTheme === 'dark' ? '#0c0c0e' : '#ffffff');
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('theme', newTheme);
+        
+        // Обновляем иконки
+        const themeIcons = document.querySelectorAll('[data-theme-icon]');
+        themeIcons.forEach(icon => {
+            icon.style.display = icon.dataset.themeIcon === newTheme ? 'none' : 'inline-block';
+        });
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
     }
 
     async loadUserData() {
@@ -307,25 +341,6 @@ class SafeSevastopol {
             const userNameElement = document.getElementById('userName');
             if (userNameElement) {
                 userNameElement.textContent = this.currentUser.first_name || 'Гость';
-            }
-            
-            // Загрузка избранных точек
-            try {
-                if (this.maxBridge?.SecureStorage) {
-                    const favorites = await this.maxBridge.SecureStorage.getItem('favoriteWifiPoints');
-                    if (favorites) {
-                        this.favoritePoints = new Set(JSON.parse(favorites));
-                        console.log('⭐ Избранное загружено из SecureStorage:', this.favoritePoints.size);
-                    }
-                } else {
-                    const favorites = localStorage.getItem('favoriteWifiPoints');
-                    if (favorites) {
-                        this.favoritePoints = new Set(JSON.parse(favorites));
-                        console.log('⭐ Избранное загружено из localStorage:', this.favoritePoints.size);
-                    }
-                }
-            } catch (storageError) {
-                console.warn('Ошибка загрузки избранного:', storageError);
             }
             
             // Настройка кнопки "Назад" для MAX
@@ -462,7 +477,10 @@ class SafeSevastopol {
             const wifiCountElement = document.getElementById('wifiCount');
             if (wifiCountElement) wifiCountElement.textContent = points.length;
             
-            if (loadingElement) loadingElement.classList.remove('visible');
+            if (loadingElement) {
+                loadingElement.classList.remove('visible');
+                loadingElement.style.display = 'none'; // Полностью скрываем
+            }
             
         } catch (error) {
             console.error('❌ Ошибка загрузки точек Wi-Fi:', error);
@@ -475,7 +493,10 @@ class SafeSevastopol {
                     </div>
                 `;
             }
-            if (loadingElement) loadingElement.classList.remove('visible');
+            if (loadingElement) {
+                loadingElement.classList.remove('visible');
+                loadingElement.style.display = 'none';
+            }
         }
     }
 
@@ -507,7 +528,6 @@ class SafeSevastopol {
     }
 
     createWifiPointCard(point) {
-        const isFavorite = this.favoritePoints.has(point.id);
         const distance = point.distance ? this.formatDistance(point.distance) : '';
         
         return `
@@ -521,10 +541,6 @@ class SafeSevastopol {
                 ${point.address ? `<div class="wifi-result-address">${point.address}</div>` : ''}
                 ${point.description ? `<div class="wifi-result-description">${point.description}</div>` : ''}
                 <div class="wifi-result-actions">
-                    <button class="btn" onclick="app.toggleFavorite(${point.id}, event)">
-                        <i class="${isFavorite ? 'fas' : 'far'} fa-star"></i>
-                        <span>${isFavorite ? 'В избранном' : 'В избранное'}</span>
-                    </button>
                     <button class="btn btn-primary" onclick="app.showOnMap(${point.id}, event)">
                         <i class="fas fa-map-marked-alt"></i>
                         <span>На карте</span>
@@ -567,11 +583,8 @@ class SafeSevastopol {
         try {
             this.showNotification('Определяем ваше местоположение...', 'info');
             
-            const position = await this.getCurrentPosition();
-            this.currentLocation = position;
-            
-            // Показываем модалку подтверждения с картой
-            this.showLocationConfirmation(position);
+            // Прямо открываем карту для выбора местоположения
+            this.openLocationPicker('wifi_search');
             
         } catch (error) {
             console.error('❌ Ошибка геолокации:', error);
@@ -580,78 +593,6 @@ class SafeSevastopol {
             // Предлагаем выбрать на карте
             this.openLocationPicker('wifi_search');
         }
-    }
-
-    showLocationConfirmation(position) {
-        const modal = document.getElementById('confirmLocationModal');
-        const overlay = document.getElementById('modalOverlay');
-        
-        if (!modal || !overlay) return;
-        
-        // Показываем модалку
-        overlay.style.display = 'block';
-        modal.style.display = 'block';
-        
-        // Инициализируем карту подтверждения
-        this.initConfirmMap(position.coords.latitude, position.coords.longitude);
-        
-        // Обновляем информацию о местоположении
-        document.getElementById('selectedCoordinates').textContent = 
-            `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
-        
-        document.getElementById('locationAccuracy').textContent = 
-            `Точность: ${position.coords.accuracy ? `${Math.round(position.coords.accuracy)} м` : 'неизвестно'}`;
-    }
-
-    initConfirmMap(lat, lon) {
-        if (typeof ymaps === 'undefined') {
-            console.warn('⚠️ Яндекс Карты не загружены');
-            return;
-        }
-        
-        ymaps.ready(() => {
-            const mapContainer = document.getElementById('confirmMap');
-            if (!mapContainer) return;
-            
-            // Очищаем контейнер
-            mapContainer.innerHTML = '';
-            
-            // Создаем карту
-            this.confirmMap = new ymaps.Map('confirmMap', {
-                center: [lat, lon],
-                zoom: 16,
-                controls: ['zoomControl', 'fullscreenControl']
-            }, {
-                searchControlProvider: 'yandex#search'
-            });
-            
-            // Создаем маркер
-            this.confirmMarker = new ymaps.Placemark([lat, lon], {
-                hintContent: 'Ваше местоположение',
-                balloonContent: 'Ваше текущее местоположение'
-            }, {
-                preset: 'islands#blueCircleDotIcon',
-                draggable: false
-            });
-            
-            this.confirmMap.geoObjects.add(this.confirmMarker);
-            
-            // Добавляем круг точности если есть
-            if (navigator.geolocation) {
-                const accuracy = 50; // Примерная точность в метрах
-                const accuracyCircle = new ymaps.Circle([
-                    [lat, lon],
-                    accuracy
-                ], {}, {
-                    fillColor: '#0066ff33',
-                    strokeColor: '#0066ff',
-                    strokeWidth: 2,
-                    strokeOpacity: 0.5
-                });
-                
-                this.confirmMap.geoObjects.add(accuracyCircle);
-            }
-        });
     }
 
     acceptLocation() {
@@ -772,49 +713,9 @@ class SafeSevastopol {
         if (wifiCountElement) wifiCountElement.textContent = filtered.length;
     }
 
-    sortWifiPoints(criteria) {
-        const container = document.getElementById('wifiResults');
-        if (!container) return;
-        
-        const items = Array.from(container.querySelectorAll('.wifi-result-item'));
-        
-        items.sort((a, b) => {
-            const aId = parseInt(a.dataset.id);
-            const bId = parseInt(b.dataset.id);
-            const aPoint = window.wifiPoints?.find(p => p.id === aId);
-            const bPoint = window.wifiPoints?.find(p => p.id === bId);
-            
-            if (!aPoint || !bPoint) return 0;
-            
-            switch(criteria) {
-                case 'distance':
-                    return (aPoint.distance || 0) - (bPoint.distance || 0);
-                case 'name':
-                    return aPoint.name.localeCompare(bPoint.name);
-                case 'type':
-                    return aPoint.type.localeCompare(bPoint.type);
-                default:
-                    return 0;
-            }
-        });
-        
-        // Перестановка элементов
-        container.innerHTML = '';
-        items.forEach(item => container.appendChild(item));
-    }
-
     showWifiDetails(point) {
         const container = document.getElementById('wifiDetails');
         if (!container) return;
-        
-        const isFavorite = this.favoritePoints.has(point.id);
-        
-        // Обновляем кнопку избранного
-        const favoriteBtn = document.getElementById('toggleFavorite');
-        if (favoriteBtn) {
-            favoriteBtn.innerHTML = `<i class="${isFavorite ? 'fas' : 'far'} fa-star"></i>`;
-            favoriteBtn.dataset.pointId = point.id;
-        }
         
         container.innerHTML = `
             <div class="wifi-details-content">
@@ -875,59 +776,6 @@ class SafeSevastopol {
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
-    }
-
-    toggleFavorite(pointId, event) {
-        if (event) event.stopPropagation();
-        
-        if (this.favoritePoints.has(pointId)) {
-            this.favoritePoints.delete(pointId);
-            this.showNotification('Удалено из избранного', 'info');
-        } else {
-            this.favoritePoints.add(pointId);
-            this.showNotification('Добавлено в избранное', 'success');
-        }
-        
-        // Сохранение в SecureStorage если доступно, иначе в localStorage
-        const favoritesData = JSON.stringify([...this.favoritePoints]);
-        if (this.maxBridge?.SecureStorage) {
-            this.maxBridge.SecureStorage.setItem('favoriteWifiPoints', favoritesData);
-        } else {
-            localStorage.setItem('favoriteWifiPoints', favoritesData);
-        }
-        
-        // Тактильная обратная связь
-        this.hapticFeedback('light');
-        
-        // Обновление UI
-        const favoriteBtn = document.querySelector(`[data-id="${pointId}"] .btn`);
-        if (favoriteBtn) {
-            const icon = favoriteBtn.querySelector('i');
-            if (icon) {
-                icon.className = this.favoritePoints.has(pointId) ? 'fas fa-star' : 'far fa-star';
-                const span = favoriteBtn.querySelector('span');
-                if (span) {
-                    span.textContent = this.favoritePoints.has(pointId) ? 'В избранном' : 'В избранное';
-                }
-            }
-        }
-        
-        // Обновление кнопки в деталях
-        const detailsFavoriteBtn = document.getElementById('toggleFavorite');
-        if (detailsFavoriteBtn && detailsFavoriteBtn.dataset.pointId == pointId) {
-            const icon = detailsFavoriteBtn.querySelector('i');
-            if (icon) {
-                icon.className = this.favoritePoints.has(pointId) ? 'fas fa-star' : 'far fa-star';
-            }
-        }
-    }
-
-    toggleCurrentFavorite() {
-        const favoriteBtn = document.getElementById('toggleFavorite');
-        if (favoriteBtn && favoriteBtn.dataset.pointId) {
-            const pointId = parseInt(favoriteBtn.dataset.pointId);
-            this.toggleFavorite(pointId);
-        }
     }
 
     showOnMap(pointId, event) {
@@ -997,7 +845,7 @@ class SafeSevastopol {
             const reportData = {
                 type: 'wifi_problem',
                 pointId: pointId,
-                pointName: point?.name || 'Неизвестная точка',
+                pointName: point?.name || '',
                 description: description,
                 userId: this.currentUser?.id || 'anonymous',
                 userName: this.currentUser?.first_name || 'Аноним',
@@ -1199,8 +1047,8 @@ class SafeSevastopol {
                     return false;
                 }
                 
-                if (description.length < 30) {
-                    this.showNotification('Описание должно содержать минимум 30 символов', 'error');
+                if (description.length < 10) {
+                    this.showNotification('Описание должно содержать минимум 10 символов', 'error');
                     return false;
                 }
                 
@@ -1372,23 +1220,6 @@ class SafeSevastopol {
     }
 
     // ===== ГРАФФИТИ ФУНКЦИОНАЛ =====
-    setGraffitiUrgency(urgency) {
-        this.graffitiReport.urgency = urgency;
-        
-        // Обновление UI
-        document.querySelectorAll('.urgency-option').forEach(option => {
-            option.classList.remove('active');
-        });
-        
-        const activeOption = document.querySelector(`[data-urgency="${urgency}"]`);
-        if (activeOption) {
-            activeOption.classList.add('active');
-        }
-        
-        // Тактильная обратная связь
-        this.hapticFeedback('selection');
-    }
-
     handleGraffitiPhotos(files) {
         if (!files || files.length === 0) return;
         
@@ -1464,7 +1295,7 @@ class SafeSevastopol {
             }
             
             if (!description) {
-                this.showNotification('Добавьте описание граффити', 'error');
+                this.showNotification('Добавьте описание проблемы', 'error');
                 return;
             }
             
@@ -1475,7 +1306,6 @@ class SafeSevastopol {
             
             // Сбор данных
             const reportData = {
-                urgency: this.graffitiReport.urgency,
                 location: location,
                 description: description,
                 photos: this.graffitiReport.photos.length,
@@ -1508,7 +1338,6 @@ class SafeSevastopol {
 
     resetGraffitiForm() {
         this.graffitiReport = {
-            urgency: 'low',
             photos: []
         };
         
@@ -1517,14 +1346,6 @@ class SafeSevastopol {
         
         if (locationInput) locationInput.value = '';
         if (descInput) descInput.value = '';
-        
-        // Сброс UI
-        document.querySelectorAll('.urgency-option').forEach(option => {
-            option.classList.remove('active');
-        });
-        
-        const lowOption = document.querySelector('[data-urgency="low"]');
-        if (lowOption) lowOption.classList.add('active');
         
         this.updateGraffitiPhotoPreview();
     }
@@ -1602,19 +1423,19 @@ class SafeSevastopol {
     getTypeName(type) {
         const names = {
             'здрав': 'Медицинские организации',
-            'образование': 'Образовательные учреждения',
-            'тц': 'Торговые центры и магазины',
-            'отдых': 'Парки и места отдыха',
+            'образование': 'Школы, ВУЗы, юношеские клубы',
+            'тц': 'Торговые центры, рынки, магазины',
+            'отдых': 'Развлечения, достопримечательности',
             'парки и скверы': 'Парки и скверы',
-            'транспорт': 'Транспортные узлы',
-            'спорт': 'Спортивные объекты',
-            'МФЦ': 'Многофункциональные центры',
-            'АЗС': 'Автозаправочные станции',
+            'транспорт': 'Остановки',
+            'спорт': 'Спорт',
+            'МФЦ': 'МФЦ',
+            'АЗС': 'АЗС',
             'гостиница': 'Гостиницы',
             'пляж': 'Пляжи',
             'турбаза': 'Турбазы',
             'дома': 'Жилые комплексы',
-            'кафе': 'Кафе и рестораны',
+            'кафе': 'Кафе',
             'торговля': 'Магазины',
             '': 'Другое'
         };
@@ -1659,28 +1480,28 @@ class SafeSevastopol {
     }
 
     getAdminEmail(type) {
-        const defaultEmail = 'admin@sevastopol.ru';
-        const storedEmail = localStorage.getItem(`${type}_admin_email`);
-        return storedEmail || defaultEmail;
+        // Разные админы для разных направлений
+        const adminEmails = {
+            'security': 'security-admin@sevastopol.ru',
+            'wifi': 'wifi-admin@sevastopol.ru',
+            'graffiti': 'graffiti-admin@sevastopol.ru',
+            'wifi_suggestion': 'wifi-admin@sevastopol.ru'
+        };
+        
+        return adminEmails[type] || 'admin@sevastopol.ru';
     }
 
     getEmailSubject(type, data) {
         const subjects = {
             security: `СРОЧНО: Сообщение о безопасности #${data.id}`,
             graffiti: `Граффити для удаления #${data.id}`,
-            wifi: `Проблема с Wi-Fi: ${data.pointName || 'Unknown'}`,
-            wifi_suggestion: `Предложение новой точки Wi-Fi: ${data.name || 'Unknown'}`
+            wifi: `Проблема с Wi-Fi: ${data.pointName || ''}`,
+            wifi_suggestion: `Предложение новой точки Wi-Fi: ${data.name || ''}`
         };
         return subjects[type] || 'Новое обращение в Безопасный Севастополь';
     }
 
     generateEmailHtml(data, type) {
-        const urgencyText = {
-            'low': 'Низкая',
-            'medium': 'Средняя',
-            'high': 'Высокая'
-        };
-        
         return `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                 <h2 style="color: #0066ff; border-bottom: 2px solid #0066ff; padding-bottom: 10px;">
@@ -1706,7 +1527,6 @@ class SafeSevastopol {
                     ${data.address ? `<p><strong>Адрес:</strong> ${data.address}</p>` : ''}
                     ${data.location ? `<p><strong>Местоположение:</strong> ${data.location.lat}, ${data.location.lon}</p>` : ''}
                     ${data.category ? `<p><strong>Категория:</strong> ${data.category}</p>` : ''}
-                    ${data.urgency ? `<p><strong>Срочность:</strong> ${urgencyText[data.urgency] || data.urgency}</p>` : ''}
                     ${data.description ? `<p><strong>Описание:</strong> ${data.description}</p>` : ''}
                     ${data.mediaFiles ? `<p><strong>Медиафайлов:</strong> ${data.mediaFiles}</p>` : ''}
                     ${data.photos ? `<p><strong>Фотографий:</strong> ${data.photos}</p>` : ''}
@@ -2085,7 +1905,7 @@ class SafeSevastopol {
             total: total,
             pending: pending,
             completed: completed,
-            activeUsers: 1, // В реальном приложении здесь будет запрос к API
+            activeUsers: 1,
             byCategory: {
                 security: securityReports.length,
                 graffiti: graffitiReports.length,
@@ -2198,8 +2018,6 @@ class SafeSevastopol {
         
         // Тактильная обратная связь
         this.hapticFeedback('heavy');
-        
-        this.showNotification(`Вызов ${number}...`, 'info');
     }
 
     // ===== ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ HTML =====
