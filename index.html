@@ -126,11 +126,18 @@
     <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_ключ_яндекс_карт&lang=ru_RU" type="text/javascript"></script>
 </head>
 <body>
-    <!-- Кнопка переключения темы -->
-    <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
-        <i class="fas fa-moon" data-theme-icon="dark"></i>
-        <i class="fas fa-sun" data-theme-icon="light" style="display: none;"></i>
-    </button>
+    <!-- Прелоадер -->
+    <div class="preloader" id="preloader">
+        <div class="preloader-content">
+            <div class="preloader-spinner">
+                <div class="spinner"></div>
+            </div>
+            <div class="preloader-text">
+                <h3>Загрузка Безопасный Севастополь</h3>
+                <p>Пожалуйста, подождите...</p>
+            </div>
+        </div>
+    </div>
 
     <!-- Основной контейнер -->
     <div class="app-container">
@@ -149,11 +156,17 @@
                 
                 <div class="user-section">
                     <div class="user-info">
-                        <span class="user-name" id="userName">Гость</span>
-                        <div class="user-status">
-                            <i class="fas fa-circle online"></i>
-                            <span>Онлайн</span>
+                        <div class="user-header">
+                            <span class="user-name" id="userName">Гость</span>
+                            <div class="user-status">
+                                <i class="fas fa-circle online"></i>
+                                <span>Онлайн</span>
+                            </div>
                         </div>
+                        <button class="theme-toggle-small" id="themeToggleSmall" aria-label="Переключить тему">
+                            <i class="fas fa-moon" data-theme-icon="dark"></i>
+                            <i class="fas fa-sun" data-theme-icon="light" style="display: none;"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -403,6 +416,10 @@
                                     <i class="fas fa-map-pin"></i>
                                     <span>Указать адрес</span>
                                 </button>
+                                <button class="location-option" data-type="map" id="pickLocationFromMap">
+                                    <i class="fas fa-map-marked-alt"></i>
+                                    <span>Выбрать на карте</span>
+                                </button>
                             </div>
                             
                             <div class="form-group mt-4" id="addressInputGroup" style="display: none;">
@@ -531,9 +548,10 @@
                             <label for="graffitiLocation">Местоположение:</label>
                             <div class="location-input-group">
                                 <input type="text" id="graffitiLocation" class="form-input" 
-                                       placeholder="Введите адрес" required>
-                                <button class="btn-secondary" id="selectGraffitiLocation">
+                                       placeholder="Введите адрес или выберите на карте" required>
+                                <button class="btn-primary graffiti-map-btn" id="selectGraffitiLocation">
                                     <i class="fas fa-map-marker-alt"></i>
+                                    <span>Карта</span>
                                 </button>
                             </div>
                         </div>
@@ -608,8 +626,9 @@
                                     <div class="emergency-number">112</div>
                                     <p class="emergency-desc">С мобильного телефона</p>
                                 </div>
-                                <button class="btn-call" data-number="112" title="Позвонить">
+                                <button class="btn-call btn-call-large" data-number="112" title="Позвонить">
                                     <i class="fas fa-phone"></i>
+                                    <span>Вызов</span>
                                 </button>
                             </div>
                             
@@ -622,8 +641,9 @@
                                     <div class="emergency-number">101</div>
                                     <p class="emergency-desc">Пожар, авария, спасение</p>
                                 </div>
-                                <button class="btn-call" data-number="101" title="Позвонить">
+                                <button class="btn-call btn-call-large" data-number="101" title="Позвонить">
                                     <i class="fas fa-phone"></i>
+                                    <span>Вызов</span>
                                 </button>
                             </div>
                             
@@ -636,8 +656,9 @@
                                     <div class="emergency-number">102</div>
                                     <p class="emergency-desc">Преступления, правонарушения</p>
                                 </div>
-                                <button class="btn-call" data-number="102" title="Позвонить">
+                                <button class="btn-call btn-call-large" data-number="102" title="Позвонить">
                                     <i class="fas fa-phone"></i>
+                                    <span>Вызов</span>
                                 </button>
                             </div>
                             
@@ -650,8 +671,9 @@
                                     <div class="emergency-number">103</div>
                                     <p class="emergency-desc">Медицинская помощь, травмы</p>
                                 </div>
-                                <button class="btn-call" data-number="103" title="Позвонить">
+                                <button class="btn-call btn-call-large" data-number="103" title="Позвонить">
                                     <i class="fas fa-phone"></i>
+                                    <span>Вызов</span>
                                 </button>
                             </div>
                             
@@ -664,8 +686,9 @@
                                     <div class="emergency-number">+7 (8692) 54-37-78</div>
                                     <p class="emergency-desc">Севастополь и Крым</p>
                                 </div>
-                                <button class="btn-call" data-number="+78692543778" title="Позвонить">
+                                <button class="btn-call btn-call-large" data-number="+78692543778" title="Позвонить">
                                     <i class="fas fa-phone"></i>
+                                    <span>Вызов</span>
                                 </button>
                             </div>
                         </div>
@@ -694,8 +717,9 @@
                                     <p class="contact-number">+7 (8692) 54-34-34</p>
                                     <p>Пн-Пт: 9:00-18:00</p>
                                 </div>
-                                <button class="btn-call" data-number="+78692543434" title="Позвонить">
+                                <button class="btn-call btn-call-large" data-number="+78692543434" title="Позвонить">
                                     <i class="fas fa-phone"></i>
+                                    <span>Вызов</span>
                                 </button>
                             </div>
                             
@@ -926,21 +950,30 @@
         </div>
     </div>
 
-    <!-- Уведомления -->
-    <div class="notifications-container" id="notificationsContainer"></div>
-
-    <!-- Прелоадер -->
-    <div class="preloader" id="preloader">
-        <div class="preloader-content">
-            <div class="preloader-spinner">
-                <div class="spinner"></div>
-            </div>
-            <div class="preloader-text">
-                <h3>Загрузка Безопасный Севастополь</h3>
-                <p>Пожалуйста, подождите...</p>
+    <!-- Модалка: Подтверждение местоположения -->
+    <div class="modal" id="confirmLocationModal">
+        <div class="modal-header">
+            <h3>Подтвердите местоположение</h3>
+            <button class="modal-close" id="closeConfirmModal">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="confirmMap" class="map-container"></div>
+            <div class="location-info">
+                <p><i class="fas fa-map-marker-alt"></i> Выбранная точка:</p>
+                <p class="coordinates" id="selectedCoordinates"></p>
+                <p class="accuracy" id="locationAccuracy"></p>
             </div>
         </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" id="cancelConfirmLocation">Изменить</button>
+            <button class="btn-primary" id="acceptLocation">Подтвердить</button>
+        </div>
     </div>
+
+    <!-- Уведомления -->
+    <div class="notifications-container" id="notificationsContainer"></div>
 
     <!-- Подключение скриптов -->
     <script src="data.js"></script>
@@ -978,7 +1011,7 @@
             window.addEventListener('orientationchange', setAppHeight);
             
             // Инициализация переключения темы
-            const themeToggle = document.getElementById('themeToggle');
+            const themeToggle = document.getElementById('themeToggleSmall');
             const themeIcons = themeToggle.querySelectorAll('[data-theme-icon]');
             
             function setTheme(theme) {
