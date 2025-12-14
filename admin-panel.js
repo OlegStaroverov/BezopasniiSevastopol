@@ -4,8 +4,8 @@ class AdminPanel {
         this.app = app;
         this.currentTab = 'dashboard';
         this.reports = {
-            wifi: [],
             security: [],
+            wifi: [],
             graffiti: []
         };
         this.filters = {
@@ -15,6 +15,11 @@ class AdminPanel {
             dateTo: null
         };
         this.stats = {};
+        this.adminEmails = {
+            security: 'security-admin@sevastopol.ru',
+            wifi: 'wifi-admin@sevastopol.ru',
+            graffiti: 'graffiti-admin@sevastopol.ru'
+        };
         
         this.init();
     }
@@ -28,64 +33,20 @@ class AdminPanel {
 
     async loadReports() {
         try {
-            const savedReports = localStorage.getItem('adminReports');
-            if (savedReports) {
-                this.reports = JSON.parse(savedReports);
-            } else {
-                await this.fetchReportsFromServer();
-            }
+            // Загружаем отчеты из localStorage
+            this.reports.security = JSON.parse(localStorage.getItem('security_reports') || '[]');
+            this.reports.wifi = JSON.parse(localStorage.getItem('wifi_problems_reports') || '[]');
+            this.reports.graffiti = JSON.parse(localStorage.getItem('graffiti_reports') || '[]');
+            
+            console.log('📊 Отчеты загружены:', {
+                security: this.reports.security.length,
+                wifi: this.reports.wifi.length,
+                graffiti: this.reports.graffiti.length
+            });
+            
         } catch (error) {
             console.error('Ошибка загрузки отчетов:', error);
         }
-    }
-
-    async fetchReportsFromServer() {
-        return new Promise(resolve => {
-            setTimeout(() => {
-                this.reports = {
-                    wifi: this.generateMockReports('wifi', 15),
-                    security: this.generateMockReports('security', 28),
-                    graffiti: this.generateMockReports('graffiti', 12)
-                };
-                localStorage.setItem('adminReports', JSON.stringify(this.reports));
-                resolve();
-            }, 1000);
-        });
-    }
-
-    generateMockReports(type, count) {
-        const reports = [];
-        const statuses = ['new', 'in_progress', 'resolved', 'rejected'];
-        const categories = {
-            wifi: ['no_signal', 'slow_speed', 'no_access', 'other'],
-            security: ['suspicious_object', 'suspicious_activity', 'dangerous_situation', 'other'],
-            graffiti: ['vandalism', 'tag', 'political', 'art', 'other']
-        };
-        
-        for (let i = 1; i <= count; i++) {
-            reports.push({
-                id: `${type.toUpperCase()}-${1000 + i}`,
-                type: type,
-                status: statuses[Math.floor(Math.random() * statuses.length)],
-                category: categories[type][Math.floor(Math.random() * categories[type].length)],
-                title: `Отчет ${type} #${i}`,
-                description: `Описание проблемы для отчета ${type} #${i}`,
-                userName: `Пользователь ${Math.floor(Math.random() * 100)}`,
-                userPhone: `+7${9000000000 + Math.floor(Math.random() * 1000000000)}`,
-                location: `Севастополь, ул. Примерная, ${Math.floor(Math.random() * 100)}`,
-                coordinates: {
-                    lat: 44.5 + Math.random() * 0.3,
-                    lon: 33.4 + Math.random() * 0.3
-                },
-                timestamp: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-                assignedTo: Math.random() > 0.7 ? `Админ ${Math.floor(Math.random() * 5)}` : null,
-                priority: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
-                hasMedia: Math.random() > 0.5,
-                notes: Math.random() > 0.8 ? `Заметки по отчету ${i}` : ''
-            });
-        }
-        
-        return reports;
     }
 
     async loadStats() {
@@ -93,7 +54,6 @@ class AdminPanel {
             total: 0,
             byType: {},
             byStatus: {},
-            byPriority: {},
             today: 0,
             week: 0,
             month: 0
@@ -106,7 +66,6 @@ class AdminPanel {
             
             typeReports.forEach(report => {
                 this.stats.byStatus[report.status] = (this.stats.byStatus[report.status] || 0) + 1;
-                this.stats.byPriority[report.priority] = (this.stats.byPriority[report.priority] || 0) + 1;
                 
                 const reportDate = new Date(report.timestamp);
                 const now = new Date();
@@ -120,22 +79,69 @@ class AdminPanel {
     }
 
     setupEventListeners() {
-        // Фильтры
+        // Фильтры безопасности
         document.getElementById('securityStatusFilter')?.addEventListener('change', (e) => {
             this.filters.status = e.target.value;
             this.renderSecurityReports();
         });
         
-        document.getElementById('securityCategoryFilter')?.addEventListener('change', (e) => {
-            this.filters.category = e.target.value;
-            this.renderSecurityReports();
-        });
-        
         // Экспорт данных
+        document.getElementById('exportSecurityData')?.addEventListener('click', () => this.exportData('security'));
         document.getElementById('exportWifiData')?.addEventListener('click', () => this.exportData('wifi'));
+        document.getElementById('exportGraffitiData')?.addEventListener('click', () => this.exportData('graffiti'));
         
         // Обновление
-        document.getElementById('refreshWifi')?.addEventListener('click', () => this.refreshReports());
+        document.getElementById('refreshSecurity')?.addEventListener('click', () => this.refreshReports('security'));
+        document.getElementById('refreshWifi')?.addEventListener('click', () => this.refreshReports('wifi'));
+        document.getElementById('refreshGraffiti')?.addEventListener('click', () => this.refreshReports('graffiti'));
+        
+        // Сохранение email настроек
+        document.getElementById('saveSecurityEmail')?.addEventListener('click', () => this.saveAdminEmail('security'));
+        document.getElementById('saveWifiEmail')?.addEventListener('click', () => this.saveAdminEmail('wifi'));
+        document.getElementById('saveGraffitiEmail')?.addEventListener('click', () => this.saveAdminEmail('graffiti'));
+        
+        // Загрузка email настроек при открытии вкладки настроек
+        document.querySelector('[data-tab="settings-admin"]')?.addEventListener('click', () => {
+            this.loadAdminEmailSettings();
+        });
+    }
+
+    loadAdminEmailSettings() {
+        // Загружаем сохраненные email админов
+        const savedEmails = JSON.parse(localStorage.getItem('admin_emails') || '{}');
+        this.adminEmails = { ...this.adminEmails, ...savedEmails };
+        
+        // Устанавливаем значения в поля
+        document.getElementById('securityAdminEmail')?.value = this.adminEmails.security || '';
+        document.getElementById('wifiAdminEmail')?.value = this.adminEmails.wifi || '';
+        document.getElementById('graffitiAdminEmail')?.value = this.adminEmails.graffiti || '';
+    }
+
+    saveAdminEmail(type) {
+        const inputId = `${type}AdminEmail`;
+        const input = document.getElementById(inputId);
+        
+        if (!input) return;
+        
+        const email = input.value.trim();
+        
+        if (email && this.validateEmail(email)) {
+            this.adminEmails[type] = email;
+            localStorage.setItem('admin_emails', JSON.stringify(this.adminEmails));
+            
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification(`Email для ${type} сохранен`, 'success');
+            }
+        } else {
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Введите корректный email', 'error');
+            }
+        }
+    }
+
+    validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
     }
 
     renderDashboard() {
@@ -144,7 +150,7 @@ class AdminPanel {
         document.getElementById('adminPendingReports').textContent = this.stats.byStatus['new'] || 0;
         document.getElementById('adminCompletedReports').textContent = this.stats.byStatus['resolved'] || 0;
         
-        // Расчет активных пользователей (симуляция)
+        // Расчет активных пользователей
         const activeUsers = Math.floor(50 + Math.random() * 50);
         document.getElementById('adminActiveUsers').textContent = activeUsers;
         
@@ -164,11 +170,11 @@ class AdminPanel {
             new Chart(categoryCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Wi-Fi', 'Безопасность', 'Граффити'],
+                    labels: ['Безопасность', 'Wi-Fi', 'Граффити'],
                     datasets: [{
                         data: [
-                            this.stats.byType.wifi || 0,
                             this.stats.byType.security || 0,
+                            this.stats.byType.wifi || 0,
                             this.stats.byType.graffiti || 0
                         ],
                         backgroundColor: ['#0066ff', '#34c759', '#ff9500'],
@@ -203,79 +209,142 @@ class AdminPanel {
             filteredReports = filteredReports.filter(r => r.status === this.filters.status);
         }
         
-        if (this.filters.category !== 'all') {
-            filteredReports = filteredReports.filter(r => r.category === this.filters.category);
-        }
+        // Сортируем по дате (новые сверху)
+        filteredReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
         // Рендеринг
-        container.innerHTML = filteredReports.map(report => this.createReportCard(report)).join('');
+        container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'security')).join('');
     }
 
-    createReportCard(report) {
+    renderWifiReports() {
+        const container = document.getElementById('wifiReportsList');
+        if (!container) return;
+        
+        let filteredReports = this.reports.wifi;
+        
+        // Сортируем по дате (новые сверху)
+        filteredReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        // Рендеринг
+        container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'wifi')).join('');
+    }
+
+    renderGraffitiReports() {
+        const container = document.getElementById('graffitiReportsList');
+        if (!container) return;
+        
+        let filteredReports = this.reports.graffiti;
+        
+        // Сортируем по дате (новые сверху)
+        filteredReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        // Рендеринг
+        container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'graffiti')).join('');
+    }
+
+    createReportCard(report, type) {
         const statusColors = {
-            new: '#ff9500',
-            in_progress: '#0066ff',
-            resolved: '#34c759',
-            rejected: '#ff3b30'
+            'new': '#ff9500',
+            'in_progress': '#0066ff',
+            'resolved': '#34c759',
+            'rejected': '#ff3b30'
         };
         
-        const priorityColors = {
-            high: '#ff3b30',
-            medium: '#ff9500',
-            low: '#34c759'
+        const typeIcons = {
+            'security': 'fas fa-shield-alt',
+            'wifi': 'fas fa-wifi',
+            'graffiti': 'fas fa-spray-can'
+        };
+        
+        const typeColors = {
+            'security': '#0066ff',
+            'wifi': '#34c759',
+            'graffiti': '#ff9500'
+        };
+        
+        const getStatusText = (status) => {
+            const statuses = {
+                'new': '🆕 Новый',
+                'in_progress': '🔄 В работе',
+                'resolved': '✅ Решено',
+                'rejected': '❌ Отклонено'
+            };
+            return statuses[status] || status;
+        };
+        
+        const formatDate = (dateString) => {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
         };
         
         return `
-            <div class="report-card" data-id="${report.id}">
+            <div class="report-card" data-id="${report.id}" data-type="${type}">
                 <div class="report-header">
                     <div class="report-title">
-                        <h4>${report.title}</h4>
+                        <div class="report-type-badge" style="background: ${typeColors[type] || '#666'}">
+                            <i class="${typeIcons[type] || 'fas fa-question'}"></i>
+                            <span>${type.toUpperCase()}</span>
+                        </div>
+                        <h4>${report.title || report.description?.substring(0, 50) + '...' || 'Без названия'}</h4>
                         <div class="report-meta">
                             <span class="report-id">${report.id}</span>
-                            <span class="report-date">${new Date(report.timestamp).toLocaleDateString()}</span>
+                            <span class="report-date">${formatDate(report.timestamp)}</span>
                         </div>
                     </div>
                     <div class="report-status">
                         <span class="status-badge" style="background: ${statusColors[report.status] || '#666'}">
-                            ${this.getStatusText(report.status)}
+                            ${getStatusText(report.status)}
                         </span>
                     </div>
                 </div>
                 
                 <div class="report-body">
-                    <p>${report.description}</p>
+                    <p>${report.description || 'Нет описания'}</p>
                     <div class="report-details">
                         <div class="detail">
                             <i class="fas fa-user"></i>
-                            <span>${report.userName}</span>
+                            <span>${report.userName || 'Аноним'}</span>
                         </div>
+                        ${report.phone ? `
+                        <div class="detail">
+                            <i class="fas fa-phone"></i>
+                            <span>${report.phone}</span>
+                        </div>
+                        ` : ''}
+                        ${report.address ? `
                         <div class="detail">
                             <i class="fas fa-map-marker-alt"></i>
-                            <span>${report.location}</span>
+                            <span>${report.address}</span>
                         </div>
+                        ` : ''}
+                        ${report.location ? `
+                        <div class="detail">
+                            <i class="fas fa-globe"></i>
+                            <span>${report.location.lat.toFixed(6)}, ${report.location.lon.toFixed(6)}</span>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
                 
                 <div class="report-actions">
-                    <button class="btn-secondary" onclick="admin.viewReport('${report.id}')">
+                    <button class="btn-secondary" onclick="admin.viewReport('${report.id}', '${type}')">
                         <i class="fas fa-eye"></i> Просмотр
                     </button>
-                    <button class="btn-primary" onclick="admin.resolveReport('${report.id}')">
+                    <button class="btn-primary" onclick="admin.resolveReport('${report.id}', '${type}')">
                         <i class="fas fa-check"></i> Решено
+                    </button>
+                    <button class="btn-danger" onclick="admin.rejectReport('${report.id}', '${type}')">
+                        <i class="fas fa-times"></i> Отклонить
                     </button>
                 </div>
             </div>
         `;
-    }
-
-    getStatusText(status) {
-        const statuses = {
-            'new': '🆕 Новый',
-            'in_progress': '🔄 В работе',
-            'resolved': '✅ Решено',
-            'rejected': '❌ Отклонено'
-        };
-        return statuses[status] || status;
     }
 
     async exportData(type) {
@@ -322,16 +391,24 @@ class AdminPanel {
         return [headers.join(','), ...rows].join('\n');
     }
 
-    async refreshReports() {
+    async refreshReports(type) {
         try {
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Обновление данных...', 'info');
             }
             
-            await this.fetchReportsFromServer();
+            await this.loadReports();
             await this.loadStats();
             this.renderDashboard();
-            this.renderSecurityReports();
+            
+            // Рендерим соответствующие отчеты
+            if (type === 'security') {
+                this.renderSecurityReports();
+            } else if (type === 'wifi') {
+                this.renderWifiReports();
+            } else if (type === 'graffiti') {
+                this.renderGraffitiReports();
+            }
             
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Данные обновлены', 'success');
@@ -345,20 +422,19 @@ class AdminPanel {
     }
 
     // Методы для работы с отчетами
-    viewReport(reportId) {
-        console.log('Просмотр отчета:', reportId);
+    viewReport(reportId, type) {
+        console.log('Просмотр отчета:', reportId, type);
         if (this.app && this.app.showNotification) {
             this.app.showNotification('Просмотр отчета', 'info');
         }
     }
 
-    resolveReport(reportId) {
-        const report = this.findReport(reportId);
+    resolveReport(reportId, type) {
+        const report = this.findReport(reportId, type);
         if (report && report.status !== 'resolved') {
             report.status = 'resolved';
-            this.saveReports();
-            this.renderSecurityReports();
-            this.renderDashboard();
+            this.saveReports(type);
+            this.refreshReports(type);
             
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Отчет помечен как решенный', 'success');
@@ -366,16 +442,26 @@ class AdminPanel {
         }
     }
 
-    findReport(reportId) {
-        for (const type of Object.keys(this.reports)) {
-            const report = this.reports[type].find(r => r.id === reportId);
-            if (report) return report;
+    rejectReport(reportId, type) {
+        const report = this.findReport(reportId, type);
+        if (report && report.status !== 'rejected') {
+            report.status = 'rejected';
+            this.saveReports(type);
+            this.refreshReports(type);
+            
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Отчет отклонен', 'info');
+            }
         }
-        return null;
     }
 
-    saveReports() {
-        localStorage.setItem('adminReports', JSON.stringify(this.reports));
+    findReport(reportId, type) {
+        return this.reports[type]?.find(r => r.id === reportId) || null;
+    }
+
+    saveReports(type) {
+        const key = `${type}_reports`;
+        localStorage.setItem(key, JSON.stringify(this.reports[type]));
     }
 }
 
