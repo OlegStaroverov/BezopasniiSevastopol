@@ -15,25 +15,21 @@ window.MAX_CONFIG = {
     // Разрешения
     permissions: {
         required: ["storage", "location"],
-        optional: ["camera", "contacts", "biometric"]
+        optional: ["camera", "contacts"]
     },
     
     // Обработка событий
     events: {
         onReady: function() {
-            console.log("MAX Bridge ready");
+            console.log("✅ MAX Bridge ready");
         },
         onClose: function() {
             console.log("Приложение закрывается");
-            return window.app?.hasUnsavedChanges || false;
+            return false;
         },
         onBackButton: function() {
             console.log("Нажата кнопка назад");
-            if (window.app?.currentSection !== 'wifi') {
-                window.app?.switchSection('wifi');
-                return true; // Обработано приложением
-            }
-            return false; // Закрыть приложение
+            return true;
         }
     },
     
@@ -43,8 +39,7 @@ window.MAX_CONFIG = {
         handlers: {
             "wifi": "switchToWifi",
             "security": "switchToSecurity",
-            "graffiti": "switchToGraffiti",
-            "report": "openReport"
+            "graffiti": "switchToGraffiti"
         }
     },
     
@@ -53,24 +48,13 @@ window.MAX_CONFIG = {
         cache_assets: true,
         lazy_load_images: true,
         compress_images: true,
-        max_image_size: 1024 // px
-    },
-    
-    // Аналитика (опционально)
-    analytics: {
-        enabled: false,
-        endpoint: "https://analytics.sevastopol-hub.ru/events",
-        events_to_track: ["app_launch", "section_switch", "report_submit"]
+        max_image_size: 1024
     }
 };
 
 // Инициализация конфигурации
 document.addEventListener('DOMContentLoaded', function() {
     if (window.MAX_CONFIG && window.app) {
-        console.log('MAX Config загружен');
-        
-        // Применяем тему
-        document.documentElement.style.setProperty('--primary-color', MAX_CONFIG.ui.primary_color);
-        document.documentElement.style.setProperty('--accent-color', MAX_CONFIG.ui.accent_color);
+        console.log('✅ MAX Config загружен');
     }
 });
