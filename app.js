@@ -18,9 +18,7 @@ class SafeSevastopol {
         this.isAdmin = false;
         this.hasUnsavedChanges = false; // ДОБАВЬ для подтверждения закрытия
         this.startParam = null; // ДОБАВЬ для deep linking
-        this.preventScroll = this.preventScroll.bind(this); 
-        this.isModalOpen = false;       
-
+        
         // Важно: инициализируем maxBridge ПОСЛЕ всех полей
         this.maxBridge = window.WebApp || null;
         
@@ -33,15 +31,129 @@ class SafeSevastopol {
     }
 
     async init() {
+        this.fixContentOverflow();
+        this.preventHorizontalScroll();
         this.setupEventListeners();
         await this.loadUserData();
         this.loadWifiPoints();
         this.checkAdminStatus();
         this.setupFormValidation();
         this.setupDragAndDrop();
-        this.setupScrollPrevention();
         
         this.showNotification('Добро пожаловать в Безопасный Севастополь!', 'success');
+    }
+
+    fixContentOverflow() {
+        console.log('📏 Фиксируем переполнение контента...');
+        
+        // Запускаем каждые 2 секунды для контроля
+        setInterval(() => {
+            // 1. Проверяем body на переполнение
+            if (document.body.scrollWidth > window.innerWidth) {
+                document.body.style.overflowX = 'hidden';
+            }
+            
+            // 2. Проверяем основные контейнеры
+            const containers = document.querySelectorAll('.glass-card, .content-section');
+            containers.forEach(container => {
+                if (container.scrollWidth > container.clientWidth) {
+                    container.style.overflowX = 'hidden';
+                }
+            });
+            
+            // 3. Ограничиваем ширину изображений
+            document.querySelectorAll('img').forEach(img => {
+                if (img.width > window.innerWidth) {
+                    img.style.maxWidth = '100%';
+                    img.style.height = 'auto';
+                }
+            });
+            
+        }, 2000);
+        
+        // Также запускаем при загрузке контента
+        const contentObserver = new MutationObserver(() => {
+            document.body.style.overflowX = 'hidden';
+        });
+        
+        contentObserver.observe(document.body, { 
+            childList: true, 
+            subtree: true 
+        });
+    }
+
+    preventHorizontalScroll() {
+        console.log('🛡️ Блокируем горизонтальное расползание...');
+        
+        // 1. Следим за изменением размеров элементов
+        const observer = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                const element = entry.target;
+                const width = element.offsetWidth;
+                const scrollWidth = element.scrollWidth;
+                
+                // Если содержимое шире контейнера - скрываем горизонтальный скролл
+                if (scrollWidth > width) {
+                    element.style.overflowX = 'hidden';
+                }
+            }
+        });
+        
+        // 2. Наблюдаем за основными контейнерами
+        const containersToWatch = [
+            '.app-container',
+            '.main-content',
+            '.content-section',
+            '.glass-card',
+            '.wifi-container',
+            '.security-container',
+            '.graffiti-container'
+        ];
+        
+        containersToWatch.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+                observer.observe(el);
+            });
+        });
+        
+        // 3. Блокируем горизонтальный скролл колесиком мыши
+        document.addEventListener('wheel', (e) => {
+            if (e.deltaX !== 0) {
+                // Если пытаются скроллить горизонтально - блокируем
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // 4. Блокируем горизонтальный свайп на тач-устройствах
+        let startX = 0;
+        document.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', (e) => {
+            const currentX = e.touches[0].clientX;
+            const diffX = Math.abs(currentX - startX);
+            
+            // Если горизонтальный свайп сильный - блокируем
+            if (diffX > 10) {
+                const target = e.target;
+                // Разрешаем только для элементов, которым действительно нужен горизонтальный скролл
+                const allowHorizontalScroll = target.closest('.admin-table-container') || 
+                                             target.closest('.filters-scroll');
+                
+                if (!allowHorizontalScroll) {
+                    e.preventDefault();
+                }
+            }
+        }, { passive: false });
+        
+        // 5. Фикс для iOS - убираем bounce
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            document.body.style.overscrollBehavior = 'none';
+            document.body.style.webkitOverflowScrolling = 'touch';
+        }
+        
+        console.log('✅ Горизонтальное расползание заблокировано');
     }
 
     setupEventListeners() {
@@ -1352,11 +1464,6 @@ async loadUserData() {
     // ===== МОДАЛЬНЫЕ ОКНА =====
     openLocationPicker(context) {
         this.locationContext = context;
-        this.isModalOpen = true;
-        
-        // Блокируем скролл
-        document.body.classList.add('modal-open');
-        document.body.style.overflow = 'hidden';
         
         document.getElementById('modalOverlay').style.display = 'block';
         document.getElementById('locationModal').style.display = 'block';
@@ -1414,12 +1521,6 @@ async loadUserData() {
     }
 
     closeModal() {
-        this.isModalOpen = false;
-        
-        // Разрешаем скролл
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = 'hidden'; // Оставляем hidden
-        
         document.getElementById('modalOverlay').style.display = 'none';
         document.querySelectorAll('.modal-container').forEach(modal => {
             modal.style.display = 'none';
@@ -1703,47 +1804,6 @@ async loadUserData() {
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
-    }
-
-    // ===== ФИКС СКРОЛЛА - ДОБАВЬ ЭТИ МЕТОДЫ =====
-    preventScroll(event) {
-        event.preventDefault();
-        event.stopPropagation();
-        return false;
-    }
-
-    setupScrollPrevention() {
-        // Отключаем стандартный скролл на body
-        document.body.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.width = '100%';
-        document.body.style.height = '100%';
-        
-        // Добавляем обработчики для тач-событий
-        document.addEventListener('touchmove', this.preventScroll, { passive: false });
-        document.addEventListener('touchstart', this.preventScroll, { passive: false });
-        
-        // Разрешаем скролл только в определенных контейнерах
-        const scrollableElements = document.querySelectorAll('.wifi-results, .security-reports-list, .main-content');
-        scrollableElements.forEach(el => {
-            el.addEventListener('touchstart', (e) => {
-                // Позволяем скролл только внутри этих элементов
-                e.stopPropagation();
-            });
-            
-            el.addEventListener('touchmove', (e) => {
-                // Проверяем, достигли ли мы границы контейнера
-                const { scrollTop, scrollHeight, clientHeight } = el;
-                const isAtTop = scrollTop === 0;
-                const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 1;
-                
-                if ((isAtTop && e.touches[0].clientY > 0) || 
-                    (isAtBottom && e.touches[0].clientY < 0)) {
-                    // Если пытаемся скроллить за границы - блокируем
-                    e.preventDefault();
-                }
-            }, { passive: false });
-        });
     }
 }
 
