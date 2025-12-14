@@ -1,37 +1,34 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <!-- ВАЖНОЕ ИСПРАВЛЕНИЕ: добавляем правильный viewport -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <!-- Для iOS PWA-like поведения -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
-    <!-- Цвета для браузеров -->
-    <meta name="theme-color" content="#0066ff">
+    <meta name="theme-color" content="#0066ff" data-theme-color="dark">
     <meta name="msapplication-navbutton-color" content="#0066ff">
     
-    <!-- Meta для соцсетей -->
+    <!-- Open Graph метатеги -->
     <meta property="og:title" content="Безопасный Севастополь">
     <meta property="og:description" content="Wi-Fi, безопасность, граффити - все в одном приложении">
+    <meta property="og:image" content="assets/og-image.png">
+    <meta property="og:url" content="https://sevastopol-hub.ru">
     
     <title>Безопасный Севастополь</title>
     
-    <!-- Подключение MAX Bridge -->
+    <!-- MAX Bridge -->
     <script src="https://st.max.ru/js/max-web-app.js" defer></script>
     <script>
-        // Резервный скрипт если MAX Bridge не загрузится
+        // Инициализация MAX Bridge или fallback
         window.MAX_BRIDGE_LOADED = false;
         
         document.addEventListener('DOMContentLoaded', function() {
-            // Проверяем загрузился ли MAX Bridge
             if (typeof window.WebApp !== 'undefined') {
                 window.MAX_BRIDGE_LOADED = true;
-                console.log('MAX Bridge успешно загружен');
+                console.log('✅ MAX Bridge успешно загружен');
             } else {
-                console.warn('MAX Bridge не загружен, используется fallback режим');
-                // Создаем mock объект для разработки
+                console.warn('⚠️ MAX Bridge не загружен, используется fallback режим');
                 window.WebApp = {
                     ready: () => console.log('MAX Bridge: ready()'),
                     initDataUnsafe: {
@@ -39,13 +36,21 @@
                             id: 123456789,
                             first_name: 'Тест',
                             last_name: 'Пользователь',
-                            username: 'test_user'
-                        }
+                            username: 'test_user',
+                            language_code: 'ru'
+                        },
+                        start_param: null
                     },
                     BackButton: {
                         show: () => console.log('BackButton показана'),
                         hide: () => console.log('BackButton скрыта'),
-                        onClick: (callback) => console.log('Обработчик BackButton установлен')
+                        onClick: (callback) => {
+                            console.log('Обработчик BackButton установлен');
+                            window.addEventListener('popstate', callback);
+                        },
+                        offClick: (callback) => {
+                            window.removeEventListener('popstate', callback);
+                        }
                     },
                     HapticFeedback: {
                         impactOccurred: (style) => console.log('Вибрация:', style),
@@ -53,53 +58,86 @@
                         selectionChanged: () => console.log('Выбор изменен')
                     },
                     enableClosingConfirmation: () => console.log('Подтверждение закрытия включено'),
+                    disableClosingConfirmation: () => console.log('Подтверждение закрытия выключено'),
                     openLink: (url) => window.open(url, '_blank'),
+                    openMaxLink: (url) => console.log('Открыть MAX ссылку:', url),
+                    shareContent: (text, link) => console.log('Шаринг:', text, link),
                     SecureStorage: {
+                        setItem: (key, value) => {
+                            console.log('SecureStorage set:', key);
+                            localStorage.setItem('max_' + key, value);
+                            return Promise.resolve();
+                        },
+                        getItem: (key) => {
+                            console.log('SecureStorage get:', key);
+                            return Promise.resolve(localStorage.getItem('max_' + key));
+                        },
+                        removeItem: (key) => {
+                            localStorage.removeItem('max_' + key);
+                            return Promise.resolve();
+                        }
+                    },
+                    DeviceStorage: {
                         setItem: (key, value) => localStorage.setItem(key, value),
                         getItem: (key) => localStorage.getItem(key),
-                        removeItem: (key) => localStorage.removeItem(key)
-                    }
+                        removeItem: (key) => localStorage.removeItem(key),
+                        clear: () => {
+                            const keysToRemove = [];
+                            for (let i = 0; i < localStorage.length; i++) {
+                                const key = localStorage.key(i);
+                                if (key.startsWith('max_') || key.startsWith('app_')) {
+                                    keysToRemove.push(key);
+                                }
+                            }
+                            keysToRemove.forEach(key => localStorage.removeItem(key));
+                        }
+                    },
+                    close: () => console.log('Закрыть приложение'),
+                    requestContact: () => {
+                        console.log('Запрос контакта');
+                        return Promise.resolve('+79991234567');
+                    },
+                    version: '25.9.16',
+                    platform: 'web'
                 };
             }
         });
     </script>
-    <script src="max-config.js"></script>                                                             
     
     <!-- Подключение шрифтов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Иконки -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Анимации -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-    
-    <!-- Карты -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <!-- Стили -->
     <link rel="stylesheet" href="styles.css">
     
     <!-- PWA манифест -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0066ff">
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
+    
+    <!-- Яндекс Карты API -->
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_ключ_яндекс_карт&lang=ru_RU" type="text/javascript"></script>
 </head>
 <body>
+    <!-- Кнопка переключения темы -->
+    <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+        <i class="fas fa-moon" data-theme-icon="dark"></i>
+        <i class="fas fa-sun" data-theme-icon="light" style="display: none;"></i>
+    </button>
+
     <!-- Основной контейнер -->
     <div class="app-container">
-        <!-- Эффект частиц -->
-        <div id="particles-js"></div>
-        
-        <!-- Анимированный хедер -->
+        <!-- Шапка -->
         <header class="main-header">
             <div class="header-content">
-                <div class="logo-section animate__animated animate__fadeInDown">
+                <div class="logo-section">
                     <div class="logo-icon">
                         <i class="fas fa-shield-alt"></i>
                     </div>
@@ -109,46 +147,42 @@
                     </div>
                 </div>
                 
-                <div class="user-section animate__animated animate__fadeInDown animate__delay-1s">
+                <div class="user-section">
                     <div class="user-info">
                         <span class="user-name" id="userName">Гость</span>
-                        <span class="user-status">
-                            <i class="fas fa-circle online"></i> Онлайн
-                        </span>
+                        <div class="user-status">
+                            <i class="fas fa-circle online"></i>
+                            <span>Онлайн</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            
-            <!-- Анимированный прогресс-бар -->
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
         </header>
 
-        <!-- Навигация с эффектом стекла -->
-        <nav class="glass-nav">
+        <!-- Навигация -->
+        <nav class="main-nav">
             <div class="nav-container">
-                <button class="nav-item active" data-section="wifi" data-tooltip="Точки Wi-Fi">
+                <button class="nav-item active" data-section="wifi">
                     <i class="fas fa-wifi"></i>
                     <span>Wi-Fi</span>
                 </button>
                 
-                <button class="nav-item" data-section="security" data-tooltip="Безопасность">
+                <button class="nav-item" data-section="security">
                     <i class="fas fa-shield-alt"></i>
                     <span>Безопасность</span>
                 </button>
                 
-                <button class="nav-item" data-section="graffiti" data-tooltip="Граффити">
+                <button class="nav-item" data-section="graffiti">
                     <i class="fas fa-spray-can"></i>
                     <span>Граффити</span>
                 </button>
                 
-                <button class="nav-item" data-section="contacts" data-tooltip="Контакты">
+                <button class="nav-item" data-section="contacts">
                     <i class="fas fa-phone-alt"></i>
                     <span>Контакты</span>
                 </button>
                 
-                <button class="nav-item" data-section="admin" data-tooltip="Админ-панель" id="adminNav" style="display: none;">
+                <button class="nav-item" data-section="admin" id="adminNav" style="display: none;">
                     <i class="fas fa-crown"></i>
                     <span>Админ</span>
                 </button>
@@ -159,26 +193,29 @@
         <main class="main-content">
             <!-- Секция: Wi-Fi -->
             <section id="wifi-section" class="content-section active">
-                <div class="section-header animate__animated animate__fadeInDown">
+                <div class="section-header">
                     <h2><i class="fas fa-wifi"></i> Точки Wi-Fi в Севастополе</h2>
                     <p>Найдите ближайшую точку бесплатного интернета или сообщите о проблеме</p>
                 </div>
 
                 <div class="wifi-container">
                     <!-- Поиск и фильтры -->
-                    <div class="glass-card search-card animate__animated animate__fadeInLeft">
+                    <div class="card search-card">
                         <div class="search-container">
                             <div class="search-input-group">
                                 <i class="fas fa-search"></i>
                                 <input type="text" id="wifiSearch" placeholder="Поиск точек Wi-Fi..." class="search-input">
+                                <button class="search-clear" id="clearSearch" style="display: none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </div>
-                            <button class="btn-location" id="findNearbyWifi">
+                            <button class="btn-primary" id="findNearbyWifi">
                                 <i class="fas fa-location-arrow"></i>
                                 <span>Рядом со мной</span>
                             </button>
                         </div>
 
-                        <div class="filters-scroll">
+                        <div class="filters-container">
                             <div class="filter-tags">
                                 <button class="filter-tag active" data-filter="all">Все</button>
                                 <button class="filter-tag" data-filter="здрав">🏥 Медицина</button>
@@ -187,18 +224,16 @@
                                 <button class="filter-tag" data-filter="отдых">🌳 Парки</button>
                                 <button class="filter-tag" data-filter="тц">🛍️ Торговля</button>
                                 <button class="filter-tag" data-filter="спорт">⚽ Спорт</button>
-                                <button class="filter-tag" data-filter="МФЦ">🏢 МФЦ</button>
-                                <button class="filter-tag" data-filter="АЗС">⛽ АЗС</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Результаты поиска -->
-                    <div class="glass-card results-card animate__animated animate__fadeInRight">
+                    <div class="card results-card">
                         <div class="results-header">
                             <h3>Найдено точек: <span id="wifiCount">0</span></h3>
                             <div class="sort-controls">
-                                <select id="sortWifi" class="sort-select">
+                                <select id="sortWifi" class="form-select">
                                     <option value="distance">По расстоянию</option>
                                     <option value="name">По названию</option>
                                     <option value="type">По типу</option>
@@ -207,7 +242,7 @@
                         </div>
                         
                         <div id="wifiResults" class="wifi-results">
-                            <!-- Точки будут загружены динамически -->
+                            <!-- Точки загружаются динамически -->
                         </div>
                         
                         <div class="loading-spinner" id="wifiLoading">
@@ -216,11 +251,11 @@
                         </div>
                     </div>
 
-                    <!-- Детальная информация о точке -->
-                    <div class="glass-card details-card animate__animated animate__fadeInUp">
+                    <!-- Детальная информация -->
+                    <div class="card details-card">
                         <div class="details-header">
                             <h3>Информация о точке</h3>
-                            <button class="btn-favorite" id="toggleFavorite">
+                            <button class="btn-icon" id="toggleFavorite">
                                 <i class="far fa-star"></i>
                             </button>
                         </div>
@@ -233,22 +268,18 @@
                     </div>
                 </div>
 
-                <!-- Сообщить о проблеме с Wi-Fi и предложить новую точку -->
+                <!-- Дополнительные действия -->
                 <div class="wifi-actions-container">
-                    <div class="glass-card report-card animate__animated animate__fadeInUp">
+                    <div class="card report-card">
                         <h3><i class="fas fa-exclamation-triangle"></i> Проблема с Wi-Fi?</h3>
                         <p>Сообщите о неработающей точке или проблемах с подключением</p>
                         
                         <div class="report-form">
                             <div class="form-group">
                                 <label for="wifiProblemPoint">Выберите точку:</label>
-                                <div class="select-wrapper">
-                                    <select id="wifiProblemPoint" class="form-select">
-                                        <option value="">-- Выберите точку --</option>
-                                        <!-- Заполнится динамически -->
-                                    </select>
-                                    <i class="fas fa-chevron-down"></i>
-                                </div>
+                                <select id="wifiProblemPoint" class="form-select">
+                                    <option value="">-- Выберите точку --</option>
+                                </select>
                             </div>
                             
                             <div class="form-group">
@@ -257,14 +288,14 @@
                                          placeholder="Опишите подробно, что не работает..."></textarea>
                             </div>
                             
-                            <button class="btn-submit" id="submitWifiProblem">
+                            <button class="btn-primary" id="submitWifiProblem">
                                 <i class="fas fa-paper-plane"></i>
                                 Отправить отчет
                             </button>
                         </div>
                     </div>
 
-                    <div class="glass-card suggestion-card animate__animated animate__fadeInUp">
+                    <div class="card suggestion-card">
                         <h3><i class="fas fa-lightbulb"></i> Предложить новую точку</h3>
                         <p>Знаете точку Wi-Fi, которой нет в нашей базе? Сообщите нам!</p>
                         
@@ -291,8 +322,6 @@
                                     <option value="транспорт">🚌 Транспорт</option>
                                     <option value="парк">🌳 Парк/сквер</option>
                                     <option value="МФЦ">🏢 МФЦ</option>
-                                    <option value="АЗС">⛽ АЗС</option>
-                                    <option value="гостиница">🏨 Гостиница</option>
                                     <option value="другое">📍 Другое</option>
                                 </select>
                             </div>
@@ -303,7 +332,7 @@
                                          placeholder="Укажите дополнительные детали..."></textarea>
                             </div>
                             
-                            <button class="btn-submit" id="submitNewPoint">
+                            <button class="btn-primary" id="submitNewPoint">
                                 <i class="fas fa-plus-circle"></i>
                                 Предложить точку
                             </button>
@@ -314,14 +343,14 @@
 
             <!-- Секция: Безопасность -->
             <section id="security-section" class="content-section">
-                <div class="section-header animate__animated animate__fadeInDown">
+                <div class="section-header">
                     <h2><i class="fas fa-shield-alt"></i> Сообщить о подозрительных объектах</h2>
                     <p>Ваша бдительность делает город безопаснее</p>
                 </div>
 
                 <div class="security-container">
                     <!-- Форма отчета -->
-                    <div class="glass-card security-form-card animate__animated animate__fadeInLeft">
+                    <div class="card security-form-card">
                         <div class="form-stepper">
                             <div class="step active" data-step="1">
                                 <div class="step-number">1</div>
@@ -356,6 +385,7 @@
                                 <label for="securityPhone">Телефон:</label>
                                 <input type="tel" id="securityPhone" class="form-input" 
                                        placeholder="+7 (XXX) XXX-XX-XX" required>
+                                <div class="form-hint">Номер телефона нужен для уточнения деталей</div>
                             </div>
                         </div>
 
@@ -375,7 +405,7 @@
                                 </button>
                             </div>
                             
-                            <div class="form-group mt-4" id="addressInputGroup">
+                            <div class="form-group mt-4" id="addressInputGroup" style="display: none;">
                                 <input type="text" id="manualAddress" class="form-input" 
                                        placeholder="Введите адрес вручную">
                             </div>
@@ -401,9 +431,9 @@
                                 <label for="securityDescription">Подробное описание:</label>
                                 <textarea id="securityDescription" class="form-textarea" 
                                          placeholder="Опишите максимально подробно... (минимум 30 символов)"
-                                         rows="5" required></textarea>
+                                         rows="4" required></textarea>
                                 <div class="char-counter">
-                                    <span id="charCount">0</span>/300 символов
+                                    <span id="charCount">0</span>/500 символов
                                 </div>
                             </div>
                         </div>
@@ -418,7 +448,7 @@
                                     <i class="fas fa-cloud-upload-alt"></i>
                                     <p>Перетащите фото или видео сюда</p>
                                     <span>или</span>
-                                    <button class="btn-browse" id="browseMedia">
+                                    <button class="btn-secondary" id="browseMedia">
                                         Выбрать файлы
                                     </button>
                                     <input type="file" id="mediaInput" accept="image/*,video/*" multiple style="display: none;">
@@ -429,94 +459,59 @@
                                 </div>
                             </div>
                             
-                            <div class="media-note">
+                            <div class="form-note">
                                 <i class="fas fa-info-circle"></i>
-                                <p>Вы можете приложить до 5 файлов. Максимальный размер файла - 10 МБ</p>
+                                <p>Максимум 5 файлов, каждый до 10 МБ. Поддерживаются фото и видео.</p>
                             </div>
                         </div>
 
                         <!-- Кнопки навигации -->
                         <div class="form-navigation">
-                            <button class="btn-prev" id="prevStep">
+                            <button class="btn-secondary" id="prevStep" style="display: none;">
                                 <i class="fas fa-arrow-left"></i> Назад
                             </button>
-                            <button class="btn-next" id="nextStep">
+                            <button class="btn-primary" id="nextStep">
                                 Далее <i class="fas fa-arrow-right"></i>
                             </button>
-                            <button class="btn-submit" id="submitSecurityReport" style="display: none;">
+                            <button class="btn-success" id="submitSecurityReport" style="display: none;">
                                 <i class="fas fa-paper-plane"></i> Отправить отчет
                             </button>
                         </div>
                     </div>
 
-                    <!-- Экстренные службы -->
-                    <div class="glass-card emergency-card animate__animated animate__fadeInRight">
-                        <h3><i class="fas fa-phone-alt"></i> Экстренные службы</h3>
+                    <!-- Инструкция -->
+                    <div class="card info-card">
+                        <h3><i class="fas fa-info-circle"></i> Что сообщать?</h3>
                         
-                        <div class="emergency-list">
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
-                                    <i class="fas fa-ambulance"></i>
+                        <div class="info-list">
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
                                 </div>
-                                <div class="emergency-info">
-                                    <h4>Скорая помощь</h4>
-                                    <p class="emergency-number">103</p>
+                                <div class="info-content">
+                                    <h4>Подозрительные предметы</h4>
+                                    <p>Бесхозные сумки, пакеты, коробки в общественных местах</p>
                                 </div>
-                                <button class="btn-call" data-number="103">
-                                    <i class="fas fa-phone"></i>
-                                </button>
                             </div>
                             
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
-                                    <i class="fas fa-fire"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Пожарная служба</h4>
-                                    <p class="emergency-number">101</p>
-                                </div>
-                                <button class="btn-call" data-number="101">
-                                    <i class="fas fa-phone"></i>
-                                </button>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
-                                    <i class="fas fa-police-badge"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Полиция</h4>
-                                    <p class="emergency-number">102</p>
-                                </div>
-                                <button class="btn-call" data-number="102">
-                                    <i class="fas fa-phone"></i>
-                                </button>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
-                                    <i class="fas fa-shield-alt"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Единый номер</h4>
-                                    <p class="emergency-number">112</p>
-                                </div>
-                                <button class="btn-call" data-number="112">
-                                    <i class="fas fa-phone"></i>
-                                </button>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
+                            <div class="info-item">
+                                <div class="info-icon">
                                     <i class="fas fa-user-secret"></i>
                                 </div>
-                                <div class="emergency-info">
-                                    <h4>УФСБ по Крыму и Севастополю</h4>
-                                    <p class="emergency-number">+7 (8692) 54-37-78</p>
+                                <div class="info-content">
+                                    <h4>Подозрительная активность</h4>
+                                    <p>Люди, ведущие себя неадекватно или подозрительно</p>
                                 </div>
-                                <button class="btn-call" data-number="+78692543778">
-                                    <i class="fas fa-phone"></i>
-                                </button>
+                            </div>
+                            
+                            <div class="info-item">
+                                <div class="info-icon">
+                                    <i class="fas fa-car-crash"></i>
+                                </div>
+                                <div class="info-content">
+                                    <h4>Опасные ситуации</h4>
+                                    <p>Аварии, разрушения, угрозы безопасности</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -525,33 +520,33 @@
 
             <!-- Секция: Граффити -->
             <section id="graffiti-section" class="content-section">
-                <div class="section-header animate__animated animate__fadeInDown">
+                <div class="section-header">
                     <h2><i class="fas fa-spray-can"></i> Сообщить о граффити</h2>
                     <p>Помогите сохранить красоту города</p>
                 </div>
 
                 <div class="graffiti-container">
-                    <!-- Форма для граффити -->
-                    <div class="glass-card graffiti-form-card animate__animated animate__fadeInLeft">
+                    <div class="card graffiti-form-card">
                         <div class="form-group">
                             <label for="graffitiLocation">Местоположение:</label>
                             <div class="location-input-group">
                                 <input type="text" id="graffitiLocation" class="form-input" 
                                        placeholder="Введите адрес" required>
-                                <button class="btn-location-select" id="selectGraffitiLocation">
+                                <button class="btn-secondary" id="selectGraffitiLocation">
                                     <i class="fas fa-map-marker-alt"></i>
                                 </button>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="graffitiDescription">Описание:</label>
+                            <label for="graffitiDescription">Описание граффити:</label>
                             <textarea id="graffitiDescription" class="form-textarea" 
-                                     placeholder="Опишите граффити, размеры, цвет, состояние поверхности..." required></textarea>
+                                     placeholder="Опишите граффити, размеры, цвет, состояние поверхности..." 
+                                     rows="4" required></textarea>
                         </div>
 
                         <div class="form-group">
-                            <label>Добавить фото (до 3 штук):</label>
+                            <label>Фотографии (до 3 штук):</label>
                             <div class="graffiti-uploader">
                                 <div class="upload-grid" id="graffitiUploadGrid">
                                     <div class="upload-cell add-photo" id="addGraffitiPhoto">
@@ -564,24 +559,27 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="graffitiUrgency">Срочность:</label>
+                            <label>Срочность обработки:</label>
                             <div class="urgency-selector">
                                 <button class="urgency-option active" data-urgency="low">
                                     <i class="fas fa-clock"></i>
                                     <span>Низкая</span>
+                                    <small>В течение недели</small>
                                 </button>
                                 <button class="urgency-option" data-urgency="medium">
                                     <i class="fas fa-exclamation-circle"></i>
                                     <span>Средняя</span>
+                                    <small>В течение 3 дней</small>
                                 </button>
                                 <button class="urgency-option" data-urgency="high">
                                     <i class="fas fa-exclamation-triangle"></i>
                                     <span>Высокая</span>
+                                    <small>В течение 24 часов</small>
                                 </button>
                             </div>
                         </div>
 
-                        <button class="btn-submit-large" id="submitGraffitiReport">
+                        <button class="btn-primary btn-large" id="submitGraffitiReport">
                             <i class="fas fa-paint-roller"></i>
                             Отправить на обработку
                         </button>
@@ -591,22 +589,98 @@
 
             <!-- Секция: Контакты -->
             <section id="contacts-section" class="content-section">
-                <div class="section-header animate__animated animate__fadeInDown">
+                <div class="section-header">
                     <h2><i class="fas fa-phone-alt"></i> Контакты</h2>
-                    <p>Контактная информация служб Севастополя</p>
+                    <p>Экстренные службы и контактная информация</p>
                 </div>
 
                 <div class="contacts-container">
-                    <div class="glass-card contacts-card animate__animated animate__fadeInUp">
+                    <div class="card emergency-contacts-card">
+                        <h3><i class="fas fa-exclamation-triangle"></i> Экстренные службы</h3>
+                        
+                        <div class="emergency-list">
+                            <div class="emergency-item">
+                                <div class="emergency-icon" style="background: linear-gradient(135deg, #ff3b30, #ff375f);">
+                                    <i class="fas fa-ambulance"></i>
+                                </div>
+                                <div class="emergency-info">
+                                    <h4>Единый номер экстренных служб</h4>
+                                    <div class="emergency-number">112</div>
+                                    <p class="emergency-desc">С мобильного телефона</p>
+                                </div>
+                                <button class="btn-call" data-number="112" title="Позвонить">
+                                    <i class="fas fa-phone"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="emergency-item">
+                                <div class="emergency-icon" style="background: linear-gradient(135deg, #ff9500, #ff5e3a);">
+                                    <i class="fas fa-fire"></i>
+                                </div>
+                                <div class="emergency-info">
+                                    <h4>Пожарная служба и МЧС</h4>
+                                    <div class="emergency-number">101</div>
+                                    <p class="emergency-desc">Пожар, авария, спасение</p>
+                                </div>
+                                <button class="btn-call" data-number="101" title="Позвонить">
+                                    <i class="fas fa-phone"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="emergency-item">
+                                <div class="emergency-icon" style="background: linear-gradient(135deg, #0066ff, #5856d6);">
+                                    <i class="fas fa-police-badge"></i>
+                                </div>
+                                <div class="emergency-info">
+                                    <h4>Полиция</h4>
+                                    <div class="emergency-number">102</div>
+                                    <p class="emergency-desc">Преступления, правонарушения</p>
+                                </div>
+                                <button class="btn-call" data-number="102" title="Позвонить">
+                                    <i class="fas fa-phone"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="emergency-item">
+                                <div class="emergency-icon" style="background: linear-gradient(135deg, #34c759, #32d74b);">
+                                    <i class="fas fa-ambulance"></i>
+                                </div>
+                                <div class="emergency-info">
+                                    <h4>Скорая медицинская помощь</h4>
+                                    <div class="emergency-number">103</div>
+                                    <p class="emergency-desc">Медицинская помощь, травмы</p>
+                                </div>
+                                <button class="btn-call" data-number="103" title="Позвонить">
+                                    <i class="fas fa-phone"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="emergency-item">
+                                <div class="emergency-icon" style="background: linear-gradient(135deg, #5ac8fa, #007aff);">
+                                    <i class="fas fa-user-secret"></i>
+                                </div>
+                                <div class="emergency-info">
+                                    <h4>Антитеррор (УФСБ)</h4>
+                                    <div class="emergency-number">+7 (8692) 54-37-78</div>
+                                    <p class="emergency-desc">Севастополь и Крым</p>
+                                </div>
+                                <button class="btn-call" data-number="+78692543778" title="Позвонить">
+                                    <i class="fas fa-phone"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card government-contacts-card">
                         <h3><i class="fas fa-building"></i> Правительство Севастополя</h3>
                         
                         <div class="contact-list">
                             <div class="contact-item">
                                 <div class="contact-icon">
-                                    <i class="fas fa-envelope"></i>
+                                    <i class="fas fa-map-marker-alt"></i>
                                 </div>
                                 <div class="contact-info">
-                                    <h4>Почтовый адрес:</h4>
+                                    <h4>Адрес:</h4>
                                     <p>299011, г. Севастополь, ул. Ленина, 2</p>
                                 </div>
                             </div>
@@ -618,7 +692,11 @@
                                 <div class="contact-info">
                                     <h4>Телефон приемной:</h4>
                                     <p class="contact-number">+7 (8692) 54-34-34</p>
+                                    <p>Пн-Пт: 9:00-18:00</p>
                                 </div>
+                                <button class="btn-call" data-number="+78692543434" title="Позвонить">
+                                    <i class="fas fa-phone"></i>
+                                </button>
                             </div>
                             
                             <div class="contact-item">
@@ -627,64 +705,11 @@
                                 </div>
                                 <div class="contact-info">
                                     <h4>Официальный сайт:</h4>
-                                    <p><a href="https://sev.gov.ru" target="_blank">sev.gov.ru</a></p>
+                                    <p><a href="https://sev.gov.ru" target="_blank" class="contact-link">sev.gov.ru</a></p>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="glass-card emergency-contacts-card animate__animated animate__fadeInUp">
-                        <h3><i class="fas fa-exclamation-triangle"></i> Экстренные службы</h3>
-                        
-                        <div class="emergency-list">
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
-                                    <i class="fas fa-ambulance"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Скорая помощь</h4>
-                                    <p class="emergency-number">103</p>
-                                </div>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
-                                    <i class="fas fa-fire"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Пожарная служба</h4>
-                                    <p class="emergency-number">101</p>
-                                </div>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
-                                    <i class="fas fa-police-badge"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Полиция</h4>
-                                    <p class="emergency-number">102</p>
-                                </div>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
-                                    <i class="fas fa-shield-alt"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Единый номер</h4>
-                                    <p class="emergency-number">112</p>
-                                </div>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon">
-                                    <i class="fas fa-user-secret"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>УФСБ по Крыму и Севастополю</h4>
-                                    <p class="emergency-number">+7 (8692) 54-37-78</p>
-                                </div>
+                                <button class="btn-icon" onclick="window.open('https://sev.gov.ru', '_blank')" title="Открыть сайт">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -693,12 +718,12 @@
 
             <!-- Секция: Админ-панель -->
             <section id="admin-section" class="content-section">
-                <div class="section-header animate__animated animate__fadeInDown">
+                <div class="section-header">
                     <h2><i class="fas fa-crown"></i> Административная панель</h2>
-                    <p>Управление всеми обращениями</p>
+                    <p>Управление всеми обращениями и статистика</p>
                 </div>
 
-                <div class="admin-tabs-scroll">
+                <div class="admin-tabs-container">
                     <div class="admin-tabs">
                         <button class="admin-tab active" data-tab="dashboard">
                             <i class="fas fa-tachometer-alt"></i>
@@ -716,10 +741,14 @@
                             <i class="fas fa-spray-can"></i>
                             <span>Граффити</span>
                         </button>
+                        <button class="admin-tab" data-tab="settings-admin">
+                            <i class="fas fa-cog"></i>
+                            <span>Настройки</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Админ дашборд -->
+                <!-- Дашборд -->
                 <div id="admin-dashboard" class="admin-tab-content active">
                     <div class="admin-stats-grid">
                         <div class="admin-stat-card">
@@ -755,12 +784,12 @@
                                 <h4>Активных пользователей</h4>
                             </div>
                             <div class="stat-number" id="adminActiveUsers">0</div>
-                            <div class="stat-trend down">-0%</div>
+                            <div class="stat-trend up">+0%</div>
                         </div>
                     </div>
 
                     <div class="admin-charts">
-                        <div class="glass-card chart-card">
+                        <div class="card chart-card">
                             <h4>Обращения по категориям</h4>
                             <canvas id="reportsChart"></canvas>
                         </div>
@@ -769,14 +798,11 @@
 
                 <!-- Админ Wi-Fi -->
                 <div id="admin-wifi" class="admin-tab-content">
-                    <div class="admin-actions-bar">
-                        <button class="btn-admin-action" id="exportWifiData">
+                    <div class="admin-actions">
+                        <button class="btn-secondary" id="exportWifiData">
                             <i class="fas fa-download"></i> Экспорт
                         </button>
-                        <button class="btn-admin-action" id="addWifiPoint">
-                            <i class="fas fa-plus"></i> Добавить точку
-                        </button>
-                        <button class="btn-admin-action" id="refreshWifi">
+                        <button class="btn-secondary" id="refreshWifi">
                             <i class="fas fa-sync"></i> Обновить
                         </button>
                     </div>
@@ -787,9 +813,7 @@
                                 <tr>
                                     <th>ID</th>
                                     <th>Название</th>
-                                    <th>Тип</th>
                                     <th>Адрес</th>
-                                    <th>Статус</th>
                                     <th>Проблемы</th>
                                     <th>Действия</th>
                                 </tr>
@@ -804,17 +828,18 @@
                 <!-- Админ безопасность -->
                 <div id="admin-security" class="admin-tab-content">
                     <div class="admin-filters">
-                        <select id="securityStatusFilter" class="admin-filter">
+                        <select id="securityStatusFilter" class="form-select">
                             <option value="all">Все статусы</option>
                             <option value="new">Новые</option>
                             <option value="in_progress">В работе</option>
                             <option value="resolved">Решено</option>
                         </select>
                         
-                        <select id="securityCategoryFilter" class="admin-filter">
+                        <select id="securityCategoryFilter" class="form-select">
                             <option value="all">Все категории</option>
                             <option value="suspicious_object">Подозрительный предмет</option>
                             <option value="suspicious_activity">Подозрительная активность</option>
+                            <option value="dangerous_situation">Опасная ситуация</option>
                         </select>
                     </div>
                     
@@ -827,7 +852,7 @@
                 <div id="admin-graffiti" class="admin-tab-content">
                     <div class="graffiti-admin-grid">
                         <div class="graffiti-list-container">
-                            <h4>Список граффити для обработки</h4>
+                            <h4>Граффити для обработки</h4>
                             <div class="graffiti-admin-list" id="graffitiAdminList">
                                 <!-- Список загружается динамически -->
                             </div>
@@ -844,10 +869,27 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Настройки админа -->
+                <div id="admin-settings" class="admin-tab-content">
+                    <div class="card settings-card">
+                        <h3><i class="fas fa-envelope"></i> Настройки уведомлений</h3>
+                        
+                        <div class="form-group">
+                            <label for="adminEmail">Email для уведомлений:</label>
+                            <input type="email" id="adminEmail" class="form-input" 
+                                   placeholder="admin@sevastopol.ru">
+                        </div>
+                        
+                        <button class="btn-primary" id="saveEmailSettings">
+                            <i class="fas fa-save"></i> Сохранить настройки
+                        </button>
+                    </div>
+                </div>
             </section>
         </main>
 
-        <!-- Футер -->
+        <!-- Подвал -->
         <footer class="main-footer">
             <div class="footer-content">
                 <div class="footer-logo">
@@ -858,6 +900,7 @@
                 <div class="footer-info">
                     <p>© 2024 Безопасный Севастополь. Все права защищены.</p>
                     <p class="version">Версия 1.0.0</p>
+                    <p class="max-version" id="maxVersion"></p>
                 </div>
             </div>
         </footer>
@@ -867,7 +910,7 @@
     <div class="modal-overlay" id="modalOverlay"></div>
 
     <!-- Модалка: Выбор местоположения -->
-    <div class="modal-container" id="locationModal">
+    <div class="modal" id="locationModal">
         <div class="modal-header">
             <h3>Выберите местоположение</h3>
             <button class="modal-close" id="closeLocationModal">
@@ -875,7 +918,7 @@
             </button>
         </div>
         <div class="modal-body">
-            <div id="locationPickerMap" class="location-picker-map"></div>
+            <div id="yandexMap" class="map-container"></div>
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" id="cancelLocation">Отмена</button>
@@ -890,65 +933,33 @@
     <div class="preloader" id="preloader">
         <div class="preloader-content">
             <div class="preloader-spinner">
-                <div class="spinner-circle"></div>
-                <div class="spinner-circle"></div>
-                <div class="spinner-circle"></div>
+                <div class="spinner"></div>
             </div>
             <div class="preloader-text">
                 <h3>Загрузка Безопасный Севастополь</h3>
+                <p>Пожалуйста, подождите...</p>
             </div>
         </div>
     </div>
 
     <!-- Подключение скриптов -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-    
-    <!-- Наши скрипты -->
     <script src="data.js"></script>
-    <script src="app.js"></script>
-    <script src="admin-panel.js"></script>
     <script src="email-service.js"></script>
+    <script src="admin-panel.js"></script>
+    <script src="app.js"></script>
     
     <script>
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', () => {
-            // Инициализация частиц
-            if (typeof particlesJS !== 'undefined') {
-                particlesJS('particles-js', {
-                    particles: {
-                        number: { value: 50, density: { enable: true, value_area: 800 } },
-                        color: { value: "#0066ff" },
-                        shape: { type: "circle" },
-                        opacity: { value: 0.5, random: true },
-                        size: { value: 3, random: true },
-                        line_linked: {
-                            enable: true,
-                            distance: 150,
-                            color: "#0066ff",
-                            opacity: 0.4,
-                            width: 1
-                        },
-                        move: {
-                            enable: true,
-                            speed: 2,
-                            direction: "none",
-                            random: true,
-                            straight: false,
-                            out_mode: "out",
-                            bounce: false
-                        }
-                    }
-                });
-            }
-            
             // Скрытие прелоадера
             setTimeout(() => {
-                document.getElementById('preloader').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('preloader').style.display = 'none';
-                }, 500);
+                const preloader = document.getElementById('preloader');
+                if (preloader) {
+                    preloader.style.opacity = '0';
+                    setTimeout(() => {
+                        preloader.style.display = 'none';
+                    }, 500);
+                }
             }, 1000);
             
             // Установка правильной высоты для мобильных устройств
@@ -958,14 +969,45 @@
                 
                 const appContainer = document.querySelector('.app-container');
                 if (appContainer) {
-                    appContainer.style.height = '100vh';
-                    appContainer.style.height = 'calc(var(--vh, 1vh) * 100)';
+                    appContainer.style.minHeight = 'calc(var(--vh, 1vh) * 100)';
                 }
             }
             
             setAppHeight();
             window.addEventListener('resize', setAppHeight);
             window.addEventListener('orientationchange', setAppHeight);
+            
+            // Инициализация переключения темы
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcons = themeToggle.querySelectorAll('[data-theme-icon]');
+            
+            function setTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'dark' ? '#0c0c0e' : '#ffffff');
+                
+                // Сохраняем в localStorage
+                localStorage.setItem('theme', theme);
+                
+                // Обновляем иконки
+                themeIcons.forEach(icon => {
+                    icon.style.display = icon.dataset.themeIcon === theme ? 'none' : 'inline-block';
+                });
+            }
+            
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                setTheme(newTheme);
+            });
+            
+            // Загружаем сохраненную тему
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            setTheme(savedTheme);
+            
+            // Показываем версию MAX если доступна
+            if (window.WebApp && window.WebApp.version) {
+                document.getElementById('maxVersion').textContent = `MAX ${window.WebApp.version}`;
+            }
         });
     </script>
 </body>
