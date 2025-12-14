@@ -1908,7 +1908,7 @@ window.AppConfig = {
         maxMediaFiles: 5,
         maxFileSize: 10 * 1024 * 1024, // 10MB
         maxGraffitiPhotos: 3,
-        descriptionMinLength: 30
+        descriptionMinLength: 10
     },
     urls: {
         yandexMaps: "https://yandex.ru/maps/",
@@ -1920,8 +1920,6 @@ window.AppConfig = {
 // Кэш данных
 window.AppCache = {
     userLocation: null,
-    favoritePoints: new Set(),
-    lastReports: [],
     settings: {}
 };
 
@@ -1930,12 +1928,6 @@ function initCache() {
     try {
         // Проверяем наличие MAX Bridge SecureStorage
         if (window.WebApp && window.WebApp.SecureStorage) {
-            window.WebApp.SecureStorage.getItem('favoriteWifiPoints').then(favorites => {
-                if (favorites) {
-                    window.AppCache.favoritePoints = new Set(JSON.parse(favorites));
-                }
-            });
-            
             window.WebApp.SecureStorage.getItem('appSettings').then(settings => {
                 if (settings) {
                     window.AppCache.settings = JSON.parse(settings);
@@ -1943,11 +1935,6 @@ function initCache() {
             });
         } else {
             // Fallback на localStorage
-            const savedFavorites = localStorage.getItem('favoriteWifiPoints');
-            if (savedFavorites) {
-                window.AppCache.favoritePoints = new Set(JSON.parse(savedFavorites));
-            }
-            
             const savedSettings = localStorage.getItem('appSettings');
             if (savedSettings) {
                 window.AppCache.settings = JSON.parse(savedSettings);
