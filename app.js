@@ -1,7 +1,7 @@
-// Безопасный Севастополь - Основное приложение (MAX Bridge версия)
+// Безопасный Севастополь - Основное приложение для MAX Bridge
 class SafeSevastopol {
     constructor() {
-        // Инициализация полей ДО использования maxBridge
+        this.maxBridge = window.WebApp || null;
         this.currentUser = null;
         this.currentSection = 'wifi';
         this.currentLocation = null;
@@ -16,368 +16,383 @@ class SafeSevastopol {
         };
         this.mediaFiles = [];
         this.isAdmin = false;
-        this.hasUnsavedChanges = false; // ДОБАВЬ для подтверждения закрытия
-        this.startParam = null; // ДОБАВЬ для deep linking
+        this.hasUnsavedChanges = false;
+        this.startParam = null;
+        this.yandexMap = null;
+        this.mapMarker = null;
         
-        // Важно: инициализируем maxBridge ПОСЛЕ всех полей
-        this.maxBridge = window.WebApp || null;
-        
-        // Загружаем стартовые параметры ИЗ maxBridge
-        if (this.maxBridge?.initDataUnsafe?.start_param) {
-            this.startParam = this.maxBridge.initDataUnsafe.start_param;
-        }
-        
+        // Инициализация
         this.init();
     }
 
     async init() {
-        this.fixContentOverflow();
-        this.preventHorizontalScroll();
+        console.log('🚀 Инициализация Безопасный Севастополь');
+        
+        // Сначала сообщаем MAX, что приложение готово
+        if (this.maxBridge) {
+            this.maxBridge.ready();
+            console.log('✅ MAX Bridge ready() вызван');
+        }
+        
+        // Настройка адаптивности
+        this.setupResponsive();
+        
+        // Настройка событий
         this.setupEventListeners();
+        
+        // Загрузка данных пользователя
         await this.loadUserData();
+        
+        // Загрузка точек Wi-Fi
         this.loadWifiPoints();
+        
+        // Проверка прав админа
         this.checkAdminStatus();
+        
+        // Настройка форм
         this.setupFormValidation();
+        
+        // Настройка drag and drop
         this.setupDragAndDrop();
         
+        // Показываем приветственное уведомление
         this.showNotification('Добро пожаловать в Безопасный Севастополь!', 'success');
+        
+        // Инициализация Яндекс Карт
+        this.initYandexMaps();
+        
+        console.log('✅ Приложение инициализировано');
     }
 
-    fixContentOverflow() {
-        console.log('📏 Фиксируем переполнение контента...');
+    setupResponsive() {
+        // Предотвращаем горизонтальное расползание
+        document.body.style.overflowX = 'hidden';
         
-        // Запускаем каждые 2 секунды для контроля
-        setInterval(() => {
-            // 1. Проверяем body на переполнение
-            if (document.body.scrollWidth > window.innerWidth) {
-                document.body.style.overflowX = 'hidden';
-            }
-            
-            // 2. Проверяем основные контейнеры
-            const containers = document.querySelectorAll('.glass-card, .content-section');
-            containers.forEach(container => {
-                if (container.scrollWidth > container.clientWidth) {
-                    container.style.overflowX = 'hidden';
-                }
-            });
-            
-            // 3. Ограничиваем ширину изображений
-            document.querySelectorAll('img').forEach(img => {
-                if (img.width > window.innerWidth) {
-                    img.style.maxWidth = '100%';
-                    img.style.height = 'auto';
-                }
-            });
-            
-        }, 2000);
+        // Фиксируем высоту для мобильных устройств
+        function setVh() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
         
-        // Также запускаем при загрузке контента
-        const contentObserver = new MutationObserver(() => {
-            document.body.style.overflowX = 'hidden';
-        });
+        setVh();
+        window.addEventListener('resize', setVh);
+        window.addEventListener('orientationchange', setVh);
         
-        contentObserver.observe(document.body, { 
-            childList: true, 
-            subtree: true 
-        });
-    }
-
-    preventHorizontalScroll() {
-        console.log('🛡️ Блокируем горизонтальное расползание...');
-        
-        // 1. Следим за изменением размеров элементов
-        const observer = new ResizeObserver(entries => {
-            for (let entry of entries) {
-                const element = entry.target;
-                const width = element.offsetWidth;
-                const scrollWidth = element.scrollWidth;
-                
-                // Если содержимое шире контейнера - скрываем горизонтальный скролл
-                if (scrollWidth > width) {
-                    element.style.overflowX = 'hidden';
-                }
-            }
-        });
-        
-        // 2. Наблюдаем за основными контейнерами
-        const containersToWatch = [
-            '.app-container',
-            '.main-content',
-            '.content-section',
-            '.glass-card',
-            '.wifi-container',
-            '.security-container',
-            '.graffiti-container'
-        ];
-        
-        containersToWatch.forEach(selector => {
-            document.querySelectorAll(selector).forEach(el => {
-                observer.observe(el);
-            });
-        });
-        
-        // 3. Блокируем горизонтальный скролл колесиком мыши
+        // Блокируем горизонтальный скролл
         document.addEventListener('wheel', (e) => {
             if (e.deltaX !== 0) {
-                // Если пытаются скроллить горизонтально - блокируем
                 e.preventDefault();
             }
         }, { passive: false });
         
-        // 4. Блокируем горизонтальный свайп на тач-устройствах
-        let startX = 0;
-        document.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
-        }, { passive: true });
-        
-        document.addEventListener('touchmove', (e) => {
-            const currentX = e.touches[0].clientX;
-            const diffX = Math.abs(currentX - startX);
-            
-            // Если горизонтальный свайп сильный - блокируем
-            if (diffX > 10) {
-                const target = e.target;
-                // Разрешаем только для элементов, которым действительно нужен горизонтальный скролл
-                const allowHorizontalScroll = target.closest('.admin-table-container') || 
-                                             target.closest('.filters-scroll');
-                
-                if (!allowHorizontalScroll) {
-                    e.preventDefault();
-                }
-            }
-        }, { passive: false });
-        
-        // 5. Фикс для iOS - убираем bounce
+        // Для iOS
         if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
             document.body.style.overscrollBehavior = 'none';
-            document.body.style.webkitOverflowScrolling = 'touch';
         }
-        
-        console.log('✅ Горизонтальное расползание заблокировано');
     }
 
     setupEventListeners() {
         // Навигация
         document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', (e) => this.switchSection(e.target.closest('.nav-item').dataset.section));
+            item.addEventListener('click', (e) => {
+                const section = e.currentTarget.dataset.section;
+                this.switchSection(section);
+            });
         });
 
         // Wi-Fi поиск
-        document.getElementById('wifiSearch').addEventListener('input', (e) => this.searchWifiPoints(e.target.value));
-        document.getElementById('findNearbyWifi').addEventListener('click', () => this.findNearbyWifi());
-        document.getElementById('sortWifi').addEventListener('change', (e) => this.sortWifiPoints(e.target.value));
+        document.getElementById('wifiSearch')?.addEventListener('input', (e) => {
+            this.searchWifiPoints(e.target.value);
+        });
+        
+        document.getElementById('findNearbyWifi')?.addEventListener('click', () => {
+            this.findNearbyWifi();
+        });
+        
+        document.getElementById('sortWifi')?.addEventListener('change', (e) => {
+            this.sortWifiPoints(e.target.value);
+        });
 
         // Фильтры Wi-Fi
         document.querySelectorAll('.filter-tag').forEach(tag => {
-            tag.addEventListener('click', (e) => this.filterWifiPoints(e.target.closest('.filter-tag').dataset.filter));
+            tag.addEventListener('click', (e) => {
+                const filter = e.currentTarget.dataset.filter;
+                this.filterWifiPoints(filter);
+            });
         });
 
         // Избранное
-        document.getElementById('toggleFavorite').addEventListener('click', () => this.toggleCurrentFavorite());
+        document.getElementById('toggleFavorite')?.addEventListener('click', () => {
+            this.toggleCurrentFavorite();
+        });
 
         // Форма безопасности
-        document.getElementById('nextStep').addEventListener('click', () => this.nextSecurityStep());
-        document.getElementById('prevStep').addEventListener('click', () => this.prevSecurityStep());
-        document.getElementById('submitSecurityReport').addEventListener('click', () => this.submitSecurityReport());
+        document.getElementById('nextStep')?.addEventListener('click', () => {
+            this.nextSecurityStep();
+        });
+        
+        document.getElementById('prevStep')?.addEventListener('click', () => {
+            this.prevSecurityStep();
+        });
+        
+        document.getElementById('submitSecurityReport')?.addEventListener('click', () => {
+            this.submitSecurityReport();
+        });
 
         // Геолокация для безопасности
-        document.getElementById('useCurrentLocation').addEventListener('click', () => this.getCurrentLocation());
+        document.getElementById('useCurrentLocation')?.addEventListener('click', () => {
+            this.getCurrentLocation();
+        });
+        
         document.querySelectorAll('.location-option[data-type="address"]').forEach(btn => {
-            btn.addEventListener('click', () => this.showAddressInput());
+            btn.addEventListener('click', () => {
+                this.showAddressInput();
+            });
         });
 
         // Счетчик символов
-        document.getElementById('securityDescription').addEventListener('input', (e) => {
-            document.getElementById('charCount').textContent = e.target.value.length;
-        });
+        const descInput = document.getElementById('securityDescription');
+        if (descInput) {
+            descInput.addEventListener('input', (e) => {
+                document.getElementById('charCount').textContent = e.target.value.length;
+            });
+        }
 
         // Загрузка медиа
-        document.getElementById('browseMedia').addEventListener('click', () => document.getElementById('mediaInput').click());
-        document.getElementById('mediaInput').addEventListener('change', (e) => this.handleMediaUpload(e.target.files));
+        document.getElementById('browseMedia')?.addEventListener('click', () => {
+            document.getElementById('mediaInput').click();
+        });
+        
+        document.getElementById('mediaInput')?.addEventListener('change', (e) => {
+            this.handleMediaUpload(e.target.files);
+        });
 
         // Граффити
         document.querySelectorAll('.urgency-option').forEach(option => {
-            option.addEventListener('click', (e) => this.setGraffitiUrgency(e.target.closest('.urgency-option').dataset.urgency));
+            option.addEventListener('click', (e) => {
+                const urgency = e.currentTarget.dataset.urgency;
+                this.setGraffitiUrgency(urgency);
+            });
         });
 
-        document.getElementById('selectGraffitiLocation').addEventListener('click', () => this.openLocationPicker('graffiti'));
-        document.getElementById('addGraffitiPhoto').addEventListener('click', () => document.getElementById('graffitiPhotoInput').click());
-        document.getElementById('graffitiPhotoInput').addEventListener('change', (e) => this.handleGraffitiPhotos(e.target.files));
-        document.getElementById('submitGraffitiReport').addEventListener('click', () => this.submitGraffitiReport());
+        document.getElementById('selectGraffitiLocation')?.addEventListener('click', () => {
+            this.openLocationPicker('graffiti');
+        });
+        
+        document.getElementById('addGraffitiPhoto')?.addEventListener('click', () => {
+            document.getElementById('graffitiPhotoInput').click();
+        });
+        
+        document.getElementById('graffitiPhotoInput')?.addEventListener('change', (e) => {
+            this.handleGraffitiPhotos(e.target.files);
+        });
+        
+        document.getElementById('submitGraffitiReport')?.addEventListener('click', () => {
+            this.submitGraffitiReport();
+        });
 
         // Wi-Fi проблемы и предложения
-        document.getElementById('submitWifiProblem').addEventListener('click', () => this.submitWifiProblem());
-        document.getElementById('submitNewPoint').addEventListener('click', () => this.submitNewPoint());
+        document.getElementById('submitWifiProblem')?.addEventListener('click', () => {
+            this.submitWifiProblem();
+        });
+        
+        document.getElementById('submitNewPoint')?.addEventListener('click', () => {
+            this.submitNewPoint();
+        });
 
         // Экстренные вызовы
         document.querySelectorAll('.btn-call').forEach(btn => {
-            btn.addEventListener('click', (e) => this.makeEmergencyCall(e.target.closest('.btn-call').dataset.number));
+            btn.addEventListener('click', (e) => {
+                const number = e.currentTarget.dataset.number;
+                this.makeEmergencyCall(number);
+            });
         });
 
         // Админ-панель
         document.querySelectorAll('.admin-tab').forEach(tab => {
-            tab.addEventListener('click', (e) => this.switchAdminTab(e.target.closest('.admin-tab').dataset.tab));
+            tab.addEventListener('click', (e) => {
+                const tabName = e.currentTarget.dataset.tab;
+                this.switchAdminTab(tabName);
+            });
         });
 
         // Модальные окна
         document.querySelectorAll('.modal-close').forEach(btn => {
-            btn.addEventListener('click', () => this.closeModal());
+            btn.addEventListener('click', () => {
+                this.closeModal();
+            });
         });
 
-        document.getElementById('modalOverlay').addEventListener('click', () => this.closeModal());
-        document.getElementById('cancelLocation').addEventListener('click', () => this.closeModal());
-        document.getElementById('confirmLocation').addEventListener('click', () => this.confirmLocation());
+        document.getElementById('modalOverlay')?.addEventListener('click', () => {
+            this.closeModal();
+        });
+        
+        document.getElementById('cancelLocation')?.addEventListener('click', () => {
+            this.closeModal();
+        });
+        
+        document.getElementById('confirmLocation')?.addEventListener('click', () => {
+            this.confirmLocation();
+        });
+
+        // Очистка поиска
+        document.getElementById('clearSearch')?.addEventListener('click', () => {
+            document.getElementById('wifiSearch').value = '';
+            this.searchWifiPoints('');
+        });
     }
 
-async loadUserData() {
-    try {
-        // ===== ВАЖНО: Сначала сообщаем MAX, что приложение готово =====
-        if (this.maxBridge) {
-            // ✅ Критически важно: ready() ДО любых других действий
-            this.maxBridge.ready();
+    async loadUserData() {
+        try {
+            console.log('👤 Загрузка данных пользователя...');
             
-            // Настройка кнопки "Назад"
+            let userData = null;
+            
+            // Пытаемся получить данные из MAX Bridge
+            if (this.maxBridge?.initDataUnsafe?.user) {
+                const bridgeUser = this.maxBridge.initDataUnsafe.user;
+                userData = {
+                    id: String(bridgeUser.id || 'anonymous'),
+                    first_name: bridgeUser.first_name || 'Пользователь',
+                    last_name: bridgeUser.last_name || '',
+                    username: bridgeUser.username || '',
+                    language_code: bridgeUser.language_code || 'ru'
+                };
+                console.log('✅ Пользователь из MAX Bridge:', userData.id);
+                
+                // Сохраняем start_param если есть
+                if (this.maxBridge.initDataUnsafe.start_param) {
+                    this.startParam = this.maxBridge.initDataUnsafe.start_param;
+                    this.handleStartParam(this.startParam);
+                }
+            }
+            
+            // Если нет данных из Bridge - используем демо-режим
+            if (!userData) {
+                userData = {
+                    id: 'demo_user',
+                    first_name: 'Демо',
+                    last_name: 'Пользователь',
+                    username: 'demo_user',
+                    language_code: 'ru'
+                };
+                console.log('⚠️ Используем демо-режим');
+            }
+            
+            this.currentUser = userData;
+            
+            // Обновление UI
+            const userNameElement = document.getElementById('userName');
+            if (userNameElement) {
+                userNameElement.textContent = this.currentUser.first_name || 'Гость';
+            }
+            
+            // Загрузка избранных точек
+            try {
+                if (this.maxBridge?.SecureStorage) {
+                    const favorites = await this.maxBridge.SecureStorage.getItem('favoriteWifiPoints');
+                    if (favorites) {
+                        this.favoritePoints = new Set(JSON.parse(favorites));
+                        console.log('⭐ Избранное загружено из SecureStorage:', this.favoritePoints.size);
+                    }
+                } else {
+                    const favorites = localStorage.getItem('favoriteWifiPoints');
+                    if (favorites) {
+                        this.favoritePoints = new Set(JSON.parse(favorites));
+                        console.log('⭐ Избранное загружено из localStorage:', this.favoritePoints.size);
+                    }
+                }
+            } catch (storageError) {
+                console.warn('Ошибка загрузки избранного:', storageError);
+            }
+            
+            // Настройка кнопки "Назад" для MAX
             this.setupBackButton();
             
             // Включаем подтверждение при закрытии
-            this.maxBridge.enableClosingConfirmation();
-        }
-        
-        // ===== БЕЗОПАСНАЯ загрузка данных пользователя =====
-        let userData = null;
-        
-        // Пытаемся получить из MAX Bridge
-        if (this.maxBridge?.initDataUnsafe?.user) {
-            const bridgeUser = this.maxBridge.initDataUnsafe.user;
+            if (this.maxBridge?.enableClosingConfirmation) {
+                this.maxBridge.enableClosingConfirmation();
+            }
             
-            // ✅ Безопасно копируем только нужные поля
-            userData = {
-                id: String(bridgeUser.id || 'anonymous'),
-                first_name: bridgeUser.first_name || 'Пользователь',
-                last_name: bridgeUser.last_name || '',
-                username: bridgeUser.username || '',
-                language_code: bridgeUser.language_code || 'ru'
-            };
-            
-            console.log('Пользователь из MAX Bridge:', userData.id);
-        }
-        
-        // Если нет данных из Bridge - используем демо-режим
-        if (!userData) {
-            userData = {
-                id: 'demo_user',
-                first_name: 'Демо',
-                last_name: 'Пользователь',
-                username: 'demo_user',
+        } catch (error) {
+            console.error('❌ Ошибка загрузки данных пользователя:', error);
+            // Аварийный fallback
+            this.currentUser = { 
+                id: 'anonymous', 
+                first_name: 'Гость',
                 language_code: 'ru'
             };
-            console.log('Используем демо-режим');
-        }
-        
-        this.currentUser = userData;
-        
-        // ===== Обновление UI =====
-        const userNameElement = document.getElementById('userName');
-        if (userNameElement) {
-            userNameElement.textContent = this.currentUser.first_name || 'Гость';
-        }
-        
-        // ===== Загрузка избранных точек =====
-        try {
-            if (this.maxBridge?.SecureStorage) {
-                const favorites = await this.maxBridge.SecureStorage.getItem('favoriteWifiPoints');
-                if (favorites) {
-                    this.favoritePoints = new Set(JSON.parse(favorites));
-                    console.log('Избранное загружено из SecureStorage:', this.favoritePoints.size);
-                }
-            } else {
-                const favorites = localStorage.getItem('favoriteWifiPoints');
-                if (favorites) {
-                    this.favoritePoints = new Set(JSON.parse(favorites));
-                    console.log('Избранное загружено из localStorage:', this.favoritePoints.size);
-                }
+            
+            const userNameElement = document.getElementById('userName');
+            if (userNameElement) {
+                userNameElement.textContent = 'Гость';
             }
-        } catch (storageError) {
-            console.warn('Ошибка загрузки избранного:', storageError);
-        }
-        
-        // ===== Проверка прав админа =====
-        this.checkAdminStatus();
-        
-        // ===== Обработка deep link параметров =====
-        if (this.startParam) {
-            this.handleStartParam(this.startParam);
-        }
-        
-    } catch (error) {
-        console.error('Критическая ошибка загрузки данных пользователя:', error);
-        // Аварийный fallback
-        this.currentUser = { 
-            id: 'anonymous', 
-            first_name: 'Гость',
-            language_code: 'ru'
-        };
-        
-        // Все равно обновляем UI
-        const userNameElement = document.getElementById('userName');
-        if (userNameElement) {
-            userNameElement.textContent = 'Гость';
         }
     }
-}
 
-    // ===== ОБРАБОТКА DEEP LINK ПАРАМЕТРОВ =====
     handleStartParam(param) {
         if (!param) return;
         
-        console.log('Обработка стартового параметра:', param);
-        
-        // Примеры параметров:
-        // startapp=wifi - открыть раздел Wi-Fi
-        // startapp=security - открыть раздел Безопасность
-        // startapp=report_123 - открыть отчет #123
+        console.log('🔗 Обработка стартового параметра:', param);
         
         const sections = ['wifi', 'security', 'graffiti', 'contacts', 'admin'];
         
         if (sections.includes(param)) {
             this.switchSection(param);
-            this.showNotification(`Открыт раздел: ${param}`, 'info');
+            this.showNotification(`Открыт раздел: ${this.getSectionName(param)}`, 'info');
         } else if (param.startsWith('report_')) {
             const reportId = param.replace('report_', '');
-            // В будущем можно реализовать открытие конкретного отчета
             this.showNotification(`Отчет #${reportId}`, 'info');
             this.switchSection('admin');
         }
     }
 
+    getSectionName(section) {
+        const names = {
+            'wifi': 'Wi-Fi',
+            'security': 'Безопасность',
+            'graffiti': 'Граффити',
+            'contacts': 'Контакты',
+            'admin': 'Админ-панель'
+        };
+        return names[section] || section;
+    }
+
     setupBackButton() {
-        if (!this.maxBridge || !this.maxBridge.BackButton) return;
+        if (!this.maxBridge?.BackButton) return;
         
         this.maxBridge.BackButton.show();
         this.maxBridge.BackButton.onClick(() => {
+            console.log('🔙 Нажата кнопка назад');
+            
             if (this.currentSection !== 'wifi') {
                 this.switchSection('wifi');
-                this.maxBridge.HapticFeedback?.impactOccurred('light');
+                // Тактильная обратная связь
+                this.hapticFeedback('light');
             } else {
-                this.maxBridge.close();
+                if (this.maxBridge.close) {
+                    this.maxBridge.close();
+                }
             }
         });
     }
 
     switchSection(section) {
+        if (this.currentSection === section) return;
+        
         this.currentSection = section;
         
         // Обновление активной навигации
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
         });
-        document.querySelector(`[data-section="${section}"]`).classList.add('active');
+        document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
         
         // Показать нужную секцию
         document.querySelectorAll('.content-section').forEach(sec => {
             sec.classList.remove('active');
         });
-        document.getElementById(`${section}-section`).classList.add('active');
+        document.getElementById(`${section}-section`)?.classList.add('active');
         
         // Прокрутка вверх
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -400,6 +415,8 @@ async loadUserData() {
                 this.loadAdminDashboard();
                 break;
         }
+        
+        console.log(`📍 Переключен раздел: ${section}`);
     }
 
     // ===== WI-FI ФУНКЦИОНАЛ =====
@@ -407,8 +424,8 @@ async loadUserData() {
         const loadingElement = document.getElementById('wifiLoading');
         const resultsElement = document.getElementById('wifiResults');
         
-        loadingElement.classList.add('visible');
-        resultsElement.innerHTML = '';
+        if (loadingElement) loadingElement.classList.add('visible');
+        if (resultsElement) resultsElement.innerHTML = '';
         
         try {
             // Загрузка точек из data.js
@@ -420,23 +437,29 @@ async loadUserData() {
             // Заполнение выпадающего списка для отчетов
             this.populateWifiSelect();
             
-            document.getElementById('wifiCount').textContent = points.length;
-            loadingElement.classList.remove('visible');
+            const wifiCountElement = document.getElementById('wifiCount');
+            if (wifiCountElement) wifiCountElement.textContent = points.length;
+            
+            if (loadingElement) loadingElement.classList.remove('visible');
             
         } catch (error) {
-            console.error('Ошибка загрузки точек Wi-Fi:', error);
-            resultsElement.innerHTML = `
-                <div class="error-message">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Не удалось загрузить точки Wi-Fi. Пожалуйста, попробуйте позже.</p>
-                </div>
-            `;
-            loadingElement.classList.remove('visible');
+            console.error('❌ Ошибка загрузки точек Wi-Fi:', error);
+            if (resultsElement) {
+                resultsElement.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h4>Ошибка загрузки</h4>
+                        <p>Не удалось загрузить точки Wi-Fi. Пожалуйста, попробуйте позже.</p>
+                    </div>
+                `;
+            }
+            if (loadingElement) loadingElement.classList.remove('visible');
         }
     }
 
     displayWifiPoints(points) {
         const container = document.getElementById('wifiResults');
+        if (!container) return;
         
         if (points.length === 0) {
             container.innerHTML = `
@@ -453,13 +476,17 @@ async loadUserData() {
         
         // Добавление обработчиков кликов
         container.querySelectorAll('.wifi-result-item').forEach((item, index) => {
-            item.addEventListener('click', () => this.showWifiDetails(points[index]));
+            item.addEventListener('click', () => {
+                if (points[index]) {
+                    this.showWifiDetails(points[index]);
+                }
+            });
         });
     }
 
     createWifiPointCard(point) {
         const isFavorite = this.favoritePoints.has(point.id);
-        const distance = point.distance ? `${point.distance.toFixed(2)} км` : '';
+        const distance = point.distance ? this.formatDistance(point.distance) : '';
         
         return `
             <div class="wifi-result-item" data-id="${point.id}">
@@ -472,18 +499,25 @@ async loadUserData() {
                 ${point.address ? `<div class="wifi-result-address">${point.address}</div>` : ''}
                 ${point.description ? `<div class="wifi-result-description">${point.description}</div>` : ''}
                 <div class="wifi-result-actions">
-                    <button class="btn-favorite ${isFavorite ? 'active' : ''}" onclick="app.toggleFavorite(${point.id}, event)">
-                        <i class="fas fa-star"></i>
+                    <button class="btn-icon" onclick="app.toggleFavorite(${point.id}, event)">
+                        <i class="${isFavorite ? 'fas' : 'far'} fa-star"></i>
                     </button>
-                    <button class="btn-map" onclick="app.showOnMap(${point.id}, event)">
+                    <button class="btn-icon" onclick="app.openInMaps(${point.id}, event)">
                         <i class="fas fa-map-marked-alt"></i>
                     </button>
-                    <button class="btn-report" onclick="app.reportWifiProblem(${point.id}, event)">
+                    <button class="btn-icon" onclick="app.reportWifiProblem(${point.id}, event)">
                         <i class="fas fa-exclamation-circle"></i>
                     </button>
                 </div>
             </div>
         `;
+    }
+
+    formatDistance(km) {
+        if (km < 1) {
+            return `${(km * 1000).toFixed(0)} м`;
+        }
+        return `${km.toFixed(1)} км`;
     }
 
     populateWifiSelect() {
@@ -506,6 +540,8 @@ async loadUserData() {
 
     async findNearbyWifi() {
         try {
+            this.showNotification('Определяем ваше местоположение...', 'info');
+            
             const position = await this.getCurrentPosition();
             this.currentLocation = position;
             
@@ -513,13 +549,17 @@ async loadUserData() {
             this.hapticFeedback('medium');
             
             // Поиск ближайших точек
-            const nearestPoints = this.findNearestPoints(position.coords.latitude, position.coords.longitude);
+            const nearestPoints = this.findNearestPoints(
+                position.coords.latitude, 
+                position.coords.longitude
+            );
+            
             this.displayWifiPoints(nearestPoints);
             
             this.showNotification(`Найдено ${nearestPoints.length} точек поблизости`, 'success');
             
         } catch (error) {
-            console.error('Ошибка геолокации:', error);
+            console.error('❌ Ошибка геолокации:', error);
             this.showNotification('Не удалось определить местоположение', 'error');
             
             // Показать все точки как fallback
@@ -548,22 +588,28 @@ async loadUserData() {
 
     calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371; // Радиус Земли в км
-        const dLat = this.toRad(lat2 - lat1);
-        const dLon = this.toRad(lon2 - lon1);
+        const dLat = this.deg2rad(lat2 - lat1);
+        const dLon = this.deg2rad(lon2 - lon1);
         
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
         
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         return R * c;
     }
 
-    toRad(degrees) {
-        return degrees * Math.PI / 180;
+    deg2rad(deg) {
+        return deg * (Math.PI/180);
     }
 
     searchWifiPoints(query) {
+        const clearBtn = document.getElementById('clearSearch');
+        if (clearBtn) {
+            clearBtn.style.display = query ? 'flex' : 'none';
+        }
+        
         const points = window.wifiPoints || [];
         
         if (!query.trim()) {
@@ -579,7 +625,9 @@ async loadUserData() {
         );
         
         this.displayWifiPoints(filtered);
-        document.getElementById('wifiCount').textContent = filtered.length;
+        
+        const wifiCountElement = document.getElementById('wifiCount');
+        if (wifiCountElement) wifiCountElement.textContent = filtered.length;
     }
 
     filterWifiPoints(filter) {
@@ -589,34 +637,43 @@ async loadUserData() {
         document.querySelectorAll('.filter-tag').forEach(tag => {
             tag.classList.remove('active');
         });
-        event.target.closest('.filter-tag').classList.add('active');
+        event?.target?.closest('.filter-tag')?.classList.add('active');
         
         if (filter === 'all') {
             this.displayWifiPoints(points);
-            document.getElementById('wifiCount').textContent = points.length;
+            const wifiCountElement = document.getElementById('wifiCount');
+            if (wifiCountElement) wifiCountElement.textContent = points.length;
             return;
         }
         
         const filtered = points.filter(point => point.type === filter);
         this.displayWifiPoints(filtered);
-        document.getElementById('wifiCount').textContent = filtered.length;
+        
+        const wifiCountElement = document.getElementById('wifiCount');
+        if (wifiCountElement) wifiCountElement.textContent = filtered.length;
     }
 
     sortWifiPoints(criteria) {
         const container = document.getElementById('wifiResults');
+        if (!container) return;
+        
         const items = Array.from(container.querySelectorAll('.wifi-result-item'));
         
         items.sort((a, b) => {
-            const aData = a.dataset;
-            const bData = b.dataset;
+            const aId = parseInt(a.dataset.id);
+            const bId = parseInt(b.dataset.id);
+            const aPoint = window.wifiPoints?.find(p => p.id === aId);
+            const bPoint = window.wifiPoints?.find(p => p.id === bId);
+            
+            if (!aPoint || !bPoint) return 0;
             
             switch(criteria) {
                 case 'distance':
-                    return parseFloat(aData.distance || 0) - parseFloat(bData.distance || 0);
+                    return (aPoint.distance || 0) - (bPoint.distance || 0);
                 case 'name':
-                    return a.dataset.name?.localeCompare(b.dataset.name || '');
+                    return aPoint.name.localeCompare(bPoint.name);
                 case 'type':
-                    return a.dataset.type?.localeCompare(b.dataset.type || '');
+                    return aPoint.type.localeCompare(bPoint.type);
                 default:
                     return 0;
             }
@@ -629,54 +686,69 @@ async loadUserData() {
 
     showWifiDetails(point) {
         const container = document.getElementById('wifiDetails');
+        if (!container) return;
+        
         const isFavorite = this.favoritePoints.has(point.id);
         
         // Обновляем кнопку избранного
         const favoriteBtn = document.getElementById('toggleFavorite');
-        favoriteBtn.innerHTML = isFavorite ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
-        favoriteBtn.classList.toggle('active', isFavorite);
-        favoriteBtn.dataset.pointId = point.id;
+        if (favoriteBtn) {
+            favoriteBtn.innerHTML = `<i class="${isFavorite ? 'fas' : 'far'} fa-star"></i>`;
+            favoriteBtn.dataset.pointId = point.id;
+        }
         
         container.innerHTML = `
-            <div class="wifi-detail-card">
-                <div class="detail-header">
-                    <h4>${this.getTypeEmoji(point.type)} ${point.name}</h4>
-                </div>
-                
-                ${point.address ? `
+            <div class="wifi-details-content">
                 <div class="detail-item">
-                    <div class="detail-label">📍 Адрес:</div>
-                    <div>${point.address}</div>
-                </div>
-                ` : ''}
-                
-                <div class="detail-item">
-                    <div class="detail-label">📝 Описание:</div>
-                    <div>${point.description || 'Нет описания'}</div>
+                    <div class="detail-label">
+                        <i class="fas fa-wifi"></i>
+                        <span>Название:</span>
+                    </div>
+                    <div class="detail-value">${point.name}</div>
                 </div>
                 
                 <div class="detail-item">
-                    <div class="detail-label">📌 Координаты:</div>
-                    <div>${point.coordinates.lat.toFixed(6)}, ${point.coordinates.lon.toFixed(6)}</div>
+                    <div class="detail-label">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Адрес:</span>
+                    </div>
+                    <div class="detail-value">${point.address || 'Не указан'}</div>
                 </div>
                 
                 <div class="detail-item">
-                    <div class="detail-label">🏷️ Тип:</div>
-                    <div>${this.getTypeName(point.type)}</div>
+                    <div class="detail-label">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Описание:</span>
+                    </div>
+                    <div class="detail-value">${point.description || 'Нет описания'}</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">
+                        <i class="fas fa-map-pin"></i>
+                        <span>Координаты:</span>
+                    </div>
+                    <div class="detail-value">
+                        ${point.coordinates.lat.toFixed(6)}, ${point.coordinates.lon.toFixed(6)}
+                    </div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">
+                        <i class="fas fa-tag"></i>
+                        <span>Тип:</span>
+                    </div>
+                    <div class="detail-value">${this.getTypeName(point.type)}</div>
                 </div>
                 
                 <div class="detail-actions">
-                    <button class="btn-action primary" onclick="app.openInMaps(${point.id})">
+                    <button class="btn-primary" onclick="app.openInMaps(${point.id})">
                         <i class="fas fa-map-marked-alt"></i>
                         <span>На карте</span>
                     </button>
-                    <button class="btn-action secondary" onclick="app.buildRoute(${point.id})">
+                    <button class="btn-secondary" onclick="app.buildRoute(${point.id})">
                         <i class="fas fa-route"></i>
                         <span>Маршрут</span>
-                    </button>
-                    <button class="btn-action accent" onclick="app.reportWifiProblem(${point.id})">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>Проблема</span>
                     </button>
                 </div>
             </div>
@@ -699,7 +771,7 @@ async loadUserData() {
         
         // Сохранение в SecureStorage если доступно, иначе в localStorage
         const favoritesData = JSON.stringify([...this.favoritePoints]);
-        if (this.maxBridge && this.maxBridge.SecureStorage) {
+        if (this.maxBridge?.SecureStorage) {
             this.maxBridge.SecureStorage.setItem('favoriteWifiPoints', favoritesData);
         } else {
             localStorage.setItem('favoriteWifiPoints', favoritesData);
@@ -709,40 +781,48 @@ async loadUserData() {
         this.hapticFeedback('light');
         
         // Обновление UI
-        const favoriteBtn = document.querySelector(`[data-id="${pointId}"] .btn-favorite`);
+        const favoriteBtn = document.querySelector(`[data-id="${pointId}"] .btn-icon`);
         if (favoriteBtn) {
-            favoriteBtn.classList.toggle('active');
-            favoriteBtn.innerHTML = this.favoritePoints.has(pointId) ? 
-                '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+            const icon = favoriteBtn.querySelector('i');
+            if (icon) {
+                icon.className = this.favoritePoints.has(pointId) ? 'fas fa-star' : 'far fa-star';
+            }
         }
         
         // Обновление кнопки в деталях
         const detailsFavoriteBtn = document.getElementById('toggleFavorite');
         if (detailsFavoriteBtn && detailsFavoriteBtn.dataset.pointId == pointId) {
-            detailsFavoriteBtn.innerHTML = this.favoritePoints.has(pointId) ? 
-                '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
-            detailsFavoriteBtn.classList.toggle('active', this.favoritePoints.has(pointId));
+            const icon = detailsFavoriteBtn.querySelector('i');
+            if (icon) {
+                icon.className = this.favoritePoints.has(pointId) ? 'fas fa-star' : 'far fa-star';
+            }
         }
     }
 
     toggleCurrentFavorite() {
-        const pointId = document.getElementById('toggleFavorite').dataset.pointId;
-        if (pointId) {
-            this.toggleFavorite(parseInt(pointId));
+        const favoriteBtn = document.getElementById('toggleFavorite');
+        if (favoriteBtn && favoriteBtn.dataset.pointId) {
+            const pointId = parseInt(favoriteBtn.dataset.pointId);
+            this.toggleFavorite(pointId);
         }
     }
 
-    openInMaps(pointId) {
+    openInMaps(pointId, event) {
+        if (event) event.stopPropagation();
+        
         const point = window.wifiPoints?.find(p => p.id === pointId);
         if (!point) return;
         
         const url = `https://yandex.ru/maps/?pt=${point.coordinates.lon},${point.coordinates.lat}&z=17&l=map`;
         
-        if (this.maxBridge && this.maxBridge.openLink) {
+        if (this.maxBridge?.openLink) {
             this.maxBridge.openLink(url);
         } else {
             window.open(url, '_blank');
         }
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
     }
 
     buildRoute(pointId) {
@@ -755,7 +835,7 @@ async loadUserData() {
                 const userLon = position.coords.longitude;
                 const url = `https://yandex.ru/maps/?rtext=${userLat},${userLon}~${point.coordinates.lat},${point.coordinates.lon}&rtt=auto`;
                 
-                if (this.maxBridge && this.maxBridge.openLink) {
+                if (this.maxBridge?.openLink) {
                     this.maxBridge.openLink(url);
                 } else {
                     window.open(url, '_blank');
@@ -771,8 +851,8 @@ async loadUserData() {
 
     async submitWifiProblem() {
         try {
-            const pointId = document.getElementById('wifiProblemPoint').value;
-            const description = document.getElementById('wifiProblemDesc').value.trim();
+            const pointId = document.getElementById('wifiProblemPoint')?.value;
+            const description = document.getElementById('wifiProblemDesc')?.value.trim();
             
             if (!pointId) {
                 this.showNotification('Выберите точку Wi-Fi', 'error');
@@ -804,8 +884,10 @@ async loadUserData() {
             await this.sendEmailNotification(reportData, 'wifi');
             
             // Очистка формы
-            document.getElementById('wifiProblemDesc').value = '';
-            document.getElementById('wifiProblemPoint').selectedIndex = 0;
+            const descInput = document.getElementById('wifiProblemDesc');
+            const pointSelect = document.getElementById('wifiProblemPoint');
+            if (descInput) descInput.value = '';
+            if (pointSelect) pointSelect.selectedIndex = 0;
             
             // Тактильная обратная связь
             this.hapticFeedback('success');
@@ -813,17 +895,17 @@ async loadUserData() {
             this.showNotification('Проблема с Wi-Fi отправлена! Спасибо за сообщение.', 'success');
             
         } catch (error) {
-            console.error('Ошибка отправки проблемы Wi-Fi:', error);
+            console.error('❌ Ошибка отправки проблемы Wi-Fi:', error);
             this.showNotification('Ошибка отправки. Попробуйте позже.', 'error');
         }
     }
 
     async submitNewPoint() {
         try {
-            const name = document.getElementById('newPointName').value.trim();
-            const address = document.getElementById('newPointAddress').value.trim();
-            const type = document.getElementById('newPointType').value;
-            const description = document.getElementById('newPointDesc').value.trim();
+            const name = document.getElementById('newPointName')?.value.trim();
+            const address = document.getElementById('newPointAddress')?.value.trim();
+            const type = document.getElementById('newPointType')?.value;
+            const description = document.getElementById('newPointDesc')?.value.trim();
             
             if (!name) {
                 this.showNotification('Введите название точки', 'error');
@@ -854,10 +936,15 @@ async loadUserData() {
             await this.sendEmailNotification(suggestionData, 'wifi_suggestion');
             
             // Очистка формы
-            document.getElementById('newPointName').value = '';
-            document.getElementById('newPointAddress').value = '';
-            document.getElementById('newPointType').selectedIndex = 0;
-            document.getElementById('newPointDesc').value = '';
+            const nameInput = document.getElementById('newPointName');
+            const addressInput = document.getElementById('newPointAddress');
+            const typeSelect = document.getElementById('newPointType');
+            const descInput = document.getElementById('newPointDesc');
+            
+            if (nameInput) nameInput.value = '';
+            if (addressInput) addressInput.value = '';
+            if (typeSelect) typeSelect.selectedIndex = 0;
+            if (descInput) descInput.value = '';
             
             // Тактильная обратная связь
             this.hapticFeedback('success');
@@ -865,7 +952,7 @@ async loadUserData() {
             this.showNotification('Предложение новой точки отправлено! Спасибо за помощь.', 'success');
             
         } catch (error) {
-            console.error('Ошибка отправки предложения:', error);
+            console.error('❌ Ошибка отправки предложения:', error);
             this.showNotification('Ошибка отправки. Попробуйте позже.', 'error');
         }
     }
@@ -882,29 +969,41 @@ async loadUserData() {
         document.querySelectorAll('.step').forEach(step => {
             step.classList.remove('active');
         });
-        document.querySelector('[data-step="1"]').classList.add('active');
+        document.querySelector('[data-step="1"]')?.classList.add('active');
         
         // Сброс шагов формы
         document.querySelectorAll('.form-step').forEach(step => {
             step.classList.remove('active');
         });
-        document.querySelector('[data-step="1"]').classList.add('active');
+        document.querySelector('[data-step="1"]')?.classList.add('active');
         
         // Сброс кнопок
-        document.getElementById('prevStep').style.display = 'none';
-        document.getElementById('nextStep').style.display = 'flex';
-        document.getElementById('submitSecurityReport').style.display = 'none';
+        const prevBtn = document.getElementById('prevStep');
+        const nextBtn = document.getElementById('nextStep');
+        const submitBtn = document.getElementById('submitSecurityReport');
+        
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'flex';
+        if (submitBtn) submitBtn.style.display = 'none';
         
         // Очистка полей
-        document.getElementById('securityName').value = '';
-        document.getElementById('securityPhone').value = '';
-        document.getElementById('manualAddress').value = '';
-        document.getElementById('securityCategory').selectedIndex = 0;
-        document.getElementById('securityDescription').value = '';
-        document.getElementById('charCount').textContent = '0';
+        const nameInput = document.getElementById('securityName');
+        const phoneInput = document.getElementById('securityPhone');
+        const addressInput = document.getElementById('manualAddress');
+        const categorySelect = document.getElementById('securityCategory');
+        const descInput = document.getElementById('securityDescription');
+        const charCount = document.getElementById('charCount');
+        
+        if (nameInput) nameInput.value = '';
+        if (phoneInput) phoneInput.value = '';
+        if (addressInput) addressInput.value = '';
+        if (categorySelect) categorySelect.selectedIndex = 0;
+        if (descInput) descInput.value = '';
+        if (charCount) charCount.textContent = '0';
         
         // Скрыть адресное поле
-        document.getElementById('addressInputGroup').style.display = 'none';
+        const addressGroup = document.getElementById('addressInputGroup');
+        if (addressGroup) addressGroup.style.display = 'none';
         
         // Очистка медиа
         this.updateMediaPreview();
@@ -939,8 +1038,8 @@ async loadUserData() {
     validateSecurityStep(step) {
         switch(step) {
             case 1:
-                const name = document.getElementById('securityName').value.trim();
-                const phone = document.getElementById('securityPhone').value.trim();
+                const name = document.getElementById('securityName')?.value.trim();
+                const phone = document.getElementById('securityPhone')?.value.trim();
                 
                 if (!name) {
                     this.showNotification('Введите ваше имя', 'error');
@@ -964,8 +1063,8 @@ async loadUserData() {
                 break;
                 
             case 3:
-                const category = document.getElementById('securityCategory').value;
-                const description = document.getElementById('securityDescription').value.trim();
+                const category = document.getElementById('securityCategory')?.value;
+                const description = document.getElementById('securityDescription')?.value.trim();
                 
                 if (!category) {
                     this.showNotification('Выберите категорию', 'error');
@@ -985,6 +1084,13 @@ async loadUserData() {
         return true;
     }
 
+    validatePhone(phone) {
+        if (!phone) return false;
+        const cleanPhone = phone.replace(/\s|-|\(|\)/g, '');
+        const russianRegex = /^(\+7|7|8)?[489][0-9]{9}$/;
+        return russianRegex.test(cleanPhone);
+    }
+
     updateSecurityStepper() {
         document.querySelectorAll('.step').forEach(step => {
             step.classList.remove('active');
@@ -994,30 +1100,53 @@ async loadUserData() {
             step.classList.remove('active');
         });
         
-        document.querySelector(`[data-step="${this.securityReport.step}"]`).classList.add('active');
-        document.querySelector(`.form-step[data-step="${this.securityReport.step}"]`).classList.add('active');
+        const currentStep = document.querySelector(`[data-step="${this.securityReport.step}"]`);
+        const currentFormStep = document.querySelector(`.form-step[data-step="${this.securityReport.step}"]`);
+        
+        if (currentStep) currentStep.classList.add('active');
+        if (currentFormStep) currentFormStep.classList.add('active');
         
         // Обновление кнопок навигации
-        document.getElementById('prevStep').style.display = this.securityReport.step > 1 ? 'flex' : 'none';
-        document.getElementById('nextStep').style.display = this.securityReport.step < 4 ? 'flex' : 'none';
-        document.getElementById('submitSecurityReport').style.display = this.securityReport.step === 4 ? 'flex' : 'none';
+        const prevBtn = document.getElementById('prevStep');
+        const nextBtn = document.getElementById('nextStep');
+        const submitBtn = document.getElementById('submitSecurityReport');
+        
+        if (prevBtn) {
+            prevBtn.style.display = this.securityReport.step > 1 ? 'flex' : 'none';
+        }
+        
+        if (nextBtn) {
+            nextBtn.style.display = this.securityReport.step < 4 ? 'flex' : 'none';
+        }
+        
+        if (submitBtn) {
+            submitBtn.style.display = this.securityReport.step === 4 ? 'flex' : 'none';
+        }
     }
 
     updateSecurityForm() {
         // Обновление данных формы
-        if (this.securityReport.data.name) {
-            document.getElementById('securityName').value = this.securityReport.data.name;
+        const nameInput = document.getElementById('securityName');
+        const phoneInput = document.getElementById('securityPhone');
+        const addressInput = document.getElementById('manualAddress');
+        
+        if (nameInput && this.securityReport.data.name) {
+            nameInput.value = this.securityReport.data.name;
         }
-        if (this.securityReport.data.phone) {
-            document.getElementById('securityPhone').value = this.securityReport.data.phone;
+        
+        if (phoneInput && this.securityReport.data.phone) {
+            phoneInput.value = this.securityReport.data.phone;
         }
-        if (this.securityReport.data.address) {
-            document.getElementById('manualAddress').value = this.securityReport.data.address;
+        
+        if (addressInput && this.securityReport.data.address) {
+            addressInput.value = this.securityReport.data.address;
         }
     }
 
     async getCurrentLocation() {
         try {
+            this.showNotification('Определяем ваше местоположение...', 'info');
+            
             const position = await this.getCurrentPosition();
             this.securityReport.data.location = {
                 lat: position.coords.latitude,
@@ -1035,21 +1164,46 @@ async loadUserData() {
                 this.nextSecurityStep();
             }
         } catch (error) {
-            console.error('Ошибка геолокации:', error);
+            console.error('❌ Ошибка геолокации:', error);
             this.showNotification('Не удалось определить местоположение. Укажите адрес вручную.', 'error');
             this.showAddressInput();
         }
     }
 
-    showAddressInput() {
-        document.getElementById('addressInputGroup').style.display = 'block';
-        document.getElementById('manualAddress').focus();
-        
-        // Обработка ввода адреса
-        document.getElementById('manualAddress').addEventListener('input', (e) => {
-            this.securityReport.data.address = e.target.value;
-            this.securityReport.data.location = null;
+    getCurrentPosition() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Геолокация не поддерживается'));
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
         });
+    }
+
+    showAddressInput() {
+        const addressGroup = document.getElementById('addressInputGroup');
+        const addressInput = document.getElementById('manualAddress');
+        
+        if (addressGroup) addressGroup.style.display = 'block';
+        if (addressInput) {
+            addressInput.focus();
+            
+            // Обработка ввода адреса
+            const inputHandler = (e) => {
+                this.securityReport.data.address = e.target.value;
+                this.securityReport.data.location = null;
+            };
+            
+            // Удаляем старые обработчики
+            addressInput.removeEventListener('input', inputHandler);
+            // Добавляем новый
+            addressInput.addEventListener('input', inputHandler);
+        }
     }
 
     async submitSecurityReport() {
@@ -1064,14 +1218,14 @@ async loadUserData() {
                 ...this.securityReport.data,
                 userId: this.currentUser?.id || 'anonymous',
                 userName: this.currentUser?.first_name || 'Аноним',
-                mediaFiles: this.mediaFiles,
+                mediaFiles: this.mediaFiles.length,
                 timestamp: new Date().toISOString(),
                 type: 'security',
                 status: 'new'
             };
             
             // Сохранение в localStorage
-            this.saveReportToStorage(reportData, 'security');
+            const reportId = this.saveReportToStorage(reportData, 'security');
             
             // Отправка email админу
             await this.sendEmailNotification(reportData, 'security');
@@ -1082,10 +1236,10 @@ async loadUserData() {
             // Тактильная обратная связь
             this.hapticFeedback('success');
             
-            this.showNotification('Отчет отправлен! Спасибо за вашу бдительность.', 'success');
+            this.showNotification(`Отчет #${reportId} отправлен! Спасибо за вашу бдительность.`, 'success');
             
         } catch (error) {
-            console.error('Ошибка отправки отчета:', error);
+            console.error('❌ Ошибка отправки отчета:', error);
             this.showNotification('Ошибка отправки отчета. Попробуйте позже.', 'error');
         }
     }
@@ -1098,7 +1252,11 @@ async loadUserData() {
         document.querySelectorAll('.urgency-option').forEach(option => {
             option.classList.remove('active');
         });
-        event.target.closest('.urgency-option').classList.add('active');
+        
+        const activeOption = document.querySelector(`[data-urgency="${urgency}"]`);
+        if (activeOption) {
+            activeOption.classList.add('active');
+        }
         
         // Тактильная обратная связь
         this.hapticFeedback('selection');
@@ -1119,7 +1277,12 @@ async loadUserData() {
         
         filesToAdd.forEach(file => {
             if (file.size > 10 * 1024 * 1024) {
-                this.showNotification(`Файл ${file.name} слишком большой`, 'error');
+                this.showNotification(`Файл ${file.name} слишком большой (макс. 10 МБ)`, 'error');
+                return;
+            }
+            
+            if (!file.type.startsWith('image/')) {
+                this.showNotification(`Файл ${file.name} не является изображением`, 'error');
                 return;
             }
             
@@ -1134,6 +1297,8 @@ async loadUserData() {
 
     updateGraffitiPhotoPreview() {
         const container = document.getElementById('graffitiUploadGrid');
+        if (!container) return;
+        
         const photosHTML = this.graffitiReport.photos.map((file, index) => `
             <div class="upload-cell photo-preview">
                 <img src="${URL.createObjectURL(file)}" alt="Граффити фото ${index + 1}">
@@ -1163,8 +1328,8 @@ async loadUserData() {
     async submitGraffitiReport() {
         try {
             // Валидация
-            const location = document.getElementById('graffitiLocation').value.trim();
-            const description = document.getElementById('graffitiDescription').value.trim();
+            const location = document.getElementById('graffitiLocation')?.value.trim();
+            const description = document.getElementById('graffitiDescription')?.value.trim();
             
             if (!location) {
                 this.showNotification('Укажите местоположение граффити', 'error');
@@ -1186,7 +1351,7 @@ async loadUserData() {
                 urgency: this.graffitiReport.urgency,
                 location: location,
                 description: description,
-                photos: this.graffitiReport.photos,
+                photos: this.graffitiReport.photos.length,
                 userId: this.currentUser?.id || 'anonymous',
                 userName: this.currentUser?.first_name || 'Аноним',
                 timestamp: new Date().toISOString(),
@@ -1195,7 +1360,7 @@ async loadUserData() {
             };
             
             // Сохранение в localStorage
-            this.saveReportToStorage(reportData, 'graffiti');
+            const reportId = this.saveReportToStorage(reportData, 'graffiti');
             
             // Отправка email админу
             await this.sendEmailNotification(reportData, 'graffiti');
@@ -1206,10 +1371,10 @@ async loadUserData() {
             // Тактильная обратная связь
             this.hapticFeedback('success');
             
-            this.showNotification('Отчет о граффити отправлен! Спасибо за помощь.', 'success');
+            this.showNotification(`Отчет #${reportId} о граффити отправлен! Спасибо за помощь.`, 'success');
             
         } catch (error) {
-            console.error('Ошибка отправки отчета о граффити:', error);
+            console.error('❌ Ошибка отправки отчета о граффити:', error);
             this.showNotification('Ошибка отправки отчета. Попробуйте позже.', 'error');
         }
     }
@@ -1220,42 +1385,28 @@ async loadUserData() {
             photos: []
         };
         
-        document.getElementById('graffitiLocation').value = '';
-        document.getElementById('graffitiDescription').value = '';
+        const locationInput = document.getElementById('graffitiLocation');
+        const descInput = document.getElementById('graffitiDescription');
+        
+        if (locationInput) locationInput.value = '';
+        if (descInput) descInput.value = '';
         
         // Сброс UI
         document.querySelectorAll('.urgency-option').forEach(option => {
             option.classList.remove('active');
         });
-        document.querySelector('[data-urgency="low"]').classList.add('active');
+        
+        const lowOption = document.querySelector('[data-urgency="low"]');
+        if (lowOption) lowOption.classList.add('active');
         
         this.updateGraffitiPhotoPreview();
     }
 
     // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
-    async getCurrentPosition() {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                reject(new Error('Геолокация не поддерживается'));
-                return;
-            }
-            
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 60000
-            });
-        });
-    }
-
-    validatePhone(phone) {
-        const phoneRegex = /^(\+7|7|8)?[489][0-9]{9}$/;
-        const cleanPhone = phone.replace(/\s|-|\(|\)/g, '');
-        return phoneRegex.test(cleanPhone);
-    }
-
     showNotification(message, type = 'info') {
         const container = document.getElementById('notificationsContainer');
+        if (!container) return;
+        
         const id = Date.now();
         
         const notification = document.createElement('div');
@@ -1324,19 +1475,19 @@ async loadUserData() {
     getTypeName(type) {
         const names = {
             'здрав': 'Медицинские организации',
-            'образование': 'Школы, ВУЗы, юношеские клубы',
-            'тц': 'Торговые центры, рынки, магазины',
-            'отдых': 'Развлечения, достопримечательности',
+            'образование': 'Образовательные учреждения',
+            'тц': 'Торговые центры и магазины',
+            'отдых': 'Парки и места отдыха',
             'парки и скверы': 'Парки и скверы',
-            'транспорт': 'Остановки',
-            'спорт': 'Спорт',
-            'МФЦ': 'МФЦ',
-            'АЗС': 'АЗС',
+            'транспорт': 'Транспортные узлы',
+            'спорт': 'Спортивные объекты',
+            'МФЦ': 'Многофункциональные центры',
+            'АЗС': 'Автозаправочные станции',
             'гостиница': 'Гостиницы',
             'пляж': 'Пляжи',
             'турбаза': 'Турбазы',
             'дома': 'Жилые комплексы',
-            'кафе': 'Кафе',
+            'кафе': 'Кафе и рестораны',
             'торговля': 'Магазины',
             '': 'Другое'
         };
@@ -1349,14 +1500,16 @@ async loadUserData() {
             let reports = JSON.parse(localStorage.getItem(key) || '[]');
             
             // Генерация ID
-            data.id = `RPT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+            const reportId = `RPT-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+            data.id = reportId;
             
             reports.push(data);
             localStorage.setItem(key, JSON.stringify(reports));
             
-            return data.id;
+            console.log(`📁 Отчет сохранен: ${type} #${reportId}`);
+            return reportId;
         } catch (error) {
-            console.error('Ошибка сохранения отчета:', error);
+            console.error('❌ Ошибка сохранения отчета:', error);
             throw error;
         }
     }
@@ -1367,14 +1520,13 @@ async loadUserData() {
                 const emailData = {
                     to: this.getAdminEmail(type),
                     subject: this.getEmailSubject(type, data),
-                    html: this.generateEmailHtml(data, type),
-                    attachments: []
+                    html: this.generateEmailHtml(data, type)
                 };
                 
                 await window.EmailService.sendEmail(emailData);
-                console.log(`Email отправлен для отчета ${type}`);
+                console.log(`📧 Email отправлен для отчета ${type}`);
             } catch (error) {
-                console.error('Ошибка отправки email:', error);
+                console.error('❌ Ошибка отправки email:', error);
             }
         }
     }
@@ -1387,8 +1539,8 @@ async loadUserData() {
 
     getEmailSubject(type, data) {
         const subjects = {
-            security: `СРОЧНО: Сообщение о безопасности #${data.id || 'NEW'}`,
-            graffiti: `Граффити для удаления #${data.id || 'NEW'}`,
+            security: `СРОЧНО: Сообщение о безопасности #${data.id}`,
+            graffiti: `Граффити для удаления #${data.id}`,
             wifi: `Проблема с Wi-Fi: ${data.pointName || 'Unknown'}`,
             wifi_suggestion: `Предложение новой точки Wi-Fi: ${data.name || 'Unknown'}`
         };
@@ -1396,31 +1548,55 @@ async loadUserData() {
     }
 
     generateEmailHtml(data, type) {
+        const urgencyText = {
+            'low': 'Низкая',
+            'medium': 'Средняя',
+            'high': 'Высокая'
+        };
+        
         return `
-            <h2>Новое обращение в Безопасный Севастополь</h2>
-            <p><strong>Тип:</strong> ${type}</p>
-            <p><strong>ID:</strong> ${data.id}</p>
-            <p><strong>Время:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
-            <p><strong>Пользователь:</strong> ${data.userName} (${data.userId})</p>
-            ${data.phone ? `<p><strong>Телефон:</strong> ${data.phone}</p>` : ''}
-            ${data.location ? `<p><strong>Местоположение:</strong> ${data.location.lat}, ${data.location.lon}</p>` : ''}
-            ${data.address ? `<p><strong>Адрес:</strong> ${data.address}</p>` : ''}
-            <p><strong>Описание:</strong> ${data.description || 'Нет описания'}</p>
-            ${data.category ? `<p><strong>Категория:</strong> ${data.category}</p>` : ''}
-            ${data.urgency ? `<p><strong>Срочность:</strong> ${data.urgency}</p>` : ''}
-            ${data.pointName ? `<p><strong>Точка Wi-Fi:</strong> ${data.pointName}</p>` : ''}
-            ${data.name ? `<p><strong>Название точки:</strong> ${data.name}</p>` : ''}
-            ${data.pointType ? `<p><strong>Тип точки:</strong> ${data.pointType}</p>` : ''}
-            <hr>
-            <p>Для обработки перейдите в админ-панель Безопасный Севастополь</p>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #0066ff; border-bottom: 2px solid #0066ff; padding-bottom: 10px;">
+                    Безопасный Севастополь - Новое обращение
+                </h2>
+                
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                    <p><strong>Тип обращения:</strong> ${type.toUpperCase()}</p>
+                    <p><strong>ID обращения:</strong> ${data.id}</p>
+                    <p><strong>Дата и время:</strong> ${new Date(data.timestamp).toLocaleString('ru-RU')}</p>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #333;">Информация о пользователе</h3>
+                    <p><strong>Пользователь:</strong> ${data.userName} (${data.userId})</p>
+                    ${data.phone ? `<p><strong>Телефон:</strong> ${data.phone}</p>` : ''}
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #333;">Детали обращения</h3>
+                    ${data.pointName ? `<p><strong>Точка Wi-Fi:</strong> ${data.pointName}</p>` : ''}
+                    ${data.name ? `<p><strong>Название точки:</strong> ${data.name}</p>` : ''}
+                    ${data.address ? `<p><strong>Адрес:</strong> ${data.address}</p>` : ''}
+                    ${data.location ? `<p><strong>Местоположение:</strong> ${data.location.lat}, ${data.location.lon}</p>` : ''}
+                    ${data.category ? `<p><strong>Категория:</strong> ${data.category}</p>` : ''}
+                    ${data.urgency ? `<p><strong>Срочность:</strong> ${urgencyText[data.urgency] || data.urgency}</p>` : ''}
+                    ${data.description ? `<p><strong>Описание:</strong> ${data.description}</p>` : ''}
+                    ${data.mediaFiles ? `<p><strong>Медиафайлов:</strong> ${data.mediaFiles}</p>` : ''}
+                    ${data.photos ? `<p><strong>Фотографий:</strong> ${data.photos}</p>` : ''}
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
+                    <p>Для обработки перейдите в админ-панель "Безопасный Севастополь"</p>
+                    <p>Это автоматическое уведомление, пожалуйста, не отвечайте на него.</p>
+                </div>
+            </div>
         `;
     }
 
     // ===== ТАКТИЛЬНАЯ ОБРАТНАЯ СВЯЗЬ =====
     hapticFeedback(type = 'light') {
-        // Проверяем доступность
         if (!this.maxBridge?.HapticFeedback) {
-            console.warn('HapticFeedback недоступен');
+            console.log('📳 Вибрация:', type);
             return;
         }
         
@@ -1447,82 +1623,121 @@ async loadUserData() {
                 case 'heavy':
                     this.maxBridge.HapticFeedback.impactOccurred('heavy');
                     break;
-                case 'rigid':
-                    this.maxBridge.HapticFeedback.impactOccurred('rigid');
-                    break;
-                case 'soft':
-                    this.maxBridge.HapticFeedback.impactOccurred('soft');
-                    break;
                 default:
                     this.maxBridge.HapticFeedback.impactOccurred('light');
             }
         } catch (error) {
-            console.warn('Ошибка тактильной обратной связи:', error);
+            console.warn('⚠️ Ошибка тактильной обратной связи:', error);
         }
+    }
+
+    // ===== ЯНДЕКС КАРТЫ =====
+    initYandexMaps() {
+        if (typeof ymaps === 'undefined') {
+            console.warn('⚠️ Яндекс Карты не загружены');
+            return;
+        }
+        
+        ymaps.ready(() => {
+            console.log('✅ Яндекс Карты готовы');
+            this.yandexMap = new ymaps.Map('yandexMap', {
+                center: [44.6166, 33.5254], // Севастополь
+                zoom: 12,
+                controls: ['zoomControl', 'fullscreenControl']
+            }, {
+                searchControlProvider: 'yandex#search'
+            });
+            
+            // Создаем маркер
+            this.mapMarker = new ymaps.Placemark([44.6166, 33.5254], {
+                hintContent: 'Выберите местоположение'
+            }, {
+                preset: 'islands#blueDotIcon',
+                draggable: true
+            });
+            
+            this.yandexMap.geoObjects.add(this.mapMarker);
+            
+            // Обработка перетаскивания маркера
+            this.mapMarker.events.add('dragend', (e) => {
+                const coords = this.mapMarker.geometry.getCoordinates();
+                this.selectedLocation = {
+                    lat: coords[0],
+                    lon: coords[1]
+                };
+            });
+            
+            // Обработка клика по карте
+            this.yandexMap.events.add('click', (e) => {
+                const coords = e.get('coords');
+                this.mapMarker.geometry.setCoordinates(coords);
+                this.selectedLocation = {
+                    lat: coords[0],
+                    lon: coords[1]
+                };
+                
+                // Тактильная обратная связь
+                this.hapticFeedback('light');
+            });
+        });
     }
 
     // ===== МОДАЛЬНЫЕ ОКНА =====
     openLocationPicker(context) {
         this.locationContext = context;
+        this.selectedLocation = null;
         
-        document.getElementById('modalOverlay').style.display = 'block';
-        document.getElementById('locationModal').style.display = 'block';
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modal = document.getElementById('locationModal');
+        
+        if (modalOverlay) modalOverlay.style.display = 'block';
+        if (modal) modal.style.display = 'block';
         
         // Тактильная обратная связь
         this.hapticFeedback('medium');
         
-        // Инициализация карты
-        this.initLocationPickerMap();
-    }
-
-    initLocationPickerMap() {
-        const mapElement = document.getElementById('locationPickerMap');
-        if (!mapElement || this.locationMap) return;
-        
-        this.locationMap = L.map('locationPickerMap').setView([44.6166, 33.5254], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.locationMap);
-        
-        // Маркер для выбора местоположения
-        this.locationMarker = L.marker([44.6166, 33.5254], { draggable: true }).addTo(this.locationMap);
-        
-        this.locationMarker.on('dragend', () => {
-            const position = this.locationMarker.getLatLng();
-            this.selectedLocation = {
-                lat: position.lat,
-                lon: position.lng
-            };
-        });
-        
-        this.locationMap.on('click', (e) => {
-            this.locationMarker.setLatLng(e.latlng);
-            this.selectedLocation = {
-                lat: e.latlng.lat,
-                lon: e.latlng.lng
-            };
-            
-            // Тактильная обратная связь
-            this.hapticFeedback('light');
-        });
+        // Инициализация карты если еще не инициализирована
+        if (!this.yandexMap && typeof ymaps !== 'undefined') {
+            this.initYandexMaps();
+        }
     }
 
     confirmLocation() {
         if (this.selectedLocation) {
+            let locationText = `${this.selectedLocation.lat.toFixed(6)}, ${this.selectedLocation.lon.toFixed(6)}`;
+            
             if (this.locationContext === 'graffiti') {
-                document.getElementById('graffitiLocation').value = 
-                    `Геолокация: ${this.selectedLocation.lat.toFixed(6)}, ${this.selectedLocation.lon.toFixed(6)}`;
+                const graffitiLocation = document.getElementById('graffitiLocation');
+                if (graffitiLocation) {
+                    graffitiLocation.value = locationText;
+                }
+            } else if (this.locationContext === 'security') {
+                this.securityReport.data.location = this.selectedLocation;
+                this.securityReport.data.address = `Геолокация: ${locationText}`;
+                
+                const addressInput = document.getElementById('manualAddress');
+                if (addressInput) {
+                    addressInput.value = `Геолокация: ${locationText}`;
+                }
             }
+            
             this.closeModal();
             
             // Тактильная обратная связь
             this.hapticFeedback('success');
             
             this.showNotification('Местоположение выбрано', 'success');
+        } else {
+            this.showNotification('Выберите местоположение на карте', 'warning');
         }
     }
 
     closeModal() {
-        document.getElementById('modalOverlay').style.display = 'none';
-        document.querySelectorAll('.modal-container').forEach(modal => {
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modals = document.querySelectorAll('.modal');
+        
+        if (modalOverlay) modalOverlay.style.display = 'none';
+        modals.forEach(modal => {
             modal.style.display = 'none';
         });
         
@@ -1544,8 +1759,8 @@ async loadUserData() {
         
         ['dragenter', 'dragover'].forEach(eventName => {
             uploadArea.addEventListener(eventName, () => {
-                uploadArea.style.borderColor = '#0066ff';
-                uploadArea.style.background = 'rgba(0, 102, 255, 0.05)';
+                uploadArea.style.borderColor = 'var(--primary-color)';
+                uploadArea.style.background = 'var(--bg-card-hover)';
             });
         });
         
@@ -1593,13 +1808,9 @@ async loadUserData() {
         container.innerHTML = this.mediaFiles.map((file, index) => `
             <div class="media-preview-item">
                 ${file.type.startsWith('image/') 
-                    ? `<img src="${URL.createObjectURL(file)}" alt="Превью">`
+                    ? `<img src="${URL.createObjectURL(file)}" alt="Превью ${index + 1}">`
                     : `<div class="video-preview"><i class="fas fa-video"></i></div>`
                 }
-                <div class="media-info">
-                    <div class="media-name">${file.name}</div>
-                    <div class="media-size">${this.formatFileSize(file.size)}</div>
-                </div>
                 <button class="btn-remove-media" onclick="app.removeMediaFile(${index})">
                     <i class="fas fa-times"></i>
                 </button>
@@ -1615,14 +1826,6 @@ async loadUserData() {
         this.hapticFeedback('light');
     }
 
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
     // ===== ВАЛИДАЦИЯ ФОРМ =====
     setupFormValidation() {
         const phoneInput = document.getElementById('securityPhone');
@@ -1630,7 +1833,7 @@ async loadUserData() {
             phoneInput.addEventListener('input', (e) => {
                 const value = e.target.value;
                 const isValid = this.validatePhone(value);
-                e.target.style.borderColor = isValid ? '#34c759' : '#ff3b30';
+                e.target.style.borderColor = isValid ? 'var(--success-color)' : 'var(--danger-color)';
             });
         }
     }
@@ -1640,35 +1843,58 @@ async loadUserData() {
         const adminIds = window.ADMIN_USER_IDS || ['13897373', '90334880', '555666777'];
         this.isAdmin = adminIds.includes(this.currentUser?.id?.toString());
         
-        if (this.isAdmin) {
-            document.getElementById('adminNav').style.display = 'block';
+        const adminNav = document.getElementById('adminNav');
+        if (adminNav && this.isAdmin) {
+            adminNav.style.display = 'block';
+            console.log('👑 Пользователь является администратором');
         }
     }
 
     switchAdminTab(tab) {
-        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+        // Обновление активной вкладки
+        document.querySelectorAll('.admin-tab').forEach(t => {
+            t.classList.remove('active');
+        });
         
-        event.target.closest('.admin-tab').classList.add('active');
-        document.getElementById(`admin-${tab}`).classList.add('active');
+        document.querySelectorAll('.admin-tab-content').forEach(c => {
+            c.classList.remove('active');
+        });
+        
+        const activeTab = document.querySelector(`[data-tab="${tab}"]`);
+        const activeContent = document.getElementById(`admin-${tab}`);
+        
+        if (activeTab) activeTab.classList.add('active');
+        if (activeContent) activeContent.classList.add('active');
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
+        
+        // Загрузка данных для вкладки
+        if (tab === 'dashboard') {
+            this.loadAdminDashboard();
+        }
     }
 
     async loadAdminDashboard() {
         try {
             const stats = await this.fetchAdminStats();
             
-            document.getElementById('adminTotalReports').textContent = stats.total || 0;
-            document.getElementById('adminPendingReports').textContent = stats.pending || 0;
-            document.getElementById('adminCompletedReports').textContent = stats.completed || 0;
-            document.getElementById('adminActiveUsers').textContent = stats.activeUsers || 0;
+            // Обновление статистики
+            const totalEl = document.getElementById('adminTotalReports');
+            const pendingEl = document.getElementById('adminPendingReports');
+            const completedEl = document.getElementById('adminCompletedReports');
+            const usersEl = document.getElementById('adminActiveUsers');
             
+            if (totalEl) totalEl.textContent = stats.total || 0;
+            if (pendingEl) pendingEl.textContent = stats.pending || 0;
+            if (completedEl) completedEl.textContent = stats.completed || 0;
+            if (usersEl) usersEl.textContent = stats.activeUsers || 0;
+            
+            // Обновление графиков
             this.updateCharts(stats);
             
         } catch (error) {
-            console.error('Ошибка загрузки статистики:', error);
+            console.error('❌ Ошибка загрузки статистики:', error);
         }
     }
 
@@ -1689,7 +1915,7 @@ async loadUserData() {
             total: total,
             pending: pending,
             completed: completed,
-            activeUsers: 1,
+            activeUsers: 1, // В реальном приложении здесь будет запрос к API
             byCategory: {
                 security: securityReports.length,
                 graffiti: graffitiReports.length,
@@ -1703,10 +1929,16 @@ async loadUserData() {
         if (window.Chart && stats) {
             const categoryCtx = document.getElementById('reportsChart');
             if (categoryCtx) {
+                // Удаляем старый график если есть
+                const oldChart = Chart.getChart(categoryCtx);
+                if (oldChart) {
+                    oldChart.destroy();
+                }
+                
                 new Chart(categoryCtx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Безопасность', 'Граффити', 'Проблемы Wi-Fi', 'Предложения Wi-Fi'],
+                        labels: ['Безопасность', 'Граффити', 'Wi-Fi проблемы', 'Wi-Fi предложения'],
                         datasets: [{
                             data: [
                                 stats.byCategory?.security || 0,
@@ -1723,7 +1955,7 @@ async loadUserData() {
                             legend: {
                                 position: 'bottom',
                                 labels: {
-                                    color: 'rgba(255, 255, 255, 0.8)',
+                                    color: 'var(--text-secondary)',
                                     padding: 20
                                 }
                             }
@@ -1736,44 +1968,57 @@ async loadUserData() {
 
     // ===== ЭКСТРЕННЫЕ ВЫЗОВЫ =====
     makeEmergencyCall(number) {
-        // Форматируем номер для России
+        // Форматируем номер для телефона
         let formattedNumber = number;
         
         // Убираем все нецифровые символы
         formattedNumber = formattedNumber.replace(/\D/g, '');
         
-        // Если номер короткий (101, 102, 103, 112)
+        // Для коротких номеров (101, 102, 103, 112)
         if (formattedNumber.length <= 3) {
-            formattedNumber = `tel:${formattedNumber}`;
+            formattedNumber = formattedNumber;
         } 
-        // Если номер российский без кода страны
+        // Для российских номеров без кода страны
         else if (formattedNumber.length === 10) {
-            formattedNumber = `tel:+7${formattedNumber}`;
+            formattedNumber = `+7${formattedNumber}`;
         }
-        // Если номер уже с +7 или 8
-        else if (formattedNumber.startsWith('7') || formattedNumber.startsWith('8')) {
-            formattedNumber = `tel:+${formattedNumber.startsWith('8') ? '7' + formattedNumber.substring(1) : formattedNumber}`;
+        // Для номеров начинающихся с 7 или 8
+        else if (formattedNumber.startsWith('7')) {
+            formattedNumber = `+${formattedNumber}`;
+        } else if (formattedNumber.startsWith('8')) {
+            formattedNumber = `+7${formattedNumber.substring(1)}`;
         }
-        // Если уже с +7
+        // Если уже начинается с +7
         else if (formattedNumber.startsWith('+7')) {
-            formattedNumber = `tel:${formattedNumber}`;
+            // Оставляем как есть
         }
         
-        console.log('Вызов номера:', formattedNumber);
+        const telUrl = `tel:${formattedNumber}`;
+        console.log(`📞 Вызов номера: ${formattedNumber}`);
         
+        // Используем MAX Bridge если доступно
         if (this.maxBridge?.openLink) {
             try {
-                this.maxBridge.openLink(formattedNumber);
+                this.maxBridge.openLink(telUrl);
             } catch (error) {
-                console.error('Ошибка вызова:', error);
+                console.error('❌ Ошибка вызова:', error);
                 this.showNotification(`Не удалось совершить вызов ${number}`, 'error');
             }
-        } else {
-            this.showNotification(`Вызов ${number}... В реальном приложении будет осуществлен звонок`, 'info');
+        } 
+        // Иначе используем стандартный способ
+        else {
+            const link = document.createElement('a');
+            link.href = telUrl;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
         
         // Тактильная обратная связь
         this.hapticFeedback('heavy');
+        
+        this.showNotification(`Вызов ${number}...`, 'info');
     }
 
     // ===== ПУБЛИЧНЫЕ МЕТОДЫ ДЛЯ HTML =====
@@ -1785,8 +2030,14 @@ async loadUserData() {
         const point = window.wifiPoints?.find(p => p.id === pointId);
         if (point) {
             const select = document.getElementById('wifiProblemPoint');
-            select.value = pointId;
-            document.getElementById('wifiProblemDesc').focus();
+            const descInput = document.getElementById('wifiProblemDesc');
+            
+            if (select) select.value = pointId;
+            if (descInput) {
+                descInput.focus();
+                descInput.value = `Проблема с точкой Wi-Fi "${point.name}": `;
+            }
+            
             this.showNotification(`Готово для отчета о проблеме: ${point.name}`, 'info');
         }
         
@@ -1811,15 +2062,16 @@ async loadUserData() {
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SafeSevastopol();
+    window.app = app;
 });
 
 // Глобальные методы для вызова из HTML
-window.app = {
-    toggleFavorite: (pointId, event) => app?.toggleFavorite(pointId, event),
-    showOnMap: (pointId, event) => app?.showOnMap(pointId, event),
-    reportWifiProblem: (pointId, event) => app?.reportWifiProblem(pointId, event),
-    openInMaps: (pointId) => app?.openInMaps(pointId),
-    buildRoute: (pointId) => app?.buildRoute(pointId),
-    removeGraffitiPhoto: (index) => app?.removeGraffitiPhoto(index),
-    removeMediaFile: (index) => app?.removeMediaFile(index)
+window.appMethods = {
+    toggleFavorite: (pointId, event) => window.app?.toggleFavorite(pointId, event),
+    showOnMap: (pointId, event) => window.app?.showOnMap(pointId, event),
+    reportWifiProblem: (pointId, event) => window.app?.reportWifiProblem(pointId, event),
+    openInMaps: (pointId) => window.app?.openInMaps(pointId),
+    buildRoute: (pointId) => window.app?.buildRoute(pointId),
+    removeGraffitiPhoto: (index) => window.app?.removeGraffitiPhoto(index),
+    removeMediaFile: (index) => window.app?.removeMediaFile(index)
 };
