@@ -28,12 +28,10 @@ class AdminPanel {
 
     async loadReports() {
         try {
-            // Загрузка отчетов из localStorage или сервера
             const savedReports = localStorage.getItem('adminReports');
             if (savedReports) {
                 this.reports = JSON.parse(savedReports);
             } else {
-                // Загрузка с сервера (симуляция)
                 await this.fetchReportsFromServer();
             }
         } catch (error) {
@@ -42,13 +40,12 @@ class AdminPanel {
     }
 
     async fetchReportsFromServer() {
-        // Симуляция загрузки с сервера
         return new Promise(resolve => {
             setTimeout(() => {
                 this.reports = {
-                    wifi: this.generateMockReports('wifi', 25),
-                    security: this.generateMockReports('security', 42),
-                    graffiti: this.generateMockReports('graffiti', 18)
+                    wifi: this.generateMockReports('wifi', 15),
+                    security: this.generateMockReports('security', 28),
+                    graffiti: this.generateMockReports('graffiti', 12)
                 };
                 localStorage.setItem('adminReports', JSON.stringify(this.reports));
                 resolve();
@@ -92,7 +89,6 @@ class AdminPanel {
     }
 
     async loadStats() {
-        // Расчет статистики
         this.stats = {
             total: 0,
             byType: {},
@@ -135,20 +131,11 @@ class AdminPanel {
             this.renderSecurityReports();
         });
         
-        document.getElementById('securityDateFilter')?.addEventListener('change', (e) => {
-            this.filters.dateFrom = e.target.value;
-            this.renderSecurityReports();
-        });
-        
         // Экспорт данных
         document.getElementById('exportWifiData')?.addEventListener('click', () => this.exportData('wifi'));
         
         // Обновление
         document.getElementById('refreshWifi')?.addEventListener('click', () => this.refreshReports());
-        
-        // Настройки
-        document.getElementById('saveEmailSettings')?.addEventListener('click', () => this.saveEmailSettings());
-        document.getElementById('addAdminBtn')?.addEventListener('click', () => this.showAddAdminModal());
     }
 
     renderDashboard() {
@@ -169,7 +156,12 @@ class AdminPanel {
         // График по категориям
         const categoryCtx = document.getElementById('reportsChart');
         if (categoryCtx && window.Chart) {
-            const categoryChart = new Chart(categoryCtx, {
+            const oldChart = Chart.getChart(categoryCtx);
+            if (oldChart) {
+                oldChart.destroy();
+            }
+            
+            new Chart(categoryCtx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Wi-Fi', 'Безопасность', 'Граффити'],
@@ -181,7 +173,7 @@ class AdminPanel {
                         ],
                         backgroundColor: ['#0066ff', '#34c759', '#ff9500'],
                         borderWidth: 2,
-                        borderColor: '#1c1c1e'
+                        borderColor: 'var(--bg-primary)'
                     }]
                 },
                 options: {
@@ -190,60 +182,8 @@ class AdminPanel {
                         legend: {
                             position: 'bottom',
                             labels: {
-                                color: 'rgba(255, 255, 255, 0.8)',
+                                color: 'var(--text-secondary)',
                                 padding: 20
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        // График по статусам
-        const statusCtx = document.getElementById('statusChart');
-        if (statusCtx && window.Chart) {
-            const statusChart = new Chart(statusCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Новые', 'В работе', 'Решено', 'Отклонено'],
-                    datasets: [{
-                        label: 'Количество',
-                        data: [
-                            this.stats.byStatus['new'] || 0,
-                            this.stats.byStatus['in_progress'] || 0,
-                            this.stats.byStatus['resolved'] || 0,
-                            this.stats.byStatus['rejected'] || 0
-                        ],
-                        backgroundColor: ['#ff9500', '#0066ff', '#34c759', '#ff3b30'],
-                        borderWidth: 1,
-                        borderColor: 'rgba(255, 255, 255, 0.1)'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                color: 'rgba(255, 255, 255, 0.6)'
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
-                        },
-                        x: {
-                            ticks: {
-                                color: 'rgba(255, 255, 255, 0.6)'
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: 'rgba(255, 255, 255, 0.8)'
                             }
                         }
                     }
@@ -265,11 +205,6 @@ class AdminPanel {
         
         if (this.filters.category !== 'all') {
             filteredReports = filteredReports.filter(r => r.category === this.filters.category);
-        }
-        
-        if (this.filters.dateFrom) {
-            const filterDate = new Date(this.filters.dateFrom);
-            filteredReports = filteredReports.filter(r => new Date(r.timestamp) >= filterDate);
         }
         
         // Рендеринг
@@ -304,9 +239,6 @@ class AdminPanel {
                         <span class="status-badge" style="background: ${statusColors[report.status] || '#666'}">
                             ${this.getStatusText(report.status)}
                         </span>
-                        <span class="priority-badge" style="background: ${priorityColors[report.priority] || '#666'}">
-                            ${this.getPriorityText(report.priority)}
-                        </span>
                     </div>
                 </div>
                 
@@ -318,10 +250,6 @@ class AdminPanel {
                             <span>${report.userName}</span>
                         </div>
                         <div class="detail">
-                            <i class="fas fa-phone"></i>
-                            <span>${report.userPhone}</span>
-                        </div>
-                        <div class="detail">
                             <i class="fas fa-map-marker-alt"></i>
                             <span>${report.location}</span>
                         </div>
@@ -329,13 +257,10 @@ class AdminPanel {
                 </div>
                 
                 <div class="report-actions">
-                    <button class="btn-action" onclick="admin.viewReport('${report.id}')">
+                    <button class="btn-secondary" onclick="admin.viewReport('${report.id}')">
                         <i class="fas fa-eye"></i> Просмотр
                     </button>
-                    <button class="btn-action" onclick="admin.assignReport('${report.id}')">
-                        <i class="fas fa-user-check"></i> Взять в работу
-                    </button>
-                    <button class="btn-action" onclick="admin.resolveReport('${report.id}')">
+                    <button class="btn-primary" onclick="admin.resolveReport('${report.id}')">
                         <i class="fas fa-check"></i> Решено
                     </button>
                 </div>
@@ -353,15 +278,6 @@ class AdminPanel {
         return statuses[status] || status;
     }
 
-    getPriorityText(priority) {
-        const priorities = {
-            'high': '🔥 Высокий',
-            'medium': '⚠️ Средний',
-            'low': '✅ Низкий'
-        };
-        return priorities[priority] || priority;
-    }
-
     async exportData(type) {
         try {
             const data = this.reports[type] || [];
@@ -377,11 +293,15 @@ class AdminPanel {
             link.click();
             document.body.removeChild(link);
             
-            this.app.showNotification(`Данные ${type} экспортированы`, 'success');
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification(`Данные ${type} экспортированы`, 'success');
+            }
             
         } catch (error) {
             console.error('Ошибка экспорта данных:', error);
-            this.app.showNotification('Ошибка экспорта данных', 'error');
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Ошибка экспорта данных', 'error');
+            }
         }
     }
 
@@ -404,69 +324,49 @@ class AdminPanel {
 
     async refreshReports() {
         try {
-            this.app.showNotification('Обновление данных...', 'info');
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Обновление данных...', 'info');
+            }
+            
             await this.fetchReportsFromServer();
             await this.loadStats();
             this.renderDashboard();
             this.renderSecurityReports();
-            this.app.showNotification('Данные обновлены', 'success');
+            
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Данные обновлены', 'success');
+            }
         } catch (error) {
             console.error('Ошибка обновления данных:', error);
-            this.app.showNotification('Ошибка обновления данных', 'error');
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Ошибка обновления данных', 'error');
+            }
         }
-    }
-
-    saveEmailSettings() {
-        const email = document.getElementById('adminEmail')?.value;
-        const subject = document.getElementById('emailSubject')?.value;
-        
-        if (email && window.EmailService) {
-            // Сохранение для всех типов отчетов
-            Object.keys(window.EmailService.config.adminEmails).forEach(type => {
-                window.EmailService.updateAdminEmail(type, email);
-            });
-            
-            this.app.showNotification('Настройки почты сохранены', 'success');
-        }
-    }
-
-    showAddAdminModal() {
-        // Показать модальное окно добавления администратора
-        this.app.showNotification('Функция добавления администратора в разработке', 'info');
     }
 
     // Методы для работы с отчетами
     viewReport(reportId) {
-        // Просмотр деталей отчета
         console.log('Просмотр отчета:', reportId);
-        this.app.showNotification('Просмотр отчета', 'info');
-    }
-
-    assignReport(reportId) {
-        // Взять отчет в работу
-        const report = this.findReport(reportId);
-        if (report && report.status === 'new') {
-            report.status = 'in_progress';
-            report.assignedTo = this.app.currentUser?.first_name || 'Администратор';
-            this.saveReports();
-            this.renderSecurityReports();
-            this.app.showNotification('Отчет взят в работу', 'success');
+        if (this.app && this.app.showNotification) {
+            this.app.showNotification('Просмотр отчета', 'info');
         }
     }
 
     resolveReport(reportId) {
-        // Пометить отчет как решенный
         const report = this.findReport(reportId);
-        if (report) {
+        if (report && report.status !== 'resolved') {
             report.status = 'resolved';
             this.saveReports();
             this.renderSecurityReports();
-            this.app.showNotification('Отчет помечен как решенный', 'success');
+            this.renderDashboard();
+            
+            if (this.app && this.app.showNotification) {
+                this.app.showNotification('Отчет помечен как решенный', 'success');
+            }
         }
     }
 
     findReport(reportId) {
-        // Поиск отчета по ID
         for (const type of Object.keys(this.reports)) {
             const report = this.reports[type].find(r => r.id === reportId);
             if (report) return report;
