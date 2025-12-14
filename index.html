@@ -2,12 +2,68 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Безопасный Севастополь</title>
+    <!-- ВАЖНОЕ ИСПРАВЛЕНИЕ: добавляем правильный viewport -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- Для iOS PWA-like поведения -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <!-- Цвета для браузеров -->
+    <meta name="theme-color" content="#0066ff">
+    <meta name="msapplication-navbutton-color" content="#0066ff">
     
     <!-- Meta для соцсетей -->
     <meta property="og:title" content="Безопасный Севастополь">
     <meta property="og:description" content="Wi-Fi, безопасность, граффити - все в одном приложении">
+    
+    <title>Безопасный Севастополь</title>
+    
+    <!-- Подключение MAX Bridge -->
+    <script src="https://st.max.ru/js/max-web-app.js" defer></script>
+    <script>
+        // Резервный скрипт если MAX Bridge не загрузится
+        window.MAX_BRIDGE_LOADED = false;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Проверяем загрузился ли MAX Bridge
+            if (typeof window.WebApp !== 'undefined') {
+                window.MAX_BRIDGE_LOADED = true;
+                console.log('MAX Bridge успешно загружен');
+            } else {
+                console.warn('MAX Bridge не загружен, используется fallback режим');
+                // Создаем mock объект для разработки
+                window.WebApp = {
+                    ready: () => console.log('MAX Bridge: ready()'),
+                    initDataUnsafe: {
+                        user: {
+                            id: 123456789,
+                            first_name: 'Тест',
+                            last_name: 'Пользователь',
+                            username: 'test_user'
+                        }
+                    },
+                    BackButton: {
+                        show: () => console.log('BackButton показана'),
+                        hide: () => console.log('BackButton скрыта'),
+                        onClick: (callback) => console.log('Обработчик BackButton установлен')
+                    },
+                    HapticFeedback: {
+                        impactOccurred: (style) => console.log('Вибрация:', style),
+                        notificationOccurred: (type) => console.log('Уведомление:', type),
+                        selectionChanged: () => console.log('Выбор изменен')
+                    },
+                    enableClosingConfirmation: () => console.log('Подтверждение закрытия включено'),
+                    openLink: (url) => window.open(url, '_blank'),
+                    SecureStorage: {
+                        setItem: (key, value) => localStorage.setItem(key, value),
+                        getItem: (key) => localStorage.getItem(key),
+                        removeItem: (key) => localStorage.removeItem(key)
+                    }
+                };
+            }
+        });
+    </script>
+    <script src="max-config.js"></script>                                                             
     
     <!-- Подключение шрифтов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,11 +91,11 @@
     <link rel="apple-touch-icon" href="assets/icon-192.png">
 </head>
 <body>
-    <!-- Эффект частиц -->
-    <div id="particles-js"></div>
-    
     <!-- Основной контейнер -->
     <div class="app-container">
+        <!-- Эффект частиц -->
+        <div id="particles-js"></div>
+        
         <!-- Анимированный хедер -->
         <header class="main-header">
             <div class="header-content">
@@ -122,7 +178,7 @@
                             </button>
                         </div>
 
-                        <div class="filters-container">
+                        <div class="filters-scroll">
                             <div class="filter-tags">
                                 <button class="filter-tag active" data-filter="all">Все</button>
                                 <button class="filter-tag" data-filter="здрав">🏥 Медицина</button>
@@ -642,23 +698,25 @@
                     <p>Управление всеми обращениями</p>
                 </div>
 
-                <div class="admin-tabs">
-                    <button class="admin-tab active" data-tab="dashboard">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <span>Дашборд</span>
-                    </button>
-                    <button class="admin-tab" data-tab="wifi-admin">
-                        <i class="fas fa-wifi"></i>
-                        <span>Wi-Fi</span>
-                    </button>
-                    <button class="admin-tab" data-tab="security-admin">
-                        <i class="fas fa-shield-alt"></i>
-                        <span>Безопасность</span>
-                    </button>
-                    <button class="admin-tab" data-tab="graffiti-admin">
-                        <i class="fas fa-spray-can"></i>
-                        <span>Граффити</span>
-                    </button>
+                <div class="admin-tabs-scroll">
+                    <div class="admin-tabs">
+                        <button class="admin-tab active" data-tab="dashboard">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Дашборд</span>
+                        </button>
+                        <button class="admin-tab" data-tab="wifi-admin">
+                            <i class="fas fa-wifi"></i>
+                            <span>Wi-Fi</span>
+                        </button>
+                        <button class="admin-tab" data-tab="security-admin">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Безопасность</span>
+                        </button>
+                        <button class="admin-tab" data-tab="graffiti-admin">
+                            <i class="fas fa-spray-can"></i>
+                            <span>Граффити</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Админ дашборд -->
@@ -892,6 +950,22 @@
                     document.getElementById('preloader').style.display = 'none';
                 }, 500);
             }, 1000);
+            
+            // Установка правильной высоты для мобильных устройств
+            function setAppHeight() {
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+                
+                const appContainer = document.querySelector('.app-container');
+                if (appContainer) {
+                    appContainer.style.height = '100vh';
+                    appContainer.style.height = 'calc(var(--vh, 1vh) * 100)';
+                }
+            }
+            
+            setAppHeight();
+            window.addEventListener('resize', setAppHeight);
+            window.addEventListener('orientationchange', setAppHeight);
         });
     </script>
 </body>
