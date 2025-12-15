@@ -406,9 +406,21 @@
                             
                             <div class="form-group">
                                 <label for="securityName">Ваше имя:</label>
-                                <input type="text" id="securityName" class="form-input" 
-                                       placeholder="Введите ваше имя" required>
+                                <div class="phone-input-group">
+                                    <input type="text" id="securityName" class="form-input" 
+                                           placeholder="Введите ваше имя" required>
+                                    <button class="btn-secondary" id="requestNameFromMax">
+                                        <i class="fas fa-user-check"></i>
+                                        <span>Взять из MAX</span>
+                                    </button>
+                                </div>
                                 <div class="form-hint">Имя из MAX: <span id="maxUserName"></span></div>
+                                <div class="form-checkbox">
+                                    <input type="checkbox" id="confirmName" class="form-checkbox-input">
+                                    <label for="confirmName" class="form-checkbox-label">
+                                        Подтверждаю использование моего имени из MAX
+                                    </label>
+                                </div>
                             </div>
                             
                             <div class="form-group">
@@ -422,6 +434,12 @@
                                     </button>
                                 </div>
                                 <div class="form-hint">Номер телефона нужен для уточнения деталей</div>
+                                <div class="form-checkbox">
+                                    <input type="checkbox" id="confirmPhone" class="form-checkbox-input">
+                                    <label for="confirmPhone" class="form-checkbox-label">
+                                        Подтверждаю использование моего телефона из MAX
+                                    </label>
+                                </div>
                             </div>
                             
                             <div class="form-group">
@@ -1020,20 +1038,24 @@
                 // Сохраняем в localStorage
                 localStorage.setItem('theme', theme);
                 
-                // Обновляем иконки плавно
+                // Плавное переключение иконок
                 themeIcons.forEach(icon => {
                     if (icon.dataset.themeIcon === theme) {
-                        icon.style.display = 'none';
+                        icon.style.transition = 'opacity 0.3s ease';
+                        icon.style.opacity = '0';
+                        setTimeout(() => {
+                            icon.style.display = 'none';
+                            icon.style.opacity = '1';
+                        }, 300);
                     } else {
                         icon.style.display = 'inline-block';
+                        icon.style.transition = 'opacity 0.3s ease';
+                        icon.style.opacity = '0';
+                        setTimeout(() => {
+                            icon.style.opacity = '1';
+                        }, 50);
                     }
                 });
-                
-                // Плавная анимация вращения
-                themeToggle.style.transform = 'rotate(180deg)';
-                setTimeout(() => {
-                    themeToggle.style.transform = '';
-                }, 300);
             }
             
             themeToggle.addEventListener('click', (e) => {
@@ -1062,7 +1084,8 @@
                 const elements = document.querySelectorAll('h1, h2, h3, p, .logo-title, .logo-subtitle, .emergency-info h4, .emergency-number, .emergency-desc');
                 elements.forEach(el => {
                     if (el.scrollWidth > el.clientWidth) {
-                        el.style.fontSize = 'calc(1em - 1px)';
+                        const currentSize = parseFloat(window.getComputedStyle(el).fontSize);
+                        el.style.fontSize = (currentSize - 1) + 'px';
                     }
                 });
             };
@@ -1084,21 +1107,48 @@
                     display: flex;
                     gap: 8px;
                     align-items: center;
+                    width: 100%;
                 }
                 .phone-input-group .form-input {
                     flex: 1;
+                    min-width: 0;
                 }
                 .phone-input-group .btn-secondary {
                     flex-shrink: 0;
                     min-width: 120px;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .form-checkbox {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-top: 8px;
+                }
+                .form-checkbox-input {
+                    width: 18px;
+                    height: 18px;
+                    flex-shrink: 0;
+                }
+                .form-checkbox-label {
+                    font-size: 0.85rem;
+                    color: var(--text-secondary);
+                    white-space: normal;
+                    line-height: 1.3;
                 }
                 @media (max-width: 480px) {
                     .phone-input-group {
                         flex-direction: column;
                         align-items: stretch;
+                        gap: 8px;
                     }
                     .phone-input-group .btn-secondary {
                         width: 100%;
+                        min-width: 0;
+                    }
+                    .form-checkbox-label {
+                        font-size: 0.8rem;
                     }
                 }
             `;
