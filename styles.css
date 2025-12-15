@@ -417,6 +417,23 @@ a:hover {
     transform: translateY(-2px);
 }
 
+/* Специальная карточка для фильтров Wi-Fi */
+.filters-card {
+    margin: 16px 0;
+    padding: 16px;
+}
+
+/* Карточка поиска Wi-Fi */
+.search-card {
+    margin-bottom: 16px;
+}
+
+.map-search-container {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+}
+
 /* ===== FORMS ===== */
 .form-group {
     margin-bottom: 1.5rem;
@@ -1306,7 +1323,7 @@ a:hover {
     justify-content: center;
     height: 100%;
     font-size: 1.5rem;
-    color: var(--text-tertiary);
+    color: var(--text-tertiary;
 }
 
 .btn-remove-media {
@@ -2155,6 +2172,7 @@ a:hover {
     text-align: center;
     max-width: 90%;
     padding: 16px;
+    position: relative;
 }
 
 .preloader-spinner {
