@@ -3,7 +3,7 @@ class SafeSevastopol {
     constructor() {
         this.maxBridge = window.WebApp || null;
         this.currentUser = null;
-        this.currentSection = 'wifi';
+        this.currentSection = 'security';
         this.currentLocation = null;
         this.favoritePoints = new Set();
         this.securityReport = {
@@ -44,8 +44,10 @@ class SafeSevastopol {
         // Загрузка данных пользователя
         await this.loadUserData();
         
-        // Загрузка точек Wi-Fi
-        this.loadWifiPoints();
+        // Загрузка точек Wi-Fi (только для секции Wi-Fi)
+        if (this.currentSection === 'wifi') {
+            this.loadWifiPoints();
+        }
         
         // Проверка прав админа
         this.checkAdminStatus();
@@ -71,10 +73,8 @@ class SafeSevastopol {
     }
 
     setupResponsive() {
-        // Предотвращаем горизонтальное расползание
         document.body.style.overflowX = 'hidden';
         
-        // Фиксируем высоту для мобильных устройств
         function setVh() {
             const vh = window.innerHeight * 0.01;
             document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -84,19 +84,16 @@ class SafeSevastopol {
         window.addEventListener('resize', setVh);
         window.addEventListener('orientationchange', setVh);
         
-        // Блокируем горизонтальный скролл
         document.addEventListener('wheel', (e) => {
             if (e.deltaX !== 0) {
                 e.preventDefault();
             }
         }, { passive: false });
         
-        // Для iOS
         if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
             document.body.style.overscrollBehavior = 'none';
         }
         
-        // Предотвращаем выход за пределы экрана
         const style = document.createElement('style');
         style.textContent = `
             * {
@@ -148,10 +145,8 @@ class SafeSevastopol {
         const themeColor = theme === 'dark' ? '#0c0c0e' : '#ffffff';
         document.querySelector('meta[name="theme-color"]').setAttribute('content', themeColor);
         
-        // Сохраняем в localStorage
         localStorage.setItem('theme', theme);
         
-        // Обновляем иконки с анимацией
         this.updateThemeIcons(theme);
     }
 
@@ -162,7 +157,6 @@ class SafeSevastopol {
         const moonIcon = themeToggle.querySelector('.fa-moon');
         const sunIcon = themeToggle.querySelector('.fa-sun');
         
-        // Плавная смена иконок
         if (theme === 'dark') {
             if (moonIcon) moonIcon.style.display = 'none';
             if (sunIcon) sunIcon.style.display = 'inline-block';
@@ -176,7 +170,6 @@ class SafeSevastopol {
         const currentTheme = document.documentElement.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
         
-        // Плавная анимация вращения кнопки
         const themeToggle = document.getElementById('themeToggleSmall');
         if (themeToggle) {
             themeToggle.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55)';
@@ -188,8 +181,6 @@ class SafeSevastopol {
         }
         
         this.setTheme(newTheme);
-        
-        // Тактильная обратная связь
         this.hapticFeedback('light');
     }
 
@@ -241,6 +232,11 @@ class SafeSevastopol {
             this.submitSecurityReport();
         });
 
+        // Получение имени из MAX для безопасности
+        document.getElementById('requestNameFromMax')?.addEventListener('click', () => {
+            this.requestNameFromMax();
+        });
+
         // Получение телефона из MAX для безопасности
         document.getElementById('requestPhoneFromMax')?.addEventListener('click', () => {
             this.requestPhoneFromMax();
@@ -251,10 +247,8 @@ class SafeSevastopol {
             this.getCurrentLocation();
         });
         
-        document.querySelectorAll('.location-option[data-type="address"]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.showAddressInput();
-            });
+        document.getElementById('useAddressLocation')?.addEventListener('click', () => {
+            this.showAddressInput();
         });
 
         // Выбор на карте для безопасности
@@ -322,10 +316,8 @@ class SafeSevastopol {
         });
 
         // Модальные окна
-        document.querySelectorAll('.modal-close').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.closeModal();
-            });
+        document.getElementById('closeLocationModal')?.addEventListener('click', () => {
+            this.closeModal();
         });
 
         document.getElementById('modalOverlay')?.addEventListener('click', () => {
@@ -354,6 +346,13 @@ class SafeSevastopol {
         
         // Валидация формы безопасности при вводе
         this.setupFormValidation();
+        
+        // Обработка клавиши Enter в поиске Wi-Fi
+        document.getElementById('wifiSearch')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.searchWifiPoints(e.target.value);
+            }
+        });
     }
 
     async loadUserData() {
@@ -444,6 +443,39 @@ class SafeSevastopol {
         }
     }
 
+    async requestNameFromMax() {
+        try {
+            if (!this.maxBridge?.initDataUnsafe?.user) {
+                this.showNotification('Имя из MAX недоступно в демо-режиме', 'warning');
+                return;
+            }
+            
+            const user = this.maxBridge.initDataUnsafe.user;
+            if (user.first_name) {
+                const nameInput = document.getElementById('securityName');
+                if (nameInput) {
+                    nameInput.value = user.first_name;
+                    this.securityReport.data.name = user.first_name;
+                    this.securityReport.data.nameVerified = true;
+                    
+                    this.showNotification('Имя получено из MAX', 'success');
+                    this.hapticFeedback('success');
+                    
+                    // Обновляем отображение имени
+                    const maxUserNameSpan = document.getElementById('maxUserName');
+                    if (maxUserNameSpan) {
+                        maxUserNameSpan.textContent = user.first_name;
+                    }
+                }
+            } else {
+                this.showNotification('Имя не найдено в профиле MAX', 'warning');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка получения имени из MAX:', error);
+            this.showNotification('Ошибка получения имени. Введите вручную.', 'error');
+        }
+    }
+
     async requestPhoneFromMax() {
         try {
             if (!this.maxBridge?.requestContact) {
@@ -527,8 +559,8 @@ class SafeSevastopol {
         this.maxBridge.BackButton.onClick(() => {
             console.log('🔙 Нажата кнопка назад');
             
-            if (this.currentSection !== 'wifi') {
-                this.switchSection('wifi');
+            if (this.currentSection !== 'security') {
+                this.switchSection('security');
                 // Тактильная обратная связь
                 this.hapticFeedback('light');
             } else {
@@ -581,7 +613,6 @@ class SafeSevastopol {
         console.log(`📍 Переключен раздел: ${section}`);
     }
 
-    // ===== WI-FI ФУНКЦИОНАЛ =====
     async loadWifiPoints() {
         const loadingElement = document.getElementById('wifiLoading');
         const resultsElement = document.getElementById('wifiResults');
@@ -918,6 +949,38 @@ class SafeSevastopol {
         this.hapticFeedback('light');
     }
 
+    reportWifiProblem(pointId, event) {
+        if (event) event.stopPropagation();
+        
+        const point = window.wifiPoints?.find(p => p.id === pointId);
+        if (!point) return;
+        
+        const select = document.getElementById('wifiProblemPoint');
+        if (select) {
+            select.value = pointId;
+            this.switchSection('wifi');
+            
+            // Прокручиваем к форме отчета
+            setTimeout(() => {
+                const reportCard = document.querySelector('.report-card');
+                if (reportCard) {
+                    reportCard.scrollIntoView({ behavior: 'smooth' });
+                }
+                
+                const descInput = document.getElementById('wifiProblemDesc');
+                if (descInput) {
+                    descInput.focus();
+                }
+            }, 300);
+        }
+        
+        this.hapticFeedback('light');
+    }
+
+    openInMaps(pointId) {
+        this.showOnMap(pointId);
+    }
+
     async submitWifiProblem() {
         try {
             const pointId = document.getElementById('wifiProblemPoint')?.value;
@@ -1026,7 +1089,6 @@ class SafeSevastopol {
         }
     }
 
-    // ===== БЕЗОПАСНОСТЬ ФУНКЦИОНАЛ =====
     resetSecurityForm() {
         this.securityReport = {
             step: 1,
@@ -1086,6 +1148,11 @@ class SafeSevastopol {
         // Скрыть адресное поле
         const addressGroup = document.getElementById('addressInputGroup');
         if (addressGroup) addressGroup.style.display = 'none';
+        
+        // Сброс активных кнопок местоположения
+        document.querySelectorAll('.location-option').forEach(option => {
+            option.classList.remove('active');
+        });
         
         // Очистка медиа
         this.updateMediaPreview();
@@ -1276,6 +1343,15 @@ class SafeSevastopol {
                 addressInput.value = `Геолокация: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
             }
             
+            // Отметить кнопку как активную
+            document.getElementById('useCurrentLocation').classList.add('active');
+            document.getElementById('useAddressLocation').classList.remove('active');
+            document.getElementById('pickLocationFromMap').classList.remove('active');
+            
+            // Скрыть поле ввода адреса
+            const addressGroup = document.getElementById('addressInputGroup');
+            if (addressGroup) addressGroup.style.display = 'none';
+            
             // Тактильная обратная связь
             this.hapticFeedback('success');
             
@@ -1312,7 +1388,16 @@ class SafeSevastopol {
         const addressGroup = document.getElementById('addressInputGroup');
         const addressInput = document.getElementById('manualAddress');
         
-        if (addressGroup) addressGroup.style.display = 'block';
+        if (addressGroup) {
+            addressGroup.style.display = 'block';
+            // Добавляем класс active для визуального выделения
+            document.getElementById('useAddressLocation').classList.add('active');
+            
+            // Убираем active с других кнопок
+            document.getElementById('useCurrentLocation').classList.remove('active');
+            document.getElementById('pickLocationFromMap').classList.remove('active');
+        }
+        
         if (addressInput) {
             addressInput.focus();
             
@@ -1366,7 +1451,6 @@ class SafeSevastopol {
         }
     }
 
-    // ===== ГРАФФИТИ ФУНКЦИОНАЛ =====
     handleGraffitiPhotos(files) {
         if (!files || files.length === 0) return;
         
@@ -1501,7 +1585,6 @@ class SafeSevastopol {
         this.updateGraffitiPhotoPreview();
     }
 
-    // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
     showNotification(message, type = 'info') {
         const container = document.getElementById('notificationsContainer');
         if (!container) return;
@@ -1688,7 +1771,6 @@ class SafeSevastopol {
         `;
     }
 
-    // ===== ТАКТИЛЬНАЯ ОБРАТНАЯ СВЯЗЬ =====
     hapticFeedback(type = 'light') {
         if (!this.maxBridge?.HapticFeedback) {
             console.log('📳 Вибрация:', type);
@@ -1726,7 +1808,6 @@ class SafeSevastopol {
         }
     }
 
-    // ===== ЯНДЕКС КАРТЫ =====
     initYandexMaps() {
         if (typeof ymaps === 'undefined') {
             console.warn('⚠️ Яндекс Карты не загружены');
@@ -1738,7 +1819,6 @@ class SafeSevastopol {
         });
     }
 
-    // ===== МОДАЛЬНЫЕ ОКНА =====
     openLocationPicker(context) {
         this.locationContext = context;
         this.selectedLocation = null;
@@ -1830,6 +1910,15 @@ class SafeSevastopol {
                     addressInput.value = `Геолокация: ${locationText}`;
                 }
                 
+                // Отметить кнопку карты как активную
+                document.getElementById('pickLocationFromMap').classList.add('active');
+                document.getElementById('useCurrentLocation').classList.remove('active');
+                document.getElementById('useAddressLocation').classList.remove('active');
+                
+                // Скрыть поле ввода адреса
+                const addressGroup = document.getElementById('addressInputGroup');
+                if (addressGroup) addressGroup.style.display = 'none';
+                
                 // Переход к следующему шагу если мы на шаге 2
                 if (this.securityReport.step === 2) {
                     setTimeout(() => {
@@ -1877,7 +1966,6 @@ class SafeSevastopol {
         this.hapticFeedback('light');
     }
 
-    // ===== ДРАГ-ЭНД-ДРОП =====
     setupDragAndDrop() {
         const uploadArea = document.getElementById('mediaUploadArea');
         if (!uploadArea) return;
@@ -1958,7 +2046,6 @@ class SafeSevastopol {
         this.hapticFeedback('light');
     }
 
-    // ===== ВАЛИДАЦИЯ ФОРМ =====
     setupFormValidation() {
         const phoneInput = document.getElementById('securityPhone');
         if (phoneInput) {
@@ -1983,7 +2070,6 @@ class SafeSevastopol {
         }
     }
 
-    // ===== АДМИН-ПАНЕЛЬ =====
     checkAdminStatus() {
         const adminIds = window.ADMIN_USER_IDS || ['13897373', '90334880', '555666777'];
         this.isAdmin = adminIds.includes(this.currentUser?.id?.toString());
@@ -2111,7 +2197,6 @@ class SafeSevastopol {
         }
     }
 
-    // ===== ЭКСТРЕННЫЕ ВЫЗОВЫ =====
     makeEmergencyCall(number) {
         // Форматируем номер для телефона
         let formattedNumber = number;
