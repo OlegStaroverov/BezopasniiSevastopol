@@ -1,1159 +1,2194 @@
-<!DOCTYPE html>
-<html lang="ru" data-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="theme-color" content="#0066ff" data-theme-color="dark">
-    <meta name="msapplication-navbutton-color" content="#0066ff">
-    
-    <!-- Open Graph метатеги -->
-    <meta property="og:title" content="Безопасный Севастополь">
-    <meta property="og:description" content="Wi-Fi, безопасность, граффити - все в одном приложении">
-    <meta property="og:image" content="assets/og-image.png">
-    <meta property="og:url" content="https://sevastopol-hub.ru">
-    
-    <title>Безопасный Севастополь</title>
-    
-    <!-- MAX Bridge -->
-    <script src="https://st.max.ru/js/max-web-app.js" defer></script>
-    <script>
-        // Инициализация MAX Bridge или fallback
-        window.MAX_BRIDGE_LOADED = false;
+// Безопасный Севастополь - Основное приложение для MAX Bridge
+class SafeSevastopol {
+    constructor() {
+        this.maxBridge = window.WebApp || null;
+        this.currentUser = null;
+        this.currentSection = 'wifi';
+        this.currentLocation = null;
+        this.favoritePoints = new Set();
+        this.securityReport = {
+            step: 1,
+            data: {}
+        };
+        this.graffitiReport = {
+            photos: []
+        };
+        this.mediaFiles = [];
+        this.isAdmin = false;
+        this.hasUnsavedChanges = false;
+        this.startParam = null;
+        this.yandexMap = null;
+        this.mapMarker = null;
+        this.selectedLocation = null;
+        this.locationContext = null;
         
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof window.WebApp !== 'undefined') {
-                window.MAX_BRIDGE_LOADED = true;
-                console.log('✅ MAX Bridge успешно загружен');
-            } else {
-                console.warn('⚠️ MAX Bridge не загружен, используется fallback режим');
-                window.WebApp = {
-                    ready: () => console.log('MAX Bridge: ready()'),
-                    initDataUnsafe: {
-                        user: {
-                            id: 123456789,
-                            first_name: 'Тест',
-                            last_name: 'Пользователь',
-                            username: 'test_user',
-                            language_code: 'ru'
-                        },
-                        start_param: null
-                    },
-                    BackButton: {
-                        show: () => console.log('BackButton показана'),
-                        hide: () => console.log('BackButton скрыта'),
-                        onClick: (callback) => {
-                            console.log('Обработчик BackButton установлен');
-                            window.addEventListener('popstate', callback);
-                        },
-                        offClick: (callback) => {
-                            window.removeEventListener('popstate', callback);
-                        }
-                    },
-                    HapticFeedback: {
-                        impactOccurred: (style) => console.log('Вибрация:', style),
-                        notificationOccurred: (type) => console.log('Уведомление:', type),
-                        selectionChanged: () => console.log('Выбор изменен')
-                    },
-                    enableClosingConfirmation: () => console.log('Подтверждение закрытия включено'),
-                    disableClosingConfirmation: () => console.log('Подтверждение закрытия выключено'),
-                    openLink: (url) => window.open(url, '_blank'),
-                    openMaxLink: (url) => console.log('Открыть MAX ссылку:', url),
-                    shareContent: (text, link) => console.log('Шаринг:', text, link),
-                    SecureStorage: {
-                        setItem: (key, value) => {
-                            console.log('SecureStorage set:', key);
-                            localStorage.setItem('max_' + key, value);
-                            return Promise.resolve();
-                        },
-                        getItem: (key) => {
-                            console.log('SecureStorage get:', key);
-                            return Promise.resolve(localStorage.getItem('max_' + key));
-                        },
-                        removeItem: (key) => {
-                            localStorage.removeItem('max_' + key);
-                            return Promise.resolve();
-                        }
-                    },
-                    DeviceStorage: {
-                        setItem: (key, value) => localStorage.setItem(key, value),
-                        getItem: (key) => localStorage.getItem(key),
-                        removeItem: (key) => localStorage.removeItem(key),
-                        clear: () => {
-                            const keysToRemove = [];
-                            for (let i = 0; i < localStorage.length; i++) {
-                                const key = localStorage.key(i);
-                                if (key.startsWith('max_') || key.startsWith('app_')) {
-                                    keysToRemove.push(key);
-                                }
-                            }
-                            keysToRemove.forEach(key => localStorage.removeItem(key));
-                        }
-                    },
-                    close: () => console.log('Закрыть приложение'),
-                    requestContact: () => {
-                        console.log('Запрос контакта');
-                        return Promise.resolve('+79991234567');
-                    },
-                    version: '25.9.16',
-                    platform: 'web'
-                };
+        // Инициализация
+        this.init();
+    }
+
+    async init() {
+        console.log('🚀 Инициализация Безопасный Севастополь');
+        
+        // Сначала сообщаем MAX, что приложение готово
+        if (this.maxBridge) {
+            this.maxBridge.ready();
+            console.log('✅ MAX Bridge ready() вызван');
+        }
+        
+        // Настройка адаптивности
+        this.setupResponsive();
+        
+        // Настройка событий
+        this.setupEventListeners();
+        
+        // Загрузка данных пользователя
+        await this.loadUserData();
+        
+        // Загрузка точек Wi-Fi
+        this.loadWifiPoints();
+        
+        // Проверка прав админа
+        this.checkAdminStatus();
+        
+        // Настройка форм
+        this.setupFormValidation();
+        
+        // Настройка drag and drop
+        this.setupDragAndDrop();
+        
+        // Инициализация Яндекс Карт
+        this.initYandexMaps();
+        
+        // Инициализация темы
+        this.initTheme();
+        
+        // Показываем приветственное уведомление
+        setTimeout(() => {
+            this.showNotification('Добро пожаловать в Безопасный Севастополь!', 'success');
+        }, 1000);
+        
+        console.log('✅ Приложение инициализировано');
+    }
+
+    setupResponsive() {
+        // Предотвращаем горизонтальное расползание
+        document.body.style.overflowX = 'hidden';
+        
+        // Фиксируем высоту для мобильных устройств
+        function setVh() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        
+        setVh();
+        window.addEventListener('resize', setVh);
+        window.addEventListener('orientationchange', setVh);
+        
+        // Блокируем горизонтальный скролл
+        document.addEventListener('wheel', (e) => {
+            if (e.deltaX !== 0) {
+                e.preventDefault();
             }
-        });
-    </script>
-    
-    <!-- Подключение шрифтов -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Иконки -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Стили -->
-    <link rel="stylesheet" href="styles.css">
-    
-    <!-- PWA манифест -->
-    <link rel="manifest" href="manifest.json">
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
-    <link rel="apple-touch-icon" href="assets/icon-192.png">
-    
-    <!-- Яндекс Карты API -->
-    <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_ключ_яндекс_карт&lang=ru_RU" type="text/javascript"></script>
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-    <!-- Прелоадер -->
-    <div class="preloader" id="preloader">
-        <div class="preloader-content">
-            <div class="preloader-spinner">
-                <div class="spinner"></div>
-            </div>
-            <div class="preloader-text">
-                <h3>Загрузка Безопасный Севастополь</h3>
-                <p>Пожалуйста, подождите...</p>
-            </div>
-        </div>
-    </div>
+        }, { passive: false });
+        
+        // Для iOS
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            document.body.style.overscrollBehavior = 'none';
+        }
+        
+        // Предотвращаем выход за пределы экрана
+        const style = document.createElement('style');
+        style.textContent = `
+            * {
+                max-width: 100vw;
+                box-sizing: border-box;
+            }
+            .app-container {
+                overflow-x: hidden;
+            }
+            h1, h2, h3, h4, h5, h6, p, span, div {
+                overflow-wrap: break-word;
+                word-wrap: break-word;
+                hyphens: auto;
+            }
+            .logo-title, .logo-subtitle, .section-header h2, .section-header p {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+            }
+            @media (max-width: 480px) {
+                .logo-title {
+                    font-size: 1.1rem !important;
+                    line-height: 1.2 !important;
+                }
+                .logo-subtitle {
+                    font-size: 0.7rem !important;
+                    line-height: 1.2 !important;
+                }
+                .section-header h2 {
+                    font-size: 1.2rem !important;
+                    line-height: 1.3 !important;
+                }
+                .section-header p {
+                    font-size: 0.8rem !important;
+                    line-height: 1.3 !important;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
 
-    <!-- Основной контейнер -->
-    <div class="app-container">
-        <!-- Шапка -->
-        <header class="main-header">
-            <div class="header-content">
-                <div class="logo-section">
-                    <div class="logo-icon">
-                        <i class="fas fa-shield-alt"></i>
-                    </div>
-                    <div class="logo-text">
-                        <h1 class="logo-title">БЕЗОПАСНЫЙ <span class="highlight">СЕВАСТОПОЛЬ</span></h1>
-                        <p class="logo-subtitle">Безопасность каждого — ответственность всех</p>
-                    </div>
-                </div>
-                
-                <div class="user-section">
-                    <div class="user-info">
-                        <div class="user-header">
-                            <span class="user-name" id="userName">Гость</span>
-                            <div class="user-status">
-                                <i class="fas fa-circle online"></i>
-                                <span>Онлайн</span>
-                            </div>
-                        </div>
-                        <button class="theme-toggle-small" id="themeToggleSmall" aria-label="Переключить тему">
-                            <i class="fas fa-moon" data-theme-icon="dark"></i>
-                            <i class="fas fa-sun" data-theme-icon="light" style="display: none;"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </header>
+    initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        this.setTheme(savedTheme);
+    }
 
-        <!-- Навигация -->
-        <nav class="main-nav">
-            <div class="nav-container">
-                <button class="nav-item active" data-section="wifi">
-                    <i class="fas fa-wifi"></i>
-                    <span>Wi-Fi</span>
-                </button>
-                
-                <button class="nav-item" data-section="security">
-                    <i class="fas fa-shield-alt"></i>
-                    <span>Безопасность</span>
-                </button>
-                
-                <button class="nav-item" data-section="graffiti">
-                    <i class="fas fa-spray-can"></i>
-                    <span>Граффити</span>
-                </button>
-                
-                <button class="nav-item" data-section="contacts">
-                    <i class="fas fa-phone-alt"></i>
-                    <span>Контакты</span>
-                </button>
-                
-                <button class="nav-item" data-section="admin" id="adminNav" style="display: none;">
-                    <i class="fas fa-crown"></i>
-                    <span>Админ</span>
-                </button>
-            </div>
-        </nav>
+    setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        const themeColor = theme === 'dark' ? '#0c0c0e' : '#ffffff';
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', themeColor);
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('theme', theme);
+        
+        // Обновляем иконки с анимацией
+        this.updateThemeIcons(theme);
+    }
 
-        <!-- Основной контент -->
-        <main class="main-content">
-            <!-- Секция: Wi-Fi -->
-            <section id="wifi-section" class="content-section active">
-                <div class="section-header">
-                    <h2><i class="fas fa-wifi"></i> Точки Wi-Fi в Севастополе</h2>
-                    <p>Найдите ближайшую точку бесплатного интернета или сообщите о проблеме</p>
-                </div>
+    updateThemeIcons(theme) {
+        const themeToggle = document.getElementById('themeToggleSmall');
+        if (!themeToggle) return;
+        
+        const moonIcon = themeToggle.querySelector('.fa-moon');
+        const sunIcon = themeToggle.querySelector('.fa-sun');
+        
+        // Плавная смена иконок
+        if (theme === 'dark') {
+            if (moonIcon) moonIcon.style.display = 'none';
+            if (sunIcon) sunIcon.style.display = 'inline-block';
+        } else {
+            if (moonIcon) moonIcon.style.display = 'inline-block';
+            if (sunIcon) sunIcon.style.display = 'none';
+        }
+    }
 
-                <div class="wifi-container">
-                    <!-- Поиск и фильтры -->
-                    <div class="card search-card">
-                        <div class="search-container">
-                            <div class="search-input-group">
-                                <i class="fas fa-search"></i>
-                                <input type="text" id="wifiSearch" placeholder="Поиск точек Wi-Fi..." class="search-input">
-                                <button class="search-clear" id="clearSearch" style="display: none;">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                                <button class="btn-primary search-button" id="searchButton">
-                                    <i class="fas fa-search"></i>
-                                    <span>Поиск</span>
-                                </button>
-                            </div>
-                            <button class="btn-accent" id="findNearbyWifi">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <span>Указать на карте</span>
-                            </button>
-                        </div>
-
-                        <div class="filters-row">
-                            <div class="filters-title">Категории:</div>
-                            <div class="filters-container">
-                                <div class="filter-tags">
-                                    <button class="filter-tag active" data-filter="all">Все</button>
-                                    <button class="filter-tag" data-filter="здрав">🏥 Медицина</button>
-                                    <button class="filter-tag" data-filter="образование">🎓 Образование</button>
-                                    <button class="filter-tag" data-filter="транспорт">🚌 Транспорт</button>
-                                    <button class="filter-tag" data-filter="отдых">🌳 Развлечения</button>
-                                    <button class="filter-tag" data-filter="тц">🛍️ Торговля</button>
-                                    <button class="filter-tag" data-filter="спорт">⚽ Спорт</button>
-                                    <button class="filter-tag" data-filter="МФЦ">🏢 МФЦ</button>
-                                    <button class="filter-tag" data-filter="АЗС">⛽ АЗС</button>
-                                    <button class="filter-tag" data-filter="гостиница">🏨 Гостиницы</button>
-                                    <button class="filter-tag" data-filter="пляж">🏖️ Пляжи</button>
-                                    <button class="filter-tag" data-filter="турбаза">⛺ Турбазы</button>
-                                    <button class="filter-tag" data-filter="дома">🏘️ Жилые комплексы</button>
-                                    <button class="filter-tag" data-filter="кафе">🍴 Кафе</button>
-                                    <button class="filter-tag" data-filter="торговля">🛒 Магазины</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Результаты поиска -->
-                    <div class="card results-card">
-                        <div class="results-header">
-                            <h3>Найдено точек: <span id="wifiCount">0</span></h3>
-                        </div>
-                        
-                        <div id="wifiResults" class="wifi-results">
-                            <!-- Точки загружаются динамически -->
-                        </div>
-                        
-                        <div class="loading-spinner" id="wifiLoading" style="display: none;">
-                            <div class="spinner"></div>
-                            <p>Загрузка точек Wi-Fi...</p>
-                        </div>
-                    </div>
-
-                    <!-- Детальная информация -->
-                    <div class="card details-card">
-                        <div class="details-header">
-                            <h3>Информация о точке</h3>
-                        </div>
-                        <div id="wifiDetails" class="wifi-details">
-                            <div class="placeholder-details">
-                                <i class="fas fa-wifi fa-3x"></i>
-                                <p>Выберите точку Wi-Fi для просмотра деталей</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Дополнительные действия -->
-                <div class="wifi-actions-container">
-                    <div class="card report-card">
-                        <h3><i class="fas fa-exclamation-triangle"></i> Проблема с Wi-Fi?</h3>
-                        <p>Сообщите о неработающей точке или проблемах с подключением</p>
-                        
-                        <div class="report-form">
-                            <div class="form-group">
-                                <label for="wifiProblemPoint">Выберите точку:</label>
-                                <select id="wifiProblemPoint" class="form-select">
-                                    <option value="">-- Выберите точку --</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="wifiProblemDesc">Описание проблемы:</label>
-                                <textarea id="wifiProblemDesc" class="form-textarea" 
-                                         placeholder="Опишите подробно, что не работает..." rows="3"></textarea>
-                            </div>
-                            
-                            <button class="btn-primary btn-submit-large" id="submitWifiProblem">
-                                <i class="fas fa-paper-plane"></i>
-                                Отправить отчет
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="card suggestion-card">
-                        <h3><i class="fas fa-lightbulb"></i> Предложить новую точку</h3>
-                        <p>Знаете точку Wi-Fi, которой нет в нашей базе? Сообщите нам!</p>
-                        
-                        <div class="suggestion-form">
-                            <div class="form-group">
-                                <label for="newPointName">Название точки:</label>
-                                <input type="text" id="newPointName" class="form-input" 
-                                       placeholder="Например: Кафе 'У моря'">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="newPointAddress">Адрес:</label>
-                                <input type="text" id="newPointAddress" class="form-input" 
-                                       placeholder="ул. Примерная, 123">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="newPointType">Тип:</label>
-                                <select id="newPointType" class="form-select">
-                                    <option value="тц">🛍️ Торговый центр/магазин</option>
-                                    <option value="кафе">🍴 Кафе/ресторан</option>
-                                    <option value="здрав">🏥 Медицинское учреждение</option>
-                                    <option value="образование">🎓 Образовательное учреждение</option>
-                                    <option value="транспорт">🚌 Транспорт</option>
-                                    <option value="отдых">🌳 Развлечения</option>
-                                    <option value="парки и скверы">🌳 Парк/сквер</option>
-                                    <option value="спорт">⚽ Спорт</option>
-                                    <option value="МФЦ">🏢 МФЦ</option>
-                                    <option value="АЗС">⛽ АЗС</option>
-                                    <option value="гостиница">🏨 Гостиница</option>
-                                    <option value="пляж">🏖️ Пляж</option>
-                                    <option value="турбаза">⛺ Турбаза</option>
-                                    <option value="дома">🏘️ Жилой комплекс</option>
-                                    <option value="торговля">🛒 Магазин</option>
-                                    <option value="">📍 Другое</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="newPointDesc">Описание/дополнительно:</label>
-                                <textarea id="newPointDesc" class="form-textarea" 
-                                         placeholder="Укажите дополнительные детали..." rows="3"></textarea>
-                            </div>
-                            
-                            <button class="btn-primary btn-submit-large" id="submitNewPoint">
-                                <i class="fas fa-plus-circle"></i>
-                                Предложить точку
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Секция: Безопасность -->
-            <section id="security-section" class="content-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-shield-alt"></i> Сообщить о подозрительных объектах</h2>
-                    <p>Ваша бдительность делает город безопаснее</p>
-                </div>
-
-                <div class="security-container">
-                    <!-- Форма отчета -->
-                    <div class="card security-form-card">
-                        <div class="form-stepper">
-                            <div class="step active" data-step="1">
-                                <div class="step-number">1</div>
-                                <div class="step-label">Контакты</div>
-                            </div>
-                            <div class="step" data-step="2">
-                                <div class="step-number">2</div>
-                                <div class="step-label">Местоположение</div>
-                            </div>
-                            <div class="step" data-step="3">
-                                <div class="step-number">3</div>
-                                <div class="step-label">Описание</div>
-                            </div>
-                            <div class="step" data-step="4">
-                                <div class="step-number">4</div>
-                                <div class="step-label">Медиа</div>
-                            </div>
-                        </div>
-
-                        <!-- Шаг 1: Контакты -->
-                        <div class="form-step active" data-step="1">
-                            <h3>Ваши контактные данные</h3>
-                            <p>Укажите информацию для связи с вами</p>
-                            
-                            <div class="form-group">
-                                <label for="securityName">Ваше имя:</label>
-                                <div class="phone-input-group">
-                                    <input type="text" id="securityName" class="form-input" 
-                                           placeholder="Введите ваше имя" required>
-                                    <button class="btn-secondary" id="requestNameFromMax">
-                                        <i class="fas fa-user-check"></i>
-                                        <span>Взять из MAX</span>
-                                    </button>
-                                </div>
-                                <div class="form-hint">Имя из MAX: <span id="maxUserName"></span></div>
-                                <div class="form-checkbox">
-                                    <input type="checkbox" id="confirmName" class="form-checkbox-input">
-                                    <label for="confirmName" class="form-checkbox-label">
-                                        Подтверждаю использование моего имени из MAX
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="securityPhone">Телефон:</label>
-                                <div class="phone-input-group">
-                                    <input type="tel" id="securityPhone" class="form-input" 
-                                           placeholder="+7 (XXX) XXX-XX-XX" required>
-                                    <button class="btn-secondary" id="requestPhoneFromMax">
-                                        <i class="fas fa-mobile-alt"></i>
-                                        <span>Взять из MAX</span>
-                                    </button>
-                                </div>
-                                <div class="form-hint">Номер телефона нужен для уточнения деталей</div>
-                                <div class="form-checkbox">
-                                    <input type="checkbox" id="confirmPhone" class="form-checkbox-input">
-                                    <label for="confirmPhone" class="form-checkbox-label">
-                                        Подтверждаю использование моего телефона из MAX
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="securityEmail">Email (необязательно):</label>
-                                <input type="email" id="securityEmail" class="form-input" 
-                                       placeholder="email@example.com">
-                                <div class="form-hint">Для отправки уведомления о статусе обработки</div>
-                            </div>
-                        </div>
-
-                        <!-- Шаг 2: Местоположение -->
-                        <div class="form-step" data-step="2">
-                            <h3>Местоположение объекта</h3>
-                            <p>Укажите, где вы обнаружили подозрительный объект</p>
-                            
-                            <div class="location-options">
-                                <button class="location-option" data-type="current" id="useCurrentLocation">
-                                    <i class="fas fa-location-arrow"></i>
-                                    <span>Мое местоположение</span>
-                                </button>
-                                <button class="location-option" data-type="address">
-                                    <i class="fas fa-map-pin"></i>
-                                    <span>Указать адрес</span>
-                                </button>
-                                <button class="location-option" data-type="map" id="pickLocationFromMap">
-                                    <i class="fas fa-map-marked-alt"></i>
-                                    <span>Выбрать на карте</span>
-                                </button>
-                            </div>
-                            
-                            <div class="form-group mt-4" id="addressInputGroup" style="display: none;">
-                                <input type="text" id="manualAddress" class="form-input" 
-                                       placeholder="Введите адрес вручную">
-                            </div>
-                        </div>
-
-                        <!-- Шаг 3: Описание -->
-                        <div class="form-step" data-step="3">
-                            <h3>Описание ситуации</h3>
-                            <p>Подробно опишите, что вы обнаружили</p>
-                            
-                            <div class="form-group">
-                                <label for="securityCategory">Категория:</label>
-                                <select id="securityCategory" class="form-select" required>
-                                    <option value="">-- Выберите категорию --</option>
-                                    <option value="suspicious_object">Подозрительный предмет</option>
-                                    <option value="suspicious_activity">Подозрительная активность</option>
-                                    <option value="dangerous_situation">Опасная ситуация</option>
-                                    <option value="other">Другое</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="securityDescription">Подробное описание:</label>
-                                <textarea id="securityDescription" class="form-textarea" 
-                                         placeholder="Опишите максимально подробно... (минимум 10 символов)"
-                                         rows="4" required></textarea>
-                                <div class="char-counter">
-                                    <span id="charCount">0</span>/500 символов
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Шаг 4: Медиа -->
-                        <div class="form-step" data-step="4">
-                            <h3>Добавить фото/видео</h3>
-                            <p>Добавьте медиафайлы для наглядности (необязательно)</p>
-                            
-                            <div class="media-uploader">
-                                <div class="upload-area" id="mediaUploadArea">
-                                    <i class="fas fa-cloud-upload-alt"></i>
-                                    <p>Перетащите фото или видео сюда</p>
-                                    <span>или</span>
-                                    <button class="btn-secondary" id="browseMedia">
-                                        Выбрать файлы
-                                    </button>
-                                    <input type="file" id="mediaInput" accept="image/*,video/*" multiple style="display: none;">
-                                </div>
-                                
-                                <div class="media-preview" id="mediaPreview">
-                                    <!-- Препросмотр медиафайлов -->
-                                </div>
-                            </div>
-                            
-                            <div class="form-note">
-                                <i class="fas fa-info-circle"></i>
-                                <p>Максимум 5 файлов, каждый до 10 МБ. Поддерживаются фото и видео.</p>
-                            </div>
-                        </div>
-
-                        <!-- Кнопки навигации -->
-                        <div class="form-navigation">
-                            <button class="btn-secondary" id="prevStep" style="display: none;">
-                                <i class="fas fa-arrow-left"></i> Назад
-                            </button>
-                            <button class="btn-primary" id="nextStep">
-                                Далее <i class="fas fa-arrow-right"></i>
-                            </button>
-                            <button class="btn-success btn-submit-large" id="submitSecurityReport" style="display: none;">
-                                <i class="fas fa-paper-plane"></i> Отправить отчет
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Инструкция -->
-                    <div class="card info-card">
-                        <h3><i class="fas fa-info-circle"></i> Что сообщать?</h3>
-                        
-                        <div class="info-list">
-                            <div class="info-item">
-                                <div class="info-icon">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                </div>
-                                <div class="info-content">
-                                    <h4>Подозрительные предметы</h4>
-                                    <p>Бесхозные сумки, пакеты, коробки в общественных местах</p>
-                                </div>
-                            </div>
-                            
-                            <div class="info-item">
-                                <div class="info-icon">
-                                    <i class="fas fa-user-secret"></i>
-                                </div>
-                                <div class="info-content">
-                                    <h4>Подозрительная активность</h4>
-                                    <p>Люди, ведущие себя неадекватно или подозрительно</p>
-                                </div>
-                            </div>
-                            
-                            <div class="info-item">
-                                <div class="info-icon">
-                                    <i class="fas fa-car-crash"></i>
-                                </div>
-                                <div class="info-content">
-                                    <h4>Опасные ситуации</h4>
-                                    <p>Аварии, разрушения, угрозы безопасности</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Секция: Граффити -->
-            <section id="graffiti-section" class="content-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-spray-can"></i> Сообщить о граффити</h2>
-                    <p>Помогите сохранить красоту города</p>
-                </div>
-
-                <div class="graffiti-container">
-                    <div class="card graffiti-form-card">
-                        <div class="form-group">
-                            <label for="graffitiLocation">Местоположение:</label>
-                            <div class="location-input-group">
-                                <input type="text" id="graffitiLocation" class="form-input" 
-                                       placeholder="Введите адрес или выберите на карте" required>
-                                <button class="btn-primary graffiti-map-btn" id="selectGraffitiLocation">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                    <span>Карта</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="graffitiDescription">Описание проблемы:</label>
-                            <textarea id="graffitiDescription" class="form-textarea" 
-                                     placeholder="Опишите проблему, размеры, цвет, состояние поверхности..." 
-                                     rows="4" required></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Фотографии (до 3 штук):</label>
-                            <div class="graffiti-uploader">
-                                <div class="upload-grid" id="graffitiUploadGrid">
-                                    <div class="upload-cell add-photo" id="addGraffitiPhoto">
-                                        <i class="fas fa-plus"></i>
-                                        <span>Добавить фото</span>
-                                    </div>
-                                </div>
-                                <input type="file" id="graffitiPhotoInput" accept="image/*" multiple style="display: none;">
-                            </div>
-                        </div>
-
-                        <button class="btn-primary btn-submit-large" id="submitGraffitiReport">
-                            <i class="fas fa-paint-roller"></i>
-                            Отправить на обработку
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Секция: Контакты -->
-            <section id="contacts-section" class="content-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-phone-alt"></i> Контакты</h2>
-                    <p>Экстренные службы и контактная информация</p>
-                </div>
-
-                <div class="contacts-container">
-                    <div class="card emergency-contacts-card">
-                        <h3><i class="fas fa-exclamation-triangle"></i> Экстренные службы</h3>
-                        
-                        <div class="emergency-list">
-                            <div class="emergency-item">
-                                <div class="emergency-icon" style="background: linear-gradient(135deg, #ff3b30, #ff375f);">
-                                    <i class="fas fa-ambulance"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Единый номер экстренных служб</h4>
-                                    <div class="emergency-number">112</div>
-                                    <p class="emergency-desc">С мобильного телефона</p>
-                                </div>
-                                <button class="btn-call btn-call-large" data-number="112" title="Позвонить">
-                                    <i class="fas fa-phone"></i>
-                                    <span>Вызов</span>
-                                </button>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon" style="background: linear-gradient(135deg, #ff9500, #ff5e3a);">
-                                    <i class="fas fa-fire"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Пожарная служба и МЧС</h4>
-                                    <div class="emergency-number">101</div>
-                                    <p class="emergency-desc">Пожар, авария, спасение</p>
-                                </div>
-                                <button class="btn-call btn-call-large" data-number="101" title="Позвонить">
-                                    <i class="fas fa-phone"></i>
-                                    <span>Вызов</span>
-                                </button>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon" style="background: linear-gradient(135deg, #0066ff, #5856d6);">
-                                    <i class="fas fa-police-badge"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Полиция</h4>
-                                    <div class="emergency-number">102</div>
-                                    <p class="emergency-desc">Преступления, правонарушения</p>
-                                </div>
-                                <button class="btn-call btn-call-large" data-number="102" title="Позвонить">
-                                    <i class="fas fa-phone"></i>
-                                    <span>Вызов</span>
-                                </button>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon" style="background: linear-gradient(135deg, #34c759, #32d74b);">
-                                    <i class="fas fa-ambulance"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Скорая медицинская помощь</h4>
-                                    <div class="emergency-number">103</div>
-                                    <p class="emergency-desc">Медицинская помощь, травмы</p>
-                                </div>
-                                <button class="btn-call btn-call-large" data-number="103" title="Позвонить">
-                                    <i class="fas fa-phone"></i>
-                                    <span>Вызов</span>
-                                </button>
-                            </div>
-                            
-                            <div class="emergency-item">
-                                <div class="emergency-icon" style="background: linear-gradient(135deg, #5ac8fa, #007aff);">
-                                    <i class="fas fa-user-secret"></i>
-                                </div>
-                                <div class="emergency-info">
-                                    <h4>Антитеррор (УФСБ)</h4>
-                                    <div class="emergency-number">+7 (8692) 54-37-78</div>
-                                    <p class="emergency-desc">Севастополь и Крым</p>
-                                </div>
-                                <button class="btn-call btn-call-large" data-number="+78692543778" title="Позвонить">
-                                    <i class="fas fa-phone"></i>
-                                    <span>Вызов</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card government-contacts-card">
-                        <h3><i class="fas fa-building"></i> Правительство Севастополя</h3>
-                        
-                        <div class="contact-list">
-                            <div class="contact-item">
-                                <div class="contact-icon">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                </div>
-                                <div class="contact-info">
-                                    <h4>Адрес:</h4>
-                                    <p>299011, г. Севастополь, ул. Ленина, 2</p>
-                                </div>
-                            </div>
-                            
-                            <div class="contact-item">
-                                <div class="contact-icon">
-                                    <i class="fas fa-phone"></i>
-                                </div>
-                                <div class="contact-info">
-                                    <h4>Телефон приемной:</h4>
-                                    <p class="contact-number">+7 (8692) 54-34-34</p>
-                                    <p>Пн-Пт: 9:00-18:00</p>
-                                </div>
-                                <button class="btn-call btn-call-large" data-number="+78692543434" title="Позвонить">
-                                    <i class="fas fa-phone"></i>
-                                    <span>Вызов</span>
-                                </button>
-                            </div>
-                            
-                            <div class="contact-item">
-                                <div class="contact-icon">
-                                    <i class="fas fa-globe"></i>
-                                </div>
-                                <div class="contact-info">
-                                    <h4>Официальный сайт:</h4>
-                                    <p><a href="https://sev.gov.ru" target="_blank" class="contact-link">sev.gov.ru</a></p>
-                                </div>
-                                <button class="btn-icon" onclick="window.open('https://sev.gov.ru', '_blank')" title="Открыть сайт">
-                                    <i class="fas fa-external-link-alt"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Секция: Админ-панель -->
-            <section id="admin-section" class="content-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-crown"></i> Административная панель</h2>
-                    <p>Управление всеми обращениями и статистика</p>
-                </div>
-
-                <div class="admin-tabs-container">
-                    <div class="admin-tabs">
-                        <button class="admin-tab active" data-tab="dashboard">
-                            <i class="fas fa-tachometer-alt"></i>
-                            <span>Дашборд</span>
-                        </button>
-                        <button class="admin-tab" data-tab="security-admin">
-                            <i class="fas fa-shield-alt"></i>
-                            <span>Безопасность</span>
-                        </button>
-                        <button class="admin-tab" data-tab="wifi-admin">
-                            <i class="fas fa-wifi"></i>
-                            <span>Wi-Fi</span>
-                        </button>
-                        <button class="admin-tab" data-tab="graffiti-admin">
-                            <i class="fas fa-spray-can"></i>
-                            <span>Граффити</span>
-                        </button>
-                        <button class="admin-tab" data-tab="settings-admin">
-                            <i class="fas fa-cog"></i>
-                            <span>Настройки</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Дашборд -->
-                <div id="admin-dashboard" class="admin-tab-content active">
-                    <div class="admin-stats-grid">
-                        <div class="admin-stat-card">
-                            <div class="stat-header">
-                                <i class="fas fa-inbox"></i>
-                                <h4>Всего обращений</h4>
-                            </div>
-                            <div class="stat-number" id="adminTotalReports">0</div>
-                            <div class="stat-trend up">+0%</div>
-                        </div>
-                        
-                        <div class="admin-stat-card">
-                            <div class="stat-header">
-                                <i class="fas fa-clock"></i>
-                                <h4>Ожидают обработки</h4>
-                            </div>
-                            <div class="stat-number" id="adminPendingReports">0</div>
-                            <div class="stat-trend up">+0 новых</div>
-                        </div>
-                        
-                        <div class="admin-stat-card">
-                            <div class="stat-header">
-                                <i class="fas fa-check-circle"></i>
-                                <h4>Выполнено</h4>
-                            </div>
-                            <div class="stat-number" id="adminCompletedReports">0</div>
-                            <div class="stat-trend up">+0 сегодня</div>
-                        </div>
-                        
-                        <div class="admin-stat-card">
-                            <div class="stat-header">
-                                <i class="fas fa-users"></i>
-                                <h4>Активных пользователей</h4>
-                            </div>
-                            <div class="stat-number" id="adminActiveUsers">0</div>
-                            <div class="stat-trend up">+0%</div>
-                        </div>
-                    </div>
-
-                    <div class="admin-charts">
-                        <div class="card chart-card">
-                            <h4>Обращения по категориям</h4>
-                            <canvas id="reportsChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Админ безопасность -->
-                <div id="admin-security" class="admin-tab-content">
-                    <div class="admin-actions">
-                        <button class="btn-secondary" id="exportSecurityData">
-                            <i class="fas fa-download"></i> Экспорт
-                        </button>
-                        <button class="btn-secondary" id="refreshSecurity">
-                            <i class="fas fa-sync"></i> Обновить
-                        </button>
-                    </div>
-                    
-                    <div class="admin-filters">
-                        <select id="securityStatusFilter" class="form-select">
-                            <option value="all">Все статусы</option>
-                            <option value="new">Новые</option>
-                            <option value="in_progress">В работе</option>
-                            <option value="resolved">Решено</option>
-                        </select>
-                    </div>
-                    
-                    <div class="security-reports-list" id="securityReportsList">
-                        <!-- Отчеты загружаются динамически -->
-                    </div>
-                </div>
-
-                <!-- Админ Wi-Fi -->
-                <div id="admin-wifi" class="admin-tab-content">
-                    <div class="admin-actions">
-                        <button class="btn-secondary" id="exportWifiData">
-                            <i class="fas fa-download"></i> Экспорт
-                        </button>
-                        <button class="btn-secondary" id="refreshWifi">
-                            <i class="fas fa-sync"></i> Обновить
-                        </button>
-                    </div>
-                    
-                    <div class="wifi-reports-list" id="wifiReportsList">
-                        <!-- Отчеты загружаются динамически -->
-                    </div>
-                </div>
-
-                <!-- Админ граффити -->
-                <div id="admin-graffiti" class="admin-tab-content">
-                    <div class="admin-actions">
-                        <button class="btn-secondary" id="exportGraffitiData">
-                            <i class="fas fa-download"></i> Экспорт
-                        </button>
-                        <button class="btn-secondary" id="refreshGraffiti">
-                            <i class="fas fa-sync"></i> Обновить
-                        </button>
-                    </div>
-                    
-                    <div class="graffiti-reports-list" id="graffitiReportsList">
-                        <!-- Отчеты загружаются динамически -->
-                    </div>
-                </div>
-
-                <!-- Настройки админа -->
-                <div id="admin-settings" class="admin-tab-content">
-                    <div class="card settings-card">
-                        <h3><i class="fas fa-envelope"></i> Настройки email для уведомлений</h3>
-                        
-                        <div class="settings-grid">
-                            <div class="setting-item">
-                                <h4><i class="fas fa-shield-alt"></i> Безопасность</h4>
-                                <div class="form-group">
-                                    <label for="securityAdminEmail">Email для уведомлений:</label>
-                                    <input type="email" id="securityAdminEmail" class="form-input" 
-                                           placeholder="security-admin@sevastopol.ru">
-                                </div>
-                                <button class="btn-primary" id="saveSecurityEmail">
-                                    <i class="fas fa-save"></i> Сохранить
-                                </button>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <h4><i class="fas fa-wifi"></i> Wi-Fi</h4>
-                                <div class="form-group">
-                                    <label for="wifiAdminEmail">Email для уведомлений:</label>
-                                    <input type="email" id="wifiAdminEmail" class="form-input" 
-                                           placeholder="wifi-admin@sevastopol.ru">
-                                </div>
-                                <button class="btn-primary" id="saveWifiEmail">
-                                    <i class="fas fa-save"></i> Сохранить
-                                </button>
-                            </div>
-                            
-                            <div class="setting-item">
-                                <h4><i class="fas fa-spray-can"></i> Граффити</h4>
-                                <div class="form-group">
-                                    <label for="graffitiAdminEmail">Email для уведомлений:</label>
-                                    <input type="email" id="graffitiAdminEmail" class="form-input" 
-                                           placeholder="graffiti-admin@sevastopol.ru">
-                                </div>
-                                <button class="btn-primary" id="saveGraffitiEmail">
-                                    <i class="fas fa-save"></i> Сохранить
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!-- Подвал -->
-        <footer class="main-footer">
-            <div class="footer-content">
-                <div class="footer-logo">
-                    <i class="fas fa-shield-alt"></i>
-                    <span>БЕЗОПАСНЫЙ СЕВАСТОПОЛЬ</span>
-                </div>
-                
-                <div class="footer-info">
-                    <p>© 2024 Безопасный Севастополь. Все права защищены.</p>
-                    <p class="version">Версия 1.0.0</p>
-                    <p class="max-version" id="maxVersion"></p>
-                </div>
-            </div>
-        </footer>
-    </div>
-
-    <!-- Модальные окна -->
-    <div class="modal-overlay" id="modalOverlay"></div>
-
-    <!-- Модалка: Выбор местоположения -->
-    <div class="modal" id="locationModal">
-        <div class="modal-header">
-            <h3>Выберите местоположение</h3>
-            <button class="modal-close" id="closeLocationModal">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <div id="yandexMap" class="map-container"></div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn-secondary" id="cancelLocation">Отмена</button>
-            <button class="btn-primary" id="confirmLocation">Выбрать</button>
-        </div>
-    </div>
-
-    <!-- Уведомления -->
-    <div class="notifications-container" id="notificationsContainer"></div>
-
-    <!-- Подключение скриптов -->
-    <script src="data.js"></script>
-    <script src="email-service.js"></script>
-    <script src="admin-panel.js"></script>
-    <script src="app.js"></script>
-    
-    <script>
-        // Инициализация при загрузке страницы
-        document.addEventListener('DOMContentLoaded', () => {
-            // Скрытие прелоадера
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        // Плавная анимация вращения кнопки
+        const themeToggle = document.getElementById('themeToggleSmall');
+        if (themeToggle) {
+            themeToggle.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55)';
+            themeToggle.style.transform = 'rotate(360deg)';
+            
             setTimeout(() => {
-                const preloader = document.getElementById('preloader');
-                if (preloader) {
-                    preloader.style.opacity = '0';
-                    setTimeout(() => {
-                        preloader.style.display = 'none';
-                    }, 500);
-                }
-            }, 1000);
-            
-            // Установка правильной высоты для мобильных устройств
-            function setAppHeight() {
-                const vh = window.innerHeight * 0.01;
-                document.documentElement.style.setProperty('--vh', `${vh}px`);
-                
-                const appContainer = document.querySelector('.app-container');
-                if (appContainer) {
-                    appContainer.style.minHeight = 'calc(var(--vh, 1vh) * 100)';
-                }
-            }
-            
-            setAppHeight();
-            window.addEventListener('resize', setAppHeight);
-            window.addEventListener('orientationchange', setAppHeight);
-            
-            // Инициализация переключения темы
-            const themeToggle = document.getElementById('themeToggleSmall');
-            const themeIcons = themeToggle.querySelectorAll('[data-theme-icon]');
-            
-            function setTheme(theme) {
-                document.documentElement.setAttribute('data-theme', theme);
-                const themeColor = theme === 'dark' ? '#0c0c0e' : '#ffffff';
-                document.querySelector('meta[name="theme-color"]').setAttribute('content', themeColor);
-                
-                // Сохраняем в localStorage
-                localStorage.setItem('theme', theme);
-                
-                // Плавное переключение иконок
-                themeIcons.forEach(icon => {
-                    if (icon.dataset.themeIcon === theme) {
-                        icon.style.transition = 'opacity 0.3s ease';
-                        icon.style.opacity = '0';
-                        setTimeout(() => {
-                            icon.style.display = 'none';
-                            icon.style.opacity = '1';
-                        }, 300);
-                    } else {
-                        icon.style.display = 'inline-block';
-                        icon.style.transition = 'opacity 0.3s ease';
-                        icon.style.opacity = '0';
-                        setTimeout(() => {
-                            icon.style.opacity = '1';
-                        }, 50);
-                    }
-                });
-            }
-            
-            themeToggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const currentTheme = document.documentElement.getAttribute('data-theme');
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                setTheme(newTheme);
-                
-                // Тактильная обратная связь
-                if (window.app && window.app.hapticFeedback) {
-                    window.app.hapticFeedback('light');
-                }
+                themeToggle.style.transform = '';
+            }, 500);
+        }
+        
+        this.setTheme(newTheme);
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    setupEventListeners() {
+        // Навигация
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const section = e.currentTarget.dataset.section;
+                this.switchSection(section);
             });
+        });
+
+        // Wi-Fi поиск
+        document.getElementById('wifiSearch')?.addEventListener('input', (e) => {
+            this.searchWifiPoints(e.target.value);
+        });
+        
+        document.getElementById('searchButton')?.addEventListener('click', () => {
+            const query = document.getElementById('wifiSearch')?.value || '';
+            if (!query.trim()) {
+                this.showNotification('Заполните поле поиска', 'warning');
+                return;
+            }
+            this.searchWifiPoints(query);
+        });
+        
+        document.getElementById('findNearbyWifi')?.addEventListener('click', () => {
+            this.findNearbyWifi();
+        });
+
+        // Фильтры Wi-Fi
+        document.querySelectorAll('.filter-tag').forEach(tag => {
+            tag.addEventListener('click', (e) => {
+                const filter = e.currentTarget.dataset.filter;
+                this.filterWifiPoints(filter);
+            });
+        });
+
+        // Форма безопасности
+        document.getElementById('nextStep')?.addEventListener('click', () => {
+            this.nextSecurityStep();
+        });
+        
+        document.getElementById('prevStep')?.addEventListener('click', () => {
+            this.prevSecurityStep();
+        });
+        
+        document.getElementById('submitSecurityReport')?.addEventListener('click', () => {
+            this.submitSecurityReport();
+        });
+
+        // Получение телефона из MAX для безопасности
+        document.getElementById('requestPhoneFromMax')?.addEventListener('click', () => {
+            this.requestPhoneFromMax();
+        });
+
+        // Геолокация для безопасности
+        document.getElementById('useCurrentLocation')?.addEventListener('click', () => {
+            this.getCurrentLocation();
+        });
+        
+        document.querySelectorAll('.location-option[data-type="address"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.showAddressInput();
+            });
+        });
+
+        // Выбор на карте для безопасности
+        document.getElementById('pickLocationFromMap')?.addEventListener('click', () => {
+            this.openLocationPicker('security');
+        });
+
+        // Счетчик символов
+        const descInput = document.getElementById('securityDescription');
+        if (descInput) {
+            descInput.addEventListener('input', (e) => {
+                document.getElementById('charCount').textContent = e.target.value.length;
+            });
+        }
+
+        // Загрузка медиа
+        document.getElementById('browseMedia')?.addEventListener('click', () => {
+            document.getElementById('mediaInput').click();
+        });
+        
+        document.getElementById('mediaInput')?.addEventListener('change', (e) => {
+            this.handleMediaUpload(e.target.files);
+        });
+
+        // Граффити
+        document.getElementById('selectGraffitiLocation')?.addEventListener('click', () => {
+            this.openLocationPicker('graffiti');
+        });
+        
+        document.getElementById('addGraffitiPhoto')?.addEventListener('click', () => {
+            document.getElementById('graffitiPhotoInput').click();
+        });
+        
+        document.getElementById('graffitiPhotoInput')?.addEventListener('change', (e) => {
+            this.handleGraffitiPhotos(e.target.files);
+        });
+        
+        document.getElementById('submitGraffitiReport')?.addEventListener('click', () => {
+            this.submitGraffitiReport();
+        });
+
+        // Wi-Fi проблемы и предложения
+        document.getElementById('submitWifiProblem')?.addEventListener('click', () => {
+            this.submitWifiProblem();
+        });
+        
+        document.getElementById('submitNewPoint')?.addEventListener('click', () => {
+            this.submitNewPoint();
+        });
+
+        // Экстренные вызовы
+        document.querySelectorAll('.btn-call').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const number = e.currentTarget.dataset.number;
+                this.makeEmergencyCall(number);
+            });
+        });
+
+        // Админ-панель
+        document.querySelectorAll('.admin-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const tabName = e.currentTarget.dataset.tab;
+                this.switchAdminTab(tabName);
+            });
+        });
+
+        // Модальные окна
+        document.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.closeModal();
+            });
+        });
+
+        document.getElementById('modalOverlay')?.addEventListener('click', () => {
+            this.closeModal();
+        });
+        
+        document.getElementById('cancelLocation')?.addEventListener('click', () => {
+            this.closeModal();
+        });
+        
+        document.getElementById('confirmLocation')?.addEventListener('click', () => {
+            this.confirmLocation();
+        });
+
+        // Очистка поиска
+        document.getElementById('clearSearch')?.addEventListener('click', () => {
+            document.getElementById('wifiSearch').value = '';
+            this.searchWifiPoints('');
+        });
+        
+        // Переключение темы
+        document.getElementById('themeToggleSmall')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleTheme();
+        });
+        
+        // Валидация формы безопасности при вводе
+        this.setupFormValidation();
+    }
+
+    async loadUserData() {
+        try {
+            console.log('👤 Загрузка данных пользователя...');
             
-            // Загружаем сохраненную тему
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            setTheme(savedTheme);
+            let userData = null;
             
-            // Показываем версию MAX если доступна
-            if (window.WebApp && window.WebApp.version) {
-                document.getElementById('maxVersion').textContent = `MAX ${window.WebApp.version}`;
+            // Пытаемся получить данные из MAX Bridge
+            if (this.maxBridge?.initDataUnsafe?.user) {
+                const bridgeUser = this.maxBridge.initDataUnsafe.user;
+                userData = {
+                    id: String(bridgeUser.id || 'anonymous'),
+                    first_name: bridgeUser.first_name || 'Пользователь',
+                    last_name: bridgeUser.last_name || '',
+                    username: bridgeUser.username || '',
+                    language_code: bridgeUser.language_code || 'ru',
+                    photo_url: bridgeUser.photo_url || ''
+                };
+                console.log('✅ Пользователь из MAX Bridge:', userData.id);
+                
+                // Сохраняем start_param если есть
+                if (this.maxBridge.initDataUnsafe.start_param) {
+                    this.startParam = this.maxBridge.initDataUnsafe.start_param;
+                    this.handleStartParam(this.startParam);
+                }
+                
+                // Заполняем имя в форме безопасности
+                const securityNameInput = document.getElementById('securityName');
+                if (securityNameInput && userData.first_name) {
+                    securityNameInput.value = userData.first_name;
+                    this.securityReport.data.name = userData.first_name;
+                }
+                
+                // Показываем имя из MAX
+                const maxUserNameSpan = document.getElementById('maxUserName');
+                if (maxUserNameSpan) {
+                    maxUserNameSpan.textContent = userData.first_name;
+                }
             }
             
-            // Предотвращаем выход за пределы экрана
-            const checkOverflow = () => {
-                const elements = document.querySelectorAll('h1, h2, h3, p, .logo-title, .logo-subtitle, .emergency-info h4, .emergency-number, .emergency-desc');
-                elements.forEach(el => {
-                    if (el.scrollWidth > el.clientWidth) {
-                        const currentSize = parseFloat(window.getComputedStyle(el).fontSize);
-                        el.style.fontSize = (currentSize - 1) + 'px';
-                    }
-                });
+            // Если нет данных из Bridge - используем демо-режим
+            if (!userData) {
+                userData = {
+                    id: 'demo_user',
+                    first_name: 'Демо',
+                    last_name: 'Пользователь',
+                    username: 'demo_user',
+                    language_code: 'ru'
+                };
+                console.log('⚠️ Используем демо-режим');
+                
+                const maxUserNameSpan = document.getElementById('maxUserName');
+                if (maxUserNameSpan) {
+                    maxUserNameSpan.textContent = 'Демо';
+                }
+            }
+            
+            this.currentUser = userData;
+            
+            // Обновление UI
+            const userNameElement = document.getElementById('userName');
+            if (userNameElement) {
+                userNameElement.textContent = this.currentUser.first_name || 'Гость';
+            }
+            
+            // Настройка кнопки "Назад" для MAX
+            this.setupBackButton();
+            
+            // Включаем подтверждение при закрытии
+            if (this.maxBridge?.enableClosingConfirmation) {
+                this.maxBridge.enableClosingConfirmation();
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки данных пользователя:', error);
+            // Аварийный fallback
+            this.currentUser = { 
+                id: 'anonymous', 
+                first_name: 'Гость',
+                language_code: 'ru'
             };
             
-            checkOverflow();
-            window.addEventListener('resize', checkOverflow);
+            const userNameElement = document.getElementById('userName');
+            if (userNameElement) {
+                userNameElement.textContent = 'Гость';
+            }
+        }
+    }
+
+    async requestPhoneFromMax() {
+        try {
+            if (!this.maxBridge?.requestContact) {
+                this.showNotification('Функция запроса телефона не доступна в демо-режиме', 'warning');
+                return;
+            }
             
-            // Фиксируем ширину контейнеров
-            const containers = document.querySelectorAll('.container, .app-container, .main-content');
-            containers.forEach(container => {
-                container.style.maxWidth = '100vw';
-                container.style.overflowX = 'hidden';
+            this.showNotification('Запрашиваем номер телефона...', 'info');
+            
+            const phone = await this.maxBridge.requestContact();
+            
+            if (phone) {
+                const phoneInput = document.getElementById('securityPhone');
+                if (phoneInput) {
+                    // Форматируем номер телефона
+                    const formattedPhone = this.formatPhoneNumber(phone);
+                    phoneInput.value = formattedPhone;
+                    this.securityReport.data.phone = phone;
+                    this.securityReport.data.phoneVerified = true;
+                    
+                    this.showNotification('Номер телефона получен из MAX', 'success');
+                    this.hapticFeedback('success');
+                }
+            } else {
+                this.showNotification('Не удалось получить номер телефона', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка запроса телефона:', error);
+            this.showNotification('Ошибка запроса телефона. Введите номер вручную.', 'error');
+        }
+    }
+
+    formatPhoneNumber(phone) {
+        // Убираем все нецифровые символы
+        const cleaned = phone.replace(/\D/g, '');
+        
+        // Форматируем российский номер
+        if (cleaned.length === 11 && (cleaned.startsWith('7') || cleaned.startsWith('8'))) {
+            const match = cleaned.match(/^(\d)(\d{3})(\d{3})(\d{2})(\d{2})$/);
+            if (match) {
+                return `+${match[1]} (${match[2]}) ${match[3]}-${match[4]}-${match[5]}`;
+            }
+        }
+        
+        // Возвращаем исходный номер если не удалось отформатировать
+        return phone;
+    }
+
+    handleStartParam(param) {
+        if (!param) return;
+        
+        console.log('🔗 Обработка стартового параметра:', param);
+        
+        const sections = ['wifi', 'security', 'graffiti', 'contacts', 'admin'];
+        
+        if (sections.includes(param)) {
+            this.switchSection(param);
+            this.showNotification(`Открыт раздел: ${this.getSectionName(param)}`, 'info');
+        } else if (param.startsWith('report_')) {
+            const reportId = param.replace('report_', '');
+            this.showNotification(`Отчет #${reportId}`, 'info');
+            this.switchSection('admin');
+        }
+    }
+
+    getSectionName(section) {
+        const names = {
+            'wifi': 'Wi-Fi',
+            'security': 'Безопасность',
+            'graffiti': 'Граффити',
+            'contacts': 'Контакты',
+            'admin': 'Админ-панель'
+        };
+        return names[section] || section;
+    }
+
+    setupBackButton() {
+        if (!this.maxBridge?.BackButton) return;
+        
+        this.maxBridge.BackButton.show();
+        this.maxBridge.BackButton.onClick(() => {
+            console.log('🔙 Нажата кнопка назад');
+            
+            if (this.currentSection !== 'wifi') {
+                this.switchSection('wifi');
+                // Тактильная обратная связь
+                this.hapticFeedback('light');
+            } else {
+                if (this.maxBridge.close) {
+                    this.maxBridge.close();
+                }
+            }
+        });
+    }
+
+    switchSection(section) {
+        if (this.currentSection === section) return;
+        
+        this.currentSection = section;
+        
+        // Обновление активной навигации
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
+        
+        // Показать нужную секцию
+        document.querySelectorAll('.content-section').forEach(sec => {
+            sec.classList.remove('active');
+        });
+        document.getElementById(`${section}-section`)?.classList.add('active');
+        
+        // Прокрутка вверх
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+        
+        // Загрузка данных секции
+        switch(section) {
+            case 'wifi':
+                this.loadWifiPoints();
+                break;
+            case 'security':
+                this.resetSecurityForm();
+                break;
+            case 'graffiti':
+                this.resetGraffitiForm();
+                break;
+            case 'admin':
+                this.loadAdminDashboard();
+                break;
+        }
+        
+        console.log(`📍 Переключен раздел: ${section}`);
+    }
+
+    // ===== WI-FI ФУНКЦИОНАЛ =====
+    async loadWifiPoints() {
+        const loadingElement = document.getElementById('wifiLoading');
+        const resultsElement = document.getElementById('wifiResults');
+        
+        if (loadingElement) loadingElement.classList.add('visible');
+        if (resultsElement) resultsElement.innerHTML = '';
+        
+        try {
+            // Загрузка точек из data.js
+            const points = window.wifiPoints || [];
+            
+            // Отображение точек
+            this.displayWifiPoints(points);
+            
+            // Заполнение выпадающего списка для отчетов
+            this.populateWifiSelect();
+            
+            const wifiCountElement = document.getElementById('wifiCount');
+            if (wifiCountElement) wifiCountElement.textContent = points.length;
+            
+            if (loadingElement) {
+                loadingElement.classList.remove('visible');
+                loadingElement.style.display = 'none';
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки точек Wi-Fi:', error);
+            if (resultsElement) {
+                resultsElement.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h4>Ошибка загрузки</h4>
+                        <p>Не удалось загрузить точки Wi-Fi. Пожалуйста, попробуйте позже.</p>
+                    </div>
+                `;
+            }
+            if (loadingElement) {
+                loadingElement.classList.remove('visible');
+                loadingElement.style.display = 'none';
+            }
+        }
+    }
+
+    displayWifiPoints(points) {
+        const container = document.getElementById('wifiResults');
+        if (!container) return;
+        
+        if (points.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-wifi-slash"></i>
+                    <h4>Точки Wi-Fi не найдены</h4>
+                    <p>Попробуйте изменить параметры поиска</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = points.map(point => this.createWifiPointCard(point)).join('');
+        
+        // Добавление обработчиков кликов
+        container.querySelectorAll('.wifi-result-item').forEach((item, index) => {
+            item.addEventListener('click', () => {
+                if (points[index]) {
+                    this.showWifiDetails(points[index]);
+                }
+            });
+        });
+    }
+
+    createWifiPointCard(point) {
+        const distance = point.distance ? this.formatDistance(point.distance) : '';
+        
+        return `
+            <div class="wifi-result-item" data-id="${point.id}">
+                <div class="wifi-result-header">
+                    <div class="wifi-result-name">
+                        ${this.getTypeEmoji(point.type)} ${point.name}
+                    </div>
+                    ${distance ? `<div class="wifi-result-distance">${distance}</div>` : ''}
+                </div>
+                ${point.address ? `<div class="wifi-result-address">${point.address}</div>` : ''}
+                ${point.description ? `<div class="wifi-result-description">${point.description}</div>` : ''}
+                <div class="wifi-result-actions">
+                    <button class="btn btn-primary" onclick="app.showOnMap(${point.id}, event)">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <span>На карте</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="app.buildRoute(${point.id}, event)">
+                        <i class="fas fa-route"></i>
+                        <span>Маршрут</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    formatDistance(km) {
+        if (km < 1) {
+            return `${(km * 1000).toFixed(0)} м`;
+        }
+        return `${km.toFixed(1)} км`;
+    }
+
+    populateWifiSelect() {
+        const select = document.getElementById('wifiProblemPoint');
+        if (!select) return;
+        
+        // Сохраняем первый пустой option
+        const firstOption = select.options[0];
+        select.innerHTML = '';
+        select.appendChild(firstOption);
+        
+        // Добавляем все точки
+        window.wifiPoints?.forEach(point => {
+            const option = document.createElement('option');
+            option.value = point.id;
+            option.textContent = `${point.name} - ${point.address}`;
+            select.appendChild(option);
+        });
+    }
+
+    async findNearbyWifi() {
+        try {
+            this.showNotification('Определяем ваше местоположение...', 'info');
+            
+            // Прямо открываем карту для выбора местоположения
+            this.openLocationPicker('wifi_search');
+            
+        } catch (error) {
+            console.error('❌ Ошибка геолокации:', error);
+            this.showNotification('Не удалось определить местоположение. Выберите точку на карте вручную.', 'error');
+            
+            // Предлагаем выбрать на карте
+            this.openLocationPicker('wifi_search');
+        }
+    }
+
+    findNearestPoints(userLat, userLon, limit = 20) {
+        const points = window.wifiPoints || [];
+        
+        // Добавляем расстояние до каждой точки
+        const pointsWithDistance = points.map(point => {
+            const distance = this.calculateDistance(
+                userLat, userLon,
+                point.coordinates.lat, point.coordinates.lon
+            );
+            return { ...point, distance };
+        });
+        
+        // Сортируем по расстоянию
+        pointsWithDistance.sort((a, b) => a.distance - b.distance);
+        
+        // Возвращаем ближайшие точки
+        return pointsWithDistance.slice(0, limit);
+    }
+
+    calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Радиус Земли в км
+        const dLat = this.deg2rad(lat2 - lat1);
+        const dLon = this.deg2rad(lon2 - lon1);
+        
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    deg2rad(deg) {
+        return deg * (Math.PI/180);
+    }
+
+    searchWifiPoints(query) {
+        const clearBtn = document.getElementById('clearSearch');
+        if (clearBtn) {
+            clearBtn.style.display = query ? 'flex' : 'none';
+        }
+        
+        const points = window.wifiPoints || [];
+        
+        if (!query.trim()) {
+            this.displayWifiPoints(points);
+            return;
+        }
+        
+        const searchTerm = query.toLowerCase();
+        const filtered = points.filter(point => 
+            point.name.toLowerCase().includes(searchTerm) ||
+            point.address?.toLowerCase().includes(searchTerm) ||
+            point.description?.toLowerCase().includes(searchTerm)
+        );
+        
+        this.displayWifiPoints(filtered);
+        
+        const wifiCountElement = document.getElementById('wifiCount');
+        if (wifiCountElement) wifiCountElement.textContent = filtered.length;
+    }
+
+    filterWifiPoints(filter) {
+        const points = window.wifiPoints || [];
+        
+        // Обновление активного фильтра
+        document.querySelectorAll('.filter-tag').forEach(tag => {
+            tag.classList.remove('active');
+        });
+        event?.target?.closest('.filter-tag')?.classList.add('active');
+        
+        if (filter === 'all') {
+            this.displayWifiPoints(points);
+            const wifiCountElement = document.getElementById('wifiCount');
+            if (wifiCountElement) wifiCountElement.textContent = points.length;
+            return;
+        }
+        
+        const filtered = points.filter(point => point.type === filter);
+        this.displayWifiPoints(filtered);
+        
+        const wifiCountElement = document.getElementById('wifiCount');
+        if (wifiCountElement) wifiCountElement.textContent = filtered.length;
+    }
+
+    showWifiDetails(point) {
+        const container = document.getElementById('wifiDetails');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="wifi-details-content">
+                <div class="detail-item">
+                    <div class="detail-label">
+                        <i class="fas fa-wifi"></i>
+                        <span>Название:</span>
+                    </div>
+                    <div class="detail-value">${point.name}</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Адрес:</span>
+                    </div>
+                    <div class="detail-value">${point.address || 'Не указан'}</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Описание:</span>
+                    </div>
+                    <div class="detail-value">${point.description || 'Нет описания'}</div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">
+                        <i class="fas fa-map-pin"></i>
+                        <span>Координаты:</span>
+                    </div>
+                    <div class="detail-value">
+                        ${point.coordinates.lat.toFixed(6)}, ${point.coordinates.lon.toFixed(6)}
+                    </div>
+                </div>
+                
+                <div class="detail-item">
+                    <div class="detail-label">
+                        <i class="fas fa-tag"></i>
+                        <span>Тип:</span>
+                    </div>
+                    <div class="detail-value">${this.getTypeName(point.type)}</div>
+                </div>
+                
+                <div class="detail-actions">
+                    <button class="btn btn-primary btn-large" onclick="app.showOnMap(${point.id})">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <span>Показать на карте</span>
+                    </button>
+                    <button class="btn btn-secondary btn-large" onclick="app.buildRoute(${point.id})">
+                        <i class="fas fa-route"></i>
+                        <span>Построить маршрут</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    showOnMap(pointId, event) {
+        if (event) event.stopPropagation();
+        
+        const point = window.wifiPoints?.find(p => p.id === pointId);
+        if (!point) return;
+        
+        const url = `https://yandex.ru/maps/?pt=${point.coordinates.lon},${point.coordinates.lat}&z=17&l=map`;
+        
+        if (this.maxBridge?.openLink) {
+            this.maxBridge.openLink(url);
+        } else {
+            window.open(url, '_blank');
+        }
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    buildRoute(pointId, event) {
+        if (event) event.stopPropagation();
+        
+        const point = window.wifiPoints?.find(p => p.id === pointId);
+        if (!point) return;
+        
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                const userLat = position.coords.latitude;
+                const userLon = position.coords.longitude;
+                const url = `https://yandex.ru/maps/?rtext=${userLat},${userLon}~${point.coordinates.lat},${point.coordinates.lon}&rtt=auto`;
+                
+                if (this.maxBridge?.openLink) {
+                    this.maxBridge.openLink(url);
+                } else {
+                    window.open(url, '_blank');
+                }
+                
+            }, () => {
+                this.showOnMap(pointId);
+            });
+        } else {
+            this.showOnMap(pointId);
+        }
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    async submitWifiProblem() {
+        try {
+            const pointId = document.getElementById('wifiProblemPoint')?.value;
+            const description = document.getElementById('wifiProblemDesc')?.value.trim();
+            
+            if (!pointId) {
+                this.showNotification('Выберите точку Wi-Fi', 'error');
+                return;
+            }
+            
+            if (!description) {
+                this.showNotification('Введите описание проблемы', 'error');
+                return;
+            }
+            
+            const point = window.wifiPoints?.find(p => p.id == pointId);
+            
+            const reportData = {
+                type: 'wifi_problem',
+                pointId: pointId,
+                pointName: point?.name || '',
+                description: description,
+                userId: this.currentUser?.id || 'anonymous',
+                userName: this.currentUser?.first_name || 'Аноним',
+                timestamp: new Date().toISOString(),
+                status: 'new'
+            };
+            
+            // Сохранение в localStorage
+            this.saveReportToStorage(reportData, 'wifi_problems');
+            
+            // Отправка email админу
+            await this.sendEmailNotification(reportData, 'wifi');
+            
+            // Очистка формы
+            const descInput = document.getElementById('wifiProblemDesc');
+            const pointSelect = document.getElementById('wifiProblemPoint');
+            if (descInput) descInput.value = '';
+            if (pointSelect) pointSelect.selectedIndex = 0;
+            
+            // Тактильная обратная связь
+            this.hapticFeedback('success');
+            
+            this.showNotification('Проблема с Wi-Fi отправлена! Спасибо за сообщение.', 'success');
+            
+        } catch (error) {
+            console.error('❌ Ошибка отправки проблемы Wi-Fi:', error);
+            this.showNotification('Ошибка отправки. Попробуйте позже.', 'error');
+        }
+    }
+
+    async submitNewPoint() {
+        try {
+            const name = document.getElementById('newPointName')?.value.trim();
+            const address = document.getElementById('newPointAddress')?.value.trim();
+            const type = document.getElementById('newPointType')?.value;
+            const description = document.getElementById('newPointDesc')?.value.trim();
+            
+            if (!name) {
+                this.showNotification('Введите название точки', 'error');
+                return;
+            }
+            
+            if (!address) {
+                this.showNotification('Введите адрес', 'error');
+                return;
+            }
+            
+            const suggestionData = {
+                type: 'wifi_suggestion',
+                name: name,
+                address: address,
+                pointType: type,
+                description: description,
+                userId: this.currentUser?.id || 'anonymous',
+                userName: this.currentUser?.first_name || 'Аноним',
+                timestamp: new Date().toISOString(),
+                status: 'new'
+            };
+            
+            // Сохранение в localStorage
+            this.saveReportToStorage(suggestionData, 'wifi_suggestions');
+            
+            // Отправка email админу
+            await this.sendEmailNotification(suggestionData, 'wifi_suggestion');
+            
+            // Очистка формы
+            const nameInput = document.getElementById('newPointName');
+            const addressInput = document.getElementById('newPointAddress');
+            const typeSelect = document.getElementById('newPointType');
+            const descInput = document.getElementById('newPointDesc');
+            
+            if (nameInput) nameInput.value = '';
+            if (addressInput) addressInput.value = '';
+            if (typeSelect) typeSelect.selectedIndex = 0;
+            if (descInput) descInput.value = '';
+            
+            // Тактильная обратная связь
+            this.hapticFeedback('success');
+            
+            this.showNotification('Предложение новой точки отправлено! Спасибо за помощь.', 'success');
+            
+        } catch (error) {
+            console.error('❌ Ошибка отправки предложения:', error);
+            this.showNotification('Ошибка отправки. Попробуйте позже.', 'error');
+        }
+    }
+
+    // ===== БЕЗОПАСНОСТЬ ФУНКЦИОНАЛ =====
+    resetSecurityForm() {
+        this.securityReport = {
+            step: 1,
+            data: {}
+        };
+        this.mediaFiles = [];
+        
+        // Сброс степпера
+        document.querySelectorAll('.step').forEach(step => {
+            step.classList.remove('active');
+        });
+        document.querySelector('[data-step="1"]')?.classList.add('active');
+        
+        // Сброс шагов формы
+        document.querySelectorAll('.form-step').forEach(step => {
+            step.classList.remove('active');
+        });
+        document.querySelector('[data-step="1"]')?.classList.add('active');
+        
+        // Сброс кнопок
+        const prevBtn = document.getElementById('prevStep');
+        const nextBtn = document.getElementById('nextStep');
+        const submitBtn = document.getElementById('submitSecurityReport');
+        
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'flex';
+        if (submitBtn) submitBtn.style.display = 'none';
+        
+        // Очистка полей
+        const nameInput = document.getElementById('securityName');
+        const phoneInput = document.getElementById('securityPhone');
+        const emailInput = document.getElementById('securityEmail');
+        const addressInput = document.getElementById('manualAddress');
+        const categorySelect = document.getElementById('securityCategory');
+        const descInput = document.getElementById('securityDescription');
+        const charCount = document.getElementById('charCount');
+        
+        // Заполняем имя из MAX если доступно
+        if (nameInput && this.currentUser?.first_name) {
+            nameInput.value = this.currentUser.first_name;
+            this.securityReport.data.name = this.currentUser.first_name;
+            this.securityReport.data.nameVerified = true;
+        } else {
+            nameInput.value = '';
+        }
+        
+        if (phoneInput) {
+            phoneInput.value = '';
+            this.securityReport.data.phoneVerified = false;
+        }
+        if (emailInput) emailInput.value = '';
+        if (addressInput) addressInput.value = '';
+        if (categorySelect) categorySelect.selectedIndex = 0;
+        if (descInput) descInput.value = '';
+        if (charCount) charCount.textContent = '0';
+        
+        // Скрыть адресное поле
+        const addressGroup = document.getElementById('addressInputGroup');
+        if (addressGroup) addressGroup.style.display = 'none';
+        
+        // Очистка медиа
+        this.updateMediaPreview();
+    }
+
+    nextSecurityStep() {
+        const currentStep = this.securityReport.step;
+        
+        if (!this.validateSecurityStep(currentStep)) {
+            return;
+        }
+        
+        this.securityReport.step++;
+        this.updateSecurityStepper();
+        this.updateSecurityForm();
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    prevSecurityStep() {
+        if (this.securityReport.step > 1) {
+            this.securityReport.step--;
+            this.updateSecurityStepper();
+            this.updateSecurityForm();
+            
+            // Тактильная обратная связь
+            this.hapticFeedback('light');
+        }
+    }
+
+    validateSecurityStep(step) {
+        switch(step) {
+            case 1:
+                const name = document.getElementById('securityName')?.value.trim();
+                const phone = document.getElementById('securityPhone')?.value.trim();
+                const email = document.getElementById('securityEmail')?.value.trim();
+                
+                // Валидация имени
+                if (!name) {
+                    this.showNotification('Введите ваше имя', 'error');
+                    return false;
+                }
+                
+                // Валидация телефона
+                if (!phone) {
+                    this.showNotification('Введите номер телефона', 'error');
+                    return false;
+                }
+                
+                if (!this.validatePhone(phone)) {
+                    this.showNotification('Введите корректный номер телефона', 'error');
+                    return false;
+                }
+                
+                // Валидация email (опционально)
+                if (email && !this.validateEmail(email)) {
+                    this.showNotification('Введите корректный email', 'error');
+                    return false;
+                }
+                
+                // Сохраняем данные
+                this.securityReport.data.name = name;
+                this.securityReport.data.phone = phone;
+                if (email) this.securityReport.data.email = email;
+                break;
+                
+            case 2:
+                if (!this.securityReport.data.location && !this.securityReport.data.address) {
+                    this.showNotification('Укажите местоположение', 'error');
+                    return false;
+                }
+                break;
+                
+            case 3:
+                const category = document.getElementById('securityCategory')?.value;
+                const description = document.getElementById('securityDescription')?.value.trim();
+                
+                if (!category) {
+                    this.showNotification('Выберите категорию', 'error');
+                    return false;
+                }
+                
+                if (description.length < 10) {
+                    this.showNotification('Описание должно содержать минимум 10 символов', 'error');
+                    return false;
+                }
+                
+                if (description.length > 500) {
+                    this.showNotification('Описание должно содержать не более 500 символов', 'error');
+                    return false;
+                }
+                
+                this.securityReport.data.category = category;
+                this.securityReport.data.description = description;
+                break;
+                
+            case 4:
+                // Медиа опционально, можно пропустить
+                break;
+        }
+        
+        return true;
+    }
+
+    validatePhone(phone) {
+        if (!phone) return false;
+        const cleanPhone = phone.replace(/\s|-|\(|\)/g, '');
+        const russianRegex = /^(\+7|7|8)?[489][0-9]{9}$/;
+        return russianRegex.test(cleanPhone);
+    }
+
+    validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    updateSecurityStepper() {
+        document.querySelectorAll('.step').forEach(step => {
+            step.classList.remove('active');
+        });
+        
+        document.querySelectorAll('.form-step').forEach(step => {
+            step.classList.remove('active');
+        });
+        
+        const currentStep = document.querySelector(`[data-step="${this.securityReport.step}"]`);
+        const currentFormStep = document.querySelector(`.form-step[data-step="${this.securityReport.step}"]`);
+        
+        if (currentStep) currentStep.classList.add('active');
+        if (currentFormStep) currentFormStep.classList.add('active');
+        
+        // Обновление кнопок навигации
+        const prevBtn = document.getElementById('prevStep');
+        const nextBtn = document.getElementById('nextStep');
+        const submitBtn = document.getElementById('submitSecurityReport');
+        
+        if (prevBtn) {
+            prevBtn.style.display = this.securityReport.step > 1 ? 'flex' : 'none';
+        }
+        
+        if (nextBtn) {
+            nextBtn.style.display = this.securityReport.step < 4 ? 'flex' : 'none';
+        }
+        
+        if (submitBtn) {
+            submitBtn.style.display = this.securityReport.step === 4 ? 'flex' : 'none';
+        }
+    }
+
+    updateSecurityForm() {
+        // Обновление данных формы
+        const nameInput = document.getElementById('securityName');
+        const phoneInput = document.getElementById('securityPhone');
+        const emailInput = document.getElementById('securityEmail');
+        const addressInput = document.getElementById('manualAddress');
+        
+        if (nameInput && this.securityReport.data.name) {
+            nameInput.value = this.securityReport.data.name;
+        }
+        
+        if (phoneInput && this.securityReport.data.phone) {
+            phoneInput.value = this.securityReport.data.phone;
+        }
+        
+        if (emailInput && this.securityReport.data.email) {
+            emailInput.value = this.securityReport.data.email;
+        }
+        
+        if (addressInput && this.securityReport.data.address) {
+            addressInput.value = this.securityReport.data.address;
+        }
+    }
+
+    async getCurrentLocation() {
+        try {
+            this.showNotification('Определяем ваше местоположение...', 'info');
+            
+            const position = await this.getCurrentPosition();
+            this.securityReport.data.location = {
+                lat: position.coords.latitude,
+                lon: position.coords.longitude
+            };
+            this.securityReport.data.address = `Геолокация: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
+            
+            const addressInput = document.getElementById('manualAddress');
+            if (addressInput) {
+                addressInput.value = `Геолокация: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
+            }
+            
+            // Тактильная обратная связь
+            this.hapticFeedback('success');
+            
+            this.showNotification('Местоположение получено', 'success');
+            
+            // Переход к следующему шагу
+            if (this.securityReport.step === 2) {
+                setTimeout(() => {
+                    this.nextSecurityStep();
+                }, 500);
+            }
+        } catch (error) {
+            console.error('❌ Ошибка геолокации:', error);
+            this.showNotification('Не удалось определить местоположение. Укажите адрес вручную или выберите на карте.', 'error');
+        }
+    }
+
+    getCurrentPosition() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Геолокация не поддерживается'));
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        });
+    }
+
+    showAddressInput() {
+        const addressGroup = document.getElementById('addressInputGroup');
+        const addressInput = document.getElementById('manualAddress');
+        
+        if (addressGroup) addressGroup.style.display = 'block';
+        if (addressInput) {
+            addressInput.focus();
+            
+            // Обработка ввода адреса
+            addressInput.addEventListener('input', (e) => {
+                this.securityReport.data.address = e.target.value;
+                this.securityReport.data.location = null;
+            });
+        }
+    }
+
+    async submitSecurityReport() {
+        try {
+            // Валидация последнего шага
+            if (!this.validateSecurityStep(4)) {
+                return;
+            }
+            
+            // Генерация ID отчета
+            const reportId = 'RPT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+            
+            // Сбор всех данных
+            const reportData = {
+                ...this.securityReport.data,
+                id: reportId,
+                userId: this.currentUser?.id || 'anonymous',
+                userName: this.currentUser?.first_name || 'Аноним',
+                mediaFiles: this.mediaFiles.length,
+                timestamp: new Date().toISOString(),
+                type: 'security',
+                status: 'new'
+            };
+            
+            // Сохранение в localStorage
+            this.saveReportToStorage(reportData, 'security');
+            
+            // Отправка email админу
+            await this.sendEmailNotification(reportData, 'security');
+            
+            // Сброс формы
+            this.resetSecurityForm();
+            
+            // Тактильная обратная связь
+            this.hapticFeedback('success');
+            
+            this.showNotification(`Отчет #${reportId} отправлен! Спасибо за вашу бдительность.`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Ошибка отправки отчета:', error);
+            this.showNotification('Ошибка отправки отчета. Попробуйте позже.', 'error');
+        }
+    }
+
+    // ===== ГРАФФИТИ ФУНКЦИОНАЛ =====
+    handleGraffitiPhotos(files) {
+        if (!files || files.length === 0) return;
+        
+        const maxFiles = 3;
+        const remainingSlots = maxFiles - this.graffitiReport.photos.length;
+        
+        if (remainingSlots <= 0) {
+            this.showNotification(`Максимум ${maxFiles} фотографии`, 'warning');
+            return;
+        }
+        
+        const filesToAdd = Array.from(files).slice(0, remainingSlots);
+        
+        filesToAdd.forEach(file => {
+            if (file.size > 10 * 1024 * 1024) {
+                this.showNotification(`Файл ${file.name} слишком большой (макс. 10 МБ)`, 'error');
+                return;
+            }
+            
+            if (!file.type.startsWith('image/')) {
+                this.showNotification(`Файл ${file.name} не является изображением`, 'error');
+                return;
+            }
+            
+            this.graffitiReport.photos.push(file);
+        });
+        
+        this.updateGraffitiPhotoPreview();
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    updateGraffitiPhotoPreview() {
+        const container = document.getElementById('graffitiUploadGrid');
+        if (!container) return;
+        
+        const photosHTML = this.graffitiReport.photos.map((file, index) => `
+            <div class="upload-cell photo-preview">
+                <img src="${URL.createObjectURL(file)}" alt="Граффити фото ${index + 1}">
+                <button class="btn-remove-media" onclick="app.removeGraffitiPhoto(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+        
+        const addButton = this.graffitiReport.photos.length < 3 ? 
+            `<div class="upload-cell add-photo" onclick="document.getElementById('graffitiPhotoInput').click()">
+                <i class="fas fa-plus"></i>
+                <span>Добавить фото</span>
+            </div>` : '';
+        
+        container.innerHTML = photosHTML + addButton;
+    }
+
+    removeGraffitiPhoto(index) {
+        this.graffitiReport.photos.splice(index, 1);
+        this.updateGraffitiPhotoPreview();
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    async submitGraffitiReport() {
+        try {
+            // Валидация
+            const location = document.getElementById('graffitiLocation')?.value.trim();
+            const description = document.getElementById('graffitiDescription')?.value.trim();
+            
+            if (!location) {
+                this.showNotification('Укажите местоположение граффити', 'error');
+                return;
+            }
+            
+            if (!description) {
+                this.showNotification('Добавьте описание проблемы', 'error');
+                return;
+            }
+            
+            if (this.graffitiReport.photos.length === 0) {
+                this.showNotification('Добавьте хотя бы одну фотографию', 'error');
+                return;
+            }
+            
+            // Генерация ID отчета
+            const reportId = 'RPT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+            
+            // Сбор данных
+            const reportData = {
+                id: reportId,
+                location: location,
+                description: description,
+                photos: this.graffitiReport.photos.length,
+                userId: this.currentUser?.id || 'anonymous',
+                userName: this.currentUser?.first_name || 'Аноним',
+                timestamp: new Date().toISOString(),
+                type: 'graffiti',
+                status: 'new'
+            };
+            
+            // Сохранение в localStorage
+            this.saveReportToStorage(reportData, 'graffiti');
+            
+            // Отправка email админу
+            await this.sendEmailNotification(reportData, 'graffiti');
+            
+            // Сброс формы
+            this.resetGraffitiForm();
+            
+            // Тактильная обратная связь
+            this.hapticFeedback('success');
+            
+            this.showNotification(`Отчет #${reportId} о граффити отправлен! Спасибо за помощь.`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Ошибка отправки отчета о граффити:', error);
+            this.showNotification('Ошибка отправки отчета. Попробуйте позже.', 'error');
+        }
+    }
+
+    resetGraffitiForm() {
+        this.graffitiReport = {
+            photos: []
+        };
+        
+        const locationInput = document.getElementById('graffitiLocation');
+        const descInput = document.getElementById('graffitiDescription');
+        
+        if (locationInput) locationInput.value = '';
+        if (descInput) descInput.value = '';
+        
+        this.updateGraffitiPhotoPreview();
+    }
+
+    // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
+    showNotification(message, type = 'info') {
+        const container = document.getElementById('notificationsContainer');
+        if (!container) return;
+        
+        const id = Date.now();
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.id = `notification-${id}`;
+        notification.innerHTML = `
+            <i class="fas fa-${this.getNotificationIcon(type)}"></i>
+            <div class="notification-content">
+                <div class="notification-title">${this.getNotificationTitle(type)}</div>
+                <div class="notification-message">${message}</div>
+            </div>
+            <button class="notification-close" onclick="document.getElementById('notification-${id}').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        container.appendChild(notification);
+        
+        // Автоматическое удаление через 5 секунд
+        setTimeout(() => {
+            const notif = document.getElementById(`notification-${id}`);
+            if (notif) notif.remove();
+        }, 5000);
+    }
+
+    getNotificationIcon(type) {
+        switch(type) {
+            case 'success': return 'check-circle';
+            case 'error': return 'exclamation-circle';
+            case 'warning': return 'exclamation-triangle';
+            default: return 'info-circle';
+        }
+    }
+
+    getNotificationTitle(type) {
+        switch(type) {
+            case 'success': return 'Успешно!';
+            case 'error': return 'Ошибка!';
+            case 'warning': return 'Внимание!';
+            default: return 'Информация';
+        }
+    }
+
+    getTypeEmoji(type) {
+        const emojis = {
+            'здрав': '🏥',
+            'образование': '🎓',
+            'тц': '🛍️',
+            'отдых': '🌳',
+            'парки и скверы': '🌳',
+            'транспорт': '🚌',
+            'спорт': '⚽',
+            'МФЦ': '🏢',
+            'АЗС': '⛽',
+            'гостиница': '🏨',
+            'пляж': '🏖️',
+            'турбаза': '⛺',
+            'дома': '🏘️',
+            'кафе': '🍴',
+            'торговля': '🛒',
+            '': '📍'
+        };
+        return emojis[type] || '📍';
+    }
+
+    getTypeName(type) {
+        const names = {
+            'здрав': 'Медицинские организации',
+            'образование': 'Школы, ВУЗы, юношеские клубы',
+            'тц': 'Торговые центры, рынки, магазины',
+            'отдых': 'Развлечения, достопримечательности',
+            'парки и скверы': 'Парки и скверы',
+            'транспорт': 'Остановки',
+            'спорт': 'Спорт',
+            'МФЦ': 'МФЦ',
+            'АЗС': 'АЗС',
+            'гостиница': 'Гостиницы',
+            'пляж': 'Пляжи',
+            'турбаза': 'Турбазы',
+            'дома': 'Жилые комплексы',
+            'кафе': 'Кафе',
+            'торговля': 'Магазины',
+            '': 'Другое'
+        };
+        return names[type] || 'Другое';
+    }
+
+    saveReportToStorage(data, type) {
+        try {
+            const key = `${type}_reports`;
+            let reports = JSON.parse(localStorage.getItem(key) || '[]');
+            
+            reports.push(data);
+            localStorage.setItem(key, JSON.stringify(reports));
+            
+            console.log(`📁 Отчет сохранен: ${type} #${data.id}`);
+            return data.id;
+        } catch (error) {
+            console.error('❌ Ошибка сохранения отчета:', error);
+            throw error;
+        }
+    }
+
+    async sendEmailNotification(data, type) {
+        if (window.EmailService) {
+            try {
+                const emailData = {
+                    to: this.getAdminEmail(type),
+                    subject: this.getEmailSubject(type, data),
+                    html: this.generateEmailHtml(data, type)
+                };
+                
+                await window.EmailService.sendEmail(emailData);
+                console.log(`📧 Email отправлен для отчета ${type}`);
+            } catch (error) {
+                console.error('❌ Ошибка отправки email:', error);
+            }
+        }
+    }
+
+    getAdminEmail(type) {
+        // Разные админы для разных направлений
+        const adminEmails = {
+            'security': 'security-admin@sevastopol.ru',
+            'wifi': 'wifi-admin@sevastopol.ru',
+            'graffiti': 'graffiti-admin@sevastopol.ru',
+            'wifi_suggestion': 'wifi-admin@sevastopol.ru'
+        };
+        
+        return adminEmails[type] || 'admin@sevastopol.ru';
+    }
+
+    getEmailSubject(type, data) {
+        const subjects = {
+            security: `СРОЧНО: Сообщение о безопасности #${data.id}`,
+            graffiti: `Граффити для удаления #${data.id}`,
+            wifi: `Проблема с Wi-Fi: ${data.pointName || ''}`,
+            wifi_suggestion: `Предложение новой точки Wi-Fi: ${data.name || ''}`
+        };
+        return subjects[type] || 'Новое обращение в Безопасный Севастополь';
+    }
+
+    generateEmailHtml(data, type) {
+        return `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #0066ff; border-bottom: 2px solid #0066ff; padding-bottom: 10px;">
+                    Безопасный Севастополь - Новое обращение
+                </h2>
+                
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                    <p><strong>Тип обращения:</strong> ${type.toUpperCase()}</p>
+                    <p><strong>ID обращения:</strong> ${data.id}</p>
+                    <p><strong>Дата и время:</strong> ${new Date(data.timestamp).toLocaleString('ru-RU')}</p>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #333;">Информация о пользователе</h3>
+                    <p><strong>Пользователь:</strong> ${data.userName} (${data.userId})</p>
+                    ${data.phone ? `<p><strong>Телефон:</strong> ${data.phone}</p>` : ''}
+                    ${data.email ? `<p><strong>Email:</strong> ${data.email}</p>` : ''}
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <h3 style="color: #333;">Детали обращения</h3>
+                    ${data.pointName ? `<p><strong>Точка Wi-Fi:</strong> ${data.pointName}</p>` : ''}
+                    ${data.name ? `<p><strong>Название точки:</strong> ${data.name}</p>` : ''}
+                    ${data.address ? `<p><strong>Адрес:</strong> ${data.address}</p>` : ''}
+                    ${data.location ? `<p><strong>Местоположение:</strong> ${data.location.lat}, ${data.location.lon}</p>` : ''}
+                    ${data.category ? `<p><strong>Категория:</strong> ${data.category}</p>` : ''}
+                    ${data.description ? `<p><strong>Описание:</strong> ${data.description}</p>` : ''}
+                    ${data.mediaFiles ? `<p><strong>Медиафайлов:</strong> ${data.mediaFiles}</p>` : ''}
+                    ${data.photos ? `<p><strong>Фотографий:</strong> ${data.photos}</p>` : ''}
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
+                    <p>Для обработки перейдите в админ-панель "Безопасный Севастополь"</p>
+                    <p>Это автоматическое уведомление, пожалуйста, не отвечайте на него.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // ===== ТАКТИЛЬНАЯ ОБРАТНАЯ СВЯЗЬ =====
+    hapticFeedback(type = 'light') {
+        if (!this.maxBridge?.HapticFeedback) {
+            console.log('📳 Вибрация:', type);
+            return;
+        }
+        
+        try {
+            switch(type) {
+                case 'success':
+                    this.maxBridge.HapticFeedback.notificationOccurred('success');
+                    break;
+                case 'error':
+                    this.maxBridge.HapticFeedback.notificationOccurred('error');
+                    break;
+                case 'warning':
+                    this.maxBridge.HapticFeedback.notificationOccurred('warning');
+                    break;
+                case 'selection':
+                    this.maxBridge.HapticFeedback.selectionChanged();
+                    break;
+                case 'light':
+                    this.maxBridge.HapticFeedback.impactOccurred('light');
+                    break;
+                case 'medium':
+                    this.maxBridge.HapticFeedback.impactOccurred('medium');
+                    break;
+                case 'heavy':
+                    this.maxBridge.HapticFeedback.impactOccurred('heavy');
+                    break;
+                default:
+                    this.maxBridge.HapticFeedback.impactOccurred('light');
+            }
+        } catch (error) {
+            console.warn('⚠️ Ошибка тактильной обратной связи:', error);
+        }
+    }
+
+    // ===== ЯНДЕКС КАРТЫ =====
+    initYandexMaps() {
+        if (typeof ymaps === 'undefined') {
+            console.warn('⚠️ Яндекс Карты не загружены');
+            return;
+        }
+        
+        ymaps.ready(() => {
+            console.log('✅ Яндекс Карты готовы');
+        });
+    }
+
+    // ===== МОДАЛЬНЫЕ ОКНА =====
+    openLocationPicker(context) {
+        this.locationContext = context;
+        this.selectedLocation = null;
+        
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modal = document.getElementById('locationModal');
+        
+        if (modalOverlay) modalOverlay.style.display = 'block';
+        if (modal) modal.style.display = 'block';
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('medium');
+        
+        // Инициализация карты
+        this.initLocationMap();
+    }
+
+    initLocationMap() {
+        if (typeof ymaps === 'undefined') {
+            console.warn('⚠️ Яндекс Карты не загружены');
+            return;
+        }
+        
+        ymaps.ready(() => {
+            const mapContainer = document.getElementById('yandexMap');
+            if (!mapContainer) return;
+            
+            // Очищаем контейнер
+            mapContainer.innerHTML = '';
+            
+            // Создаем карту
+            this.yandexMap = new ymaps.Map('yandexMap', {
+                center: [44.6166, 33.5254], // Севастополь
+                zoom: 12,
+                controls: ['zoomControl', 'fullscreenControl']
+            }, {
+                searchControlProvider: 'yandex#search'
             });
             
-            // Добавляем стиль для группы ввода телефона
-            const style = document.createElement('style');
-            style.textContent = `
-                .phone-input-group {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                    width: 100%;
-                }
-                .phone-input-group .form-input {
-                    flex: 1;
-                    min-width: 0;
-                }
-                .phone-input-group .btn-secondary {
-                    flex-shrink: 0;
-                    min-width: 120px;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                .form-checkbox {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-top: 8px;
-                }
-                .form-checkbox-input {
-                    width: 18px;
-                    height: 18px;
-                    flex-shrink: 0;
-                }
-                .form-checkbox-label {
-                    font-size: 0.85rem;
-                    color: var(--text-secondary);
-                    white-space: normal;
-                    line-height: 1.3;
-                }
-                @media (max-width: 480px) {
-                    .phone-input-group {
-                        flex-direction: column;
-                        align-items: stretch;
-                        gap: 8px;
-                    }
-                    .phone-input-group .btn-secondary {
-                        width: 100%;
-                        min-width: 0;
-                    }
-                    .form-checkbox-label {
-                        font-size: 0.8rem;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
+            // Создаем маркер
+            this.mapMarker = new ymaps.Placemark([44.6166, 33.5254], {
+                hintContent: 'Выберите местоположение'
+            }, {
+                preset: 'islands#blueDotIcon',
+                draggable: true
+            });
+            
+            this.yandexMap.geoObjects.add(this.mapMarker);
+            
+            // Обработка перетаскивания маркера
+            this.mapMarker.events.add('dragend', (e) => {
+                const coords = this.mapMarker.geometry.getCoordinates();
+                this.selectedLocation = {
+                    lat: coords[0],
+                    lon: coords[1]
+                };
+            });
+            
+            // Обработка клика по карте
+            this.yandexMap.events.add('click', (e) => {
+                const coords = e.get('coords');
+                this.mapMarker.geometry.setCoordinates(coords);
+                this.selectedLocation = {
+                    lat: coords[0],
+                    lon: coords[1]
+                };
+                
+                // Тактильная обратная связь
+                this.hapticFeedback('light');
+            });
         });
-    </script>
-</body>
-</html>
+    }
+
+    confirmLocation() {
+        if (this.selectedLocation) {
+            let locationText = `${this.selectedLocation.lat.toFixed(6)}, ${this.selectedLocation.lon.toFixed(6)}`;
+            
+            if (this.locationContext === 'graffiti') {
+                const graffitiLocation = document.getElementById('graffitiLocation');
+                if (graffitiLocation) {
+                    graffitiLocation.value = locationText;
+                }
+            } else if (this.locationContext === 'security') {
+                this.securityReport.data.location = this.selectedLocation;
+                this.securityReport.data.address = `Геолокация: ${locationText}`;
+                
+                const addressInput = document.getElementById('manualAddress');
+                if (addressInput) {
+                    addressInput.value = `Геолокация: ${locationText}`;
+                }
+                
+                // Переход к следующему шагу если мы на шаге 2
+                if (this.securityReport.step === 2) {
+                    setTimeout(() => {
+                        this.nextSecurityStep();
+                    }, 300);
+                }
+            } else if (this.locationContext === 'wifi_search') {
+                // Поиск ближайших точек
+                const nearestPoints = this.findNearestPoints(
+                    this.selectedLocation.lat, 
+                    this.selectedLocation.lon
+                );
+                
+                this.displayWifiPoints(nearestPoints);
+                
+                this.showNotification(`Найдено ${nearestPoints.length} точек поблизости`, 'success');
+            }
+            
+            this.closeModal();
+            
+            // Тактильная обратная связь
+            this.hapticFeedback('success');
+            
+            this.showNotification('Местоположение выбрано', 'success');
+        } else {
+            this.showNotification('Выберите местоположение на карте', 'warning');
+        }
+    }
+
+    closeModal() {
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modals = document.querySelectorAll('.modal');
+        
+        if (modalOverlay) modalOverlay.style.display = 'none';
+        modals.forEach(modal => {
+            modal.style.display = 'none';
+        });
+        
+        // Очищаем карту
+        this.yandexMap = null;
+        this.mapMarker = null;
+        this.selectedLocation = null;
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    // ===== ДРАГ-ЭНД-ДРОП =====
+    setupDragAndDrop() {
+        const uploadArea = document.getElementById('mediaUploadArea');
+        if (!uploadArea) return;
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.style.borderColor = 'var(--primary-color)';
+                uploadArea.style.background = 'var(--bg-card-hover)';
+            });
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.style.borderColor = '';
+                uploadArea.style.background = '';
+            });
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            this.handleMediaUpload(files);
+            
+            // Тактильная обратная связь
+            this.hapticFeedback('success');
+        });
+    }
+
+    handleMediaUpload(files) {
+        if (!files || files.length === 0) return;
+        
+        const maxFiles = 5;
+        const maxSize = 10 * 1024 * 1024;
+        
+        Array.from(files).slice(0, maxFiles - this.mediaFiles.length).forEach(file => {
+            if (file.size > maxSize) {
+                this.showNotification(`Файл ${file.name} слишком большой (>10MB)`, 'warning');
+                return;
+            }
+            
+            this.mediaFiles.push(file);
+        });
+        
+        this.updateMediaPreview();
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    updateMediaPreview() {
+        const container = document.getElementById('mediaPreview');
+        if (!container) return;
+        
+        container.innerHTML = this.mediaFiles.map((file, index) => `
+            <div class="media-preview-item">
+                ${file.type.startsWith('image/') 
+                    ? `<img src="${URL.createObjectURL(file)}" alt="Превью ${index + 1}">`
+                    : `<div class="video-preview"><i class="fas fa-video"></i></div>`
+                }
+                <button class="btn-remove-media" onclick="app.removeMediaFile(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    removeMediaFile(index) {
+        this.mediaFiles.splice(index, 1);
+        this.updateMediaPreview();
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+    }
+
+    // ===== ВАЛИДАЦИЯ ФОРМ =====
+    setupFormValidation() {
+        const phoneInput = document.getElementById('securityPhone');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', (e) => {
+                const value = e.target.value;
+                const isValid = this.validatePhone(value);
+                e.target.style.borderColor = isValid ? 'var(--success-color)' : 'var(--danger-color)';
+            });
+        }
+        
+        const emailInput = document.getElementById('securityEmail');
+        if (emailInput) {
+            emailInput.addEventListener('input', (e) => {
+                const value = e.target.value;
+                if (value) {
+                    const isValid = this.validateEmail(value);
+                    e.target.style.borderColor = isValid ? 'var(--success-color)' : 'var(--danger-color)';
+                } else {
+                    e.target.style.borderColor = '';
+                }
+            });
+        }
+    }
+
+    // ===== АДМИН-ПАНЕЛЬ =====
+    checkAdminStatus() {
+        const adminIds = window.ADMIN_USER_IDS || ['13897373', '90334880', '555666777'];
+        this.isAdmin = adminIds.includes(this.currentUser?.id?.toString());
+        
+        const adminNav = document.getElementById('adminNav');
+        if (adminNav && this.isAdmin) {
+            adminNav.style.display = 'block';
+            console.log('👑 Пользователь является администратором');
+        }
+    }
+
+    switchAdminTab(tab) {
+        // Обновление активной вкладки
+        document.querySelectorAll('.admin-tab').forEach(t => {
+            t.classList.remove('active');
+        });
+        
+        document.querySelectorAll('.admin-tab-content').forEach(c => {
+            c.classList.remove('active');
+        });
+        
+        const activeTab = document.querySelector(`[data-tab="${tab}"]`);
+        const activeContent = document.getElementById(`admin-${tab}`);
+        
+        if (activeTab) activeTab.classList.add('active');
+        if (activeContent) activeContent.classList.add('active');
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
+        
+        // Загрузка данных для вкладки
+        if (tab === 'dashboard') {
+            this.loadAdminDashboard();
+        }
+    }
+
+    async loadAdminDashboard() {
+        try {
+            const stats = await this.fetchAdminStats();
+            
+            // Обновление статистики
+            const totalEl = document.getElementById('adminTotalReports');
+            const pendingEl = document.getElementById('adminPendingReports');
+            const completedEl = document.getElementById('adminCompletedReports');
+            const usersEl = document.getElementById('adminActiveUsers');
+            
+            if (totalEl) totalEl.textContent = stats.total || 0;
+            if (pendingEl) pendingEl.textContent = stats.pending || 0;
+            if (completedEl) completedEl.textContent = stats.completed || 0;
+            if (usersEl) usersEl.textContent = stats.activeUsers || 0;
+            
+            // Обновление графиков
+            this.updateCharts(stats);
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки статистики:', error);
+        }
+    }
+
+    async fetchAdminStats() {
+        // Загрузка из localStorage
+        const securityReports = JSON.parse(localStorage.getItem('security_reports') || '[]');
+        const graffitiReports = JSON.parse(localStorage.getItem('graffiti_reports') || '[]');
+        const wifiProblems = JSON.parse(localStorage.getItem('wifi_problems_reports') || '[]');
+        const wifiSuggestions = JSON.parse(localStorage.getItem('wifi_suggestions_reports') || '[]');
+        
+        const total = securityReports.length + graffitiReports.length + wifiProblems.length + wifiSuggestions.length;
+        const pending = [...securityReports, ...graffitiReports, ...wifiProblems, ...wifiSuggestions]
+            .filter(r => r.status === 'new').length;
+        const completed = [...securityReports, ...graffitiReports, ...wifiProblems, ...wifiSuggestions]
+            .filter(r => r.status === 'resolved').length;
+        
+        return {
+            total: total,
+            pending: pending,
+            completed: completed,
+            activeUsers: 1,
+            byCategory: {
+                security: securityReports.length,
+                graffiti: graffitiReports.length,
+                wifi_problems: wifiProblems.length,
+                wifi_suggestions: wifiSuggestions.length
+            }
+        };
+    }
+
+    updateCharts(stats) {
+        if (window.Chart && stats) {
+            const categoryCtx = document.getElementById('reportsChart');
+            if (categoryCtx) {
+                // Удаляем старый график если есть
+                const oldChart = Chart.getChart(categoryCtx);
+                if (oldChart) {
+                    oldChart.destroy();
+                }
+                
+                new Chart(categoryCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Безопасность', 'Граффити', 'Wi-Fi проблемы', 'Wi-Fi предложения'],
+                        datasets: [{
+                            data: [
+                                stats.byCategory?.security || 0,
+                                stats.byCategory?.graffiti || 0,
+                                stats.byCategory?.wifi_problems || 0,
+                                stats.byCategory?.wifi_suggestions || 0
+                            ],
+                            backgroundColor: ['#0066ff', '#ff9500', '#34c759', '#5856d6']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: 'var(--text-secondary)',
+                                    padding: 20
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    // ===== ЭКСТРЕННЫЕ ВЫЗОВЫ =====
+    makeEmergencyCall(number) {
+        // Форматируем номер для телефона
+        let formattedNumber = number;
+        
+        // Убираем все нецифровые символы
+        formattedNumber = formattedNumber.replace(/\D/g, '');
+        
+        // Для коротких номеров (101, 102, 103, 112)
+        if (formattedNumber.length <= 3) {
+            formattedNumber = formattedNumber;
+        } 
+        // Для российских номеров без кода страны
+        else if (formattedNumber.length === 10) {
+            formattedNumber = `+7${formattedNumber}`;
+        }
+        // Для номеров начинающихся с 7 или 8
+        else if (formattedNumber.startsWith('7')) {
+            formattedNumber = `+${formattedNumber}`;
+        } else if (formattedNumber.startsWith('8')) {
+            formattedNumber = `+7${formattedNumber.substring(1)}`;
+        }
+        // Если уже начинается с +7
+        else if (formattedNumber.startsWith('+7')) {
+            // Оставляем как есть
+        }
+        
+        const telUrl = `tel:${formattedNumber}`;
+        console.log(`📞 Вызов номера: ${formattedNumber}`);
+        
+        // Используем MAX Bridge если доступно
+        if (this.maxBridge?.openLink) {
+            try {
+                this.maxBridge.openLink(telUrl);
+            } catch (error) {
+                console.error('❌ Ошибка вызова:', error);
+                this.showNotification(`Не удалось совершить вызов ${number}`, 'error');
+            }
+        } 
+        // Иначе используем стандартный способ
+        else {
+            // Прямой вызов через tel: протокол
+            const link = document.createElement('a');
+            link.href = telUrl;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            
+            // Пытаемся сделать вызов
+            try {
+                link.click();
+            } catch (error) {
+                console.error('❌ Ошибка вызова:', error);
+                this.showNotification(`Не удалось совершить вызов ${number}. Проверьте возможность совершения звонков.`, 'error');
+            }
+            
+            setTimeout(() => {
+                document.body.removeChild(link);
+            }, 100);
+        }
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('heavy');
+    }
+}
+
+// Инициализация приложения
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new SafeSevastopol();
+    window.app = app;
+});
+
+// Глобальные методы для вызова из HTML
+window.appMethods = {
+    showOnMap: (pointId, event) => window.app?.showOnMap(pointId, event),
+    reportWifiProblem: (pointId, event) => window.app?.reportWifiProblem(pointId, event),
+    openInMaps: (pointId) => window.app?.openInMaps(pointId),
+    buildRoute: (pointId) => window.app?.buildRoute(pointId),
+    removeGraffitiPhoto: (index) => window.app?.removeGraffitiPhoto(index),
+    removeMediaFile: (index) => window.app?.removeMediaFile(index)
+};
