@@ -235,23 +235,26 @@
                             </button>
                         </div>
 
-                        <div class="filters-container">
-                            <div class="filter-tags">
-                                <button class="filter-tag active" data-filter="all">Все</button>
-                                <button class="filter-tag" data-filter="здрав">🏥 Медицина</button>
-                                <button class="filter-tag" data-filter="образование">🎓 Образование</button>
-                                <button class="filter-tag" data-filter="транспорт">🚌 Транспорт</button>
-                                <button class="filter-tag" data-filter="отдых">🌳 Развлечения</button>
-                                <button class="filter-tag" data-filter="тц">🛍️ Торговля</button>
-                                <button class="filter-tag" data-filter="спорт">⚽ Спорт</button>
-                                <button class="filter-tag" data-filter="МФЦ">🏢 МФЦ</button>
-                                <button class="filter-tag" data-filter="АЗС">⛽ АЗС</button>
-                                <button class="filter-tag" data-filter="гостиница">🏨 Гостиницы</button>
-                                <button class="filter-tag" data-filter="пляж">🏖️ Пляжи</button>
-                                <button class="filter-tag" data-filter="турбаза">⛺ Турбазы</button>
-                                <button class="filter-tag" data-filter="дома">🏘️ Жилые комплексы</button>
-                                <button class="filter-tag" data-filter="кафе">🍴 Кафе</button>
-                                <button class="filter-tag" data-filter="торговля">🛒 Магазины</button>
+                        <div class="filters-row">
+                            <div class="filters-title">Категории:</div>
+                            <div class="filters-container">
+                                <div class="filter-tags">
+                                    <button class="filter-tag active" data-filter="all">Все</button>
+                                    <button class="filter-tag" data-filter="здрав">🏥 Медицина</button>
+                                    <button class="filter-tag" data-filter="образование">🎓 Образование</button>
+                                    <button class="filter-tag" data-filter="транспорт">🚌 Транспорт</button>
+                                    <button class="filter-tag" data-filter="отдых">🌳 Развлечения</button>
+                                    <button class="filter-tag" data-filter="тц">🛍️ Торговля</button>
+                                    <button class="filter-tag" data-filter="спорт">⚽ Спорт</button>
+                                    <button class="filter-tag" data-filter="МФЦ">🏢 МФЦ</button>
+                                    <button class="filter-tag" data-filter="АЗС">⛽ АЗС</button>
+                                    <button class="filter-tag" data-filter="гостиница">🏨 Гостиницы</button>
+                                    <button class="filter-tag" data-filter="пляж">🏖️ Пляжи</button>
+                                    <button class="filter-tag" data-filter="турбаза">⛺ Турбазы</button>
+                                    <button class="filter-tag" data-filter="дома">🏘️ Жилые комплексы</button>
+                                    <button class="filter-tag" data-filter="кафе">🍴 Кафе</button>
+                                    <button class="filter-tag" data-filter="торговля">🛒 Магазины</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -405,13 +408,27 @@
                                 <label for="securityName">Ваше имя:</label>
                                 <input type="text" id="securityName" class="form-input" 
                                        placeholder="Введите ваше имя" required>
+                                <div class="form-hint">Имя из MAX: <span id="maxUserName"></span></div>
                             </div>
                             
                             <div class="form-group">
                                 <label for="securityPhone">Телефон:</label>
-                                <input type="tel" id="securityPhone" class="form-input" 
-                                       placeholder="+7 (XXX) XXX-XX-XX" required>
+                                <div class="phone-input-group">
+                                    <input type="tel" id="securityPhone" class="form-input" 
+                                           placeholder="+7 (XXX) XXX-XX-XX" required>
+                                    <button class="btn-secondary" id="requestPhoneFromMax">
+                                        <i class="fas fa-mobile-alt"></i>
+                                        <span>Взять из MAX</span>
+                                    </button>
+                                </div>
                                 <div class="form-hint">Номер телефона нужен для уточнения деталей</div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="securityEmail">Email (необязательно):</label>
+                                <input type="email" id="securityEmail" class="form-input" 
+                                       placeholder="email@example.com">
+                                <div class="form-hint">Для отправки уведомления о статусе обработки</div>
                             </div>
                         </div>
 
@@ -997,7 +1014,8 @@
             
             function setTheme(theme) {
                 document.documentElement.setAttribute('data-theme', theme);
-                document.querySelector('meta[name="theme-color"]').setAttribute('content', theme === 'dark' ? '#0c0c0e' : '#ffffff');
+                const themeColor = theme === 'dark' ? '#0c0c0e' : '#ffffff';
+                document.querySelector('meta[name="theme-color"]').setAttribute('content', themeColor);
                 
                 // Сохраняем в localStorage
                 localStorage.setItem('theme', theme);
@@ -1011,8 +1029,8 @@
                     }
                 });
                 
-                // Плавная анимация
-                themeToggle.style.transform = 'rotate(0deg)';
+                // Плавная анимация вращения
+                themeToggle.style.transform = 'rotate(180deg)';
                 setTimeout(() => {
                     themeToggle.style.transform = '';
                 }, 300);
@@ -1023,6 +1041,11 @@
                 const currentTheme = document.documentElement.getAttribute('data-theme');
                 const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
                 setTheme(newTheme);
+                
+                // Тактильная обратная связь
+                if (window.app && window.app.hapticFeedback) {
+                    window.app.hapticFeedback('light');
+                }
             });
             
             // Загружаем сохраненную тему
@@ -1036,10 +1059,10 @@
             
             // Предотвращаем выход за пределы экрана
             const checkOverflow = () => {
-                const elements = document.querySelectorAll('h1, h2, h3, p, .logo-title, .logo-subtitle');
+                const elements = document.querySelectorAll('h1, h2, h3, p, .logo-title, .logo-subtitle, .emergency-info h4, .emergency-number, .emergency-desc');
                 elements.forEach(el => {
                     if (el.scrollWidth > el.clientWidth) {
-                        el.style.fontSize = 'calc(1em - 2px)';
+                        el.style.fontSize = 'calc(1em - 1px)';
                     }
                 });
             };
@@ -1053,6 +1076,33 @@
                 container.style.maxWidth = '100vw';
                 container.style.overflowX = 'hidden';
             });
+            
+            // Добавляем стиль для группы ввода телефона
+            const style = document.createElement('style');
+            style.textContent = `
+                .phone-input-group {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                }
+                .phone-input-group .form-input {
+                    flex: 1;
+                }
+                .phone-input-group .btn-secondary {
+                    flex-shrink: 0;
+                    min-width: 120px;
+                }
+                @media (max-width: 480px) {
+                    .phone-input-group {
+                        flex-direction: column;
+                        align-items: stretch;
+                    }
+                    .phone-input-group .btn-secondary {
+                        width: 100%;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
         });
     </script>
 </body>
