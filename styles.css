@@ -155,49 +155,29 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
     line-height: 1.2;
     margin-bottom: 1rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 h1 { 
-    font-size: 1.75rem; 
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    font-size: clamp(1.25rem, 4vw, 1.75rem); 
 }
 h2 { 
-    font-size: 1.5rem; 
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    font-size: clamp(1.1rem, 3.5vw, 1.5rem); 
 }
 h3 { 
-    font-size: 1.25rem; 
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    font-size: clamp(1rem, 3vw, 1.25rem); 
 }
 h4 { 
-    font-size: 1.125rem; 
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    font-size: clamp(0.9rem, 2.5vw, 1.125rem); 
 }
 h5 { 
-    font-size: 1rem; 
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    font-size: clamp(0.85rem, 2vw, 1rem); 
 }
 h6 { 
-    font-size: 0.875rem; 
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    font-size: clamp(0.8rem, 1.8vw, 0.875rem); 
 }
 
 p {
@@ -205,8 +185,8 @@ p {
     color: var(--text-secondary);
     max-width: 100%;
     overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    font-size: clamp(0.8rem, 2vw, 1rem);
+    line-height: 1.5;
 }
 
 a {
@@ -238,7 +218,7 @@ a:hover {
     border-radius: var(--radius-md);
     font-family: 'Inter', sans-serif;
     font-weight: 500;
-    font-size: 0.9375rem;
+    font-size: clamp(0.85rem, 2vw, 0.9375rem);
     cursor: pointer;
     transition: all var(--transition-fast);
     text-align: center;
@@ -380,22 +360,44 @@ a:hover {
     transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
     margin-left: 12px;
     flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
 }
 
 .theme-toggle-small:hover {
-    transform: rotate(180deg);
-    background: var(--bg-card-hover);
-    border-color: var(--border-color-hover);
+    transform: rotate(360deg);
 }
 
 .theme-toggle-small i {
-    transition: transform 0.5s ease;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s ease;
 }
 
-/* Кнопка поиска */
-.search-button {
-    min-width: 100px;
-    margin-left: 8px;
+.theme-toggle-small .fa-moon {
+    opacity: 1;
+}
+
+.theme-toggle-small .fa-sun {
+    opacity: 0;
+}
+
+[data-theme="dark"] .theme-toggle-small .fa-moon {
+    opacity: 0;
+}
+
+[data-theme="dark"] .theme-toggle-small .fa-sun {
+    opacity: 1;
+}
+
+[data-theme="light"] .theme-toggle-small .fa-moon {
+    opacity: 1;
+}
+
+[data-theme="light"] .theme-toggle-small .fa-sun {
+    opacity: 0;
 }
 
 /* ===== CARD ===== */
@@ -429,9 +431,7 @@ a:hover {
     margin-bottom: 0.5rem;
     font-weight: 500;
     color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: clamp(0.9rem, 2vw, 1rem);
 }
 
 .form-input,
@@ -443,7 +443,7 @@ a:hover {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     font-family: 'Inter', sans-serif;
-    font-size: 1rem;
+    font-size: clamp(0.9rem, 2vw, 1rem);
     color: var(--text-primary);
     transition: all var(--transition-fast);
     max-width: 100%;
@@ -481,9 +481,6 @@ a:hover {
     font-size: 0.875rem;
     color: var(--text-tertiary);
     margin-top: 0.25rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .form-note {
@@ -555,30 +552,24 @@ a:hover {
 }
 
 .logo-title {
-    font-size: 1.25rem;
+    font-size: clamp(1rem, 3vw, 1.25rem);
     margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     line-height: 1.2;
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
     gap: 4px;
 }
 
-.logo-title span {
-    white-space: nowrap;
-}
-
 .logo-subtitle {
-    font-size: 0.75rem;
+    font-size: clamp(0.65rem, 1.5vw, 0.75rem);
     color: var(--text-secondary);
     margin: 0;
-    white-space: nowrap;
+    line-height: 1.2;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
+    white-space: nowrap;
 }
 
 .user-section {
@@ -608,11 +599,11 @@ a:hover {
 .user-name {
     font-weight: 500;
     margin-bottom: 2px;
-    white-space: nowrap;
+    max-width: 120px;
+    font-size: clamp(0.8rem, 2vw, 0.875rem);
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 120px;
-    font-size: 0.875rem;
+    white-space: nowrap;
 }
 
 .user-status {
@@ -671,7 +662,7 @@ a:hover {
     color: var(--text-secondary);
     cursor: pointer;
     transition: all var(--transition-fast);
-    font-size: 0.7rem;
+    font-size: clamp(0.65rem, 1.5vw, 0.7rem);
     text-align: center;
     flex-shrink: 0;
 }
@@ -727,37 +718,23 @@ a:hover {
     margin-bottom: 24px;
     padding: 0 8px;
     max-width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
 }
 
 .section-header h2 {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
     margin-bottom: 8px;
-    flex-wrap: nowrap;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-    font-size: 1.5rem;
-    line-height: 1.2;
-    text-align: center;
+    flex-wrap: wrap;
 }
 
 .section-header p {
     max-width: 100%;
     margin: 0 auto;
-    font-size: 0.9rem;
+    font-size: clamp(0.8rem, 2vw, 0.9rem);
     padding: 0 8px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: center;
-    color: var(--text-secondary);
+    line-height: 1.4;
 }
 
 /* ===== WI-FI SECTION ===== */
@@ -790,7 +767,6 @@ a:hover {
     gap: 8px;
     align-items: center;
     position: relative;
-    width: 100%;
 }
 
 .search-input {
@@ -799,10 +775,9 @@ a:hover {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    font-size: 0.95rem;
+    font-size: clamp(0.85rem, 2vw, 0.95rem);
     color: var(--text-primary);
     min-width: 0;
-    width: 100%;
 }
 
 .search-input-group i {
@@ -834,15 +809,13 @@ a:hover {
     margin-top: 16px;
     flex-wrap: wrap;
     gap: 12px;
-    width: 100%;
 }
 
 .filters-title {
     font-weight: 500;
-    font-size: 0.9rem;
+    font-size: clamp(0.8rem, 2vw, 0.9rem);
     color: var(--text-primary);
     white-space: nowrap;
-    flex-shrink: 0;
 }
 
 .filters-container {
@@ -850,7 +823,7 @@ a:hover {
     overflow-x: auto;
     padding-bottom: 8px;
     max-width: 100%;
-    min-width: 0;
+    -webkit-overflow-scrolling: touch;
 }
 
 .filter-tags {
@@ -859,7 +832,6 @@ a:hover {
     padding: 4px;
     min-width: min-content;
     flex-wrap: nowrap;
-    width: max-content;
 }
 
 .filter-tag {
@@ -868,7 +840,7 @@ a:hover {
     border: 1px solid var(--border-color);
     border-radius: 16px;
     color: var(--text-secondary);
-    font-size: 0.75rem;
+    font-size: clamp(0.7rem, 1.8vw, 0.75rem);
     cursor: pointer;
     white-space: nowrap;
     transition: all var(--transition-fast);
@@ -907,10 +879,8 @@ a:hover {
 
 .results-header h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: clamp(1rem, 2.5vw, 1.1rem);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .wifi-results {
@@ -947,7 +917,7 @@ a:hover {
 
 .wifi-result-name {
     font-weight: 600;
-    font-size: 1rem;
+    font-size: clamp(0.9rem, 2vw, 1rem);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -970,7 +940,7 @@ a:hover {
 
 .wifi-result-address {
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     margin-bottom: 6px;
     white-space: nowrap;
     overflow: hidden;
@@ -979,7 +949,7 @@ a:hover {
 
 .wifi-result-description {
     color: var(--text-tertiary);
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     line-height: 1.4;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -998,7 +968,7 @@ a:hover {
 .wifi-result-actions .btn {
     min-width: 90px;
     height: 40px;
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     padding: 8px 16px;
 }
 
@@ -1012,21 +982,15 @@ a:hover {
 .details-header h3 {
     margin: 0;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .wifi-details {
     min-height: 250px;
     max-width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .detail-item {
     margin-bottom: 16px;
-    width: 100%;
 }
 
 .detail-label {
@@ -1037,16 +1001,13 @@ a:hover {
     align-items: center;
     gap: 6px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: clamp(0.85rem, 2vw, 0.9rem);
 }
 
 .detail-value {
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: clamp(0.9rem, 2vw, 1rem);
+    line-height: 1.4;
+    word-break: break-word;
 }
 
 .detail-actions {
@@ -1054,15 +1015,12 @@ a:hover {
     gap: 10px;
     margin-top: 24px;
     flex-wrap: wrap;
-    width: 100%;
 }
 
 .detail-actions .btn {
     min-width: 120px;
     height: 44px;
-    font-size: 0.9rem;
-    flex: 1;
-    min-width: 0;
+    font-size: clamp(0.8rem, 2vw, 0.9rem);
 }
 
 .loading-spinner {
@@ -1097,7 +1055,6 @@ a:hover {
     color: var(--text-tertiary);
     text-align: center;
     padding: 16px;
-    width: 100%;
 }
 
 .placeholder-details i {
@@ -1204,7 +1161,7 @@ a:hover {
 }
 
 .step-label {
-    font-size: 0.7rem;
+    font-size: clamp(0.65rem, 1.5vw, 0.7rem);
     color: var(--text-tertiary);
     text-align: center;
     white-space: nowrap;
@@ -1233,7 +1190,6 @@ a:hover {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px;
     margin-bottom: 20px;
-    max-width: 100%;
 }
 
 .location-option {
@@ -1250,7 +1206,6 @@ a:hover {
     transition: all var(--transition-medium);
     text-align: center;
     min-height: 100px;
-    max-width: 100%;
 }
 
 .location-option:hover {
@@ -1269,14 +1224,6 @@ a:hover {
     margin-bottom: 4px;
 }
 
-.location-option span {
-    font-size: 0.8rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-}
-
 .location-input-group {
     display: flex;
     gap: 8px;
@@ -1286,10 +1233,9 @@ a:hover {
 
 .char-counter {
     text-align: right;
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     color: var(--text-tertiary);
     margin-top: 6px;
-    white-space: nowrap;
 }
 
 .media-uploader {
@@ -1323,7 +1269,6 @@ a:hover {
     margin-bottom: 6px;
     color: var(--text-secondary);
     white-space: normal;
-    overflow: visible;
 }
 
 .upload-area span {
@@ -1331,7 +1276,6 @@ a:hover {
     margin: 6px 0;
     color: var(--text-tertiary);
     font-size: 0.8rem;
-    white-space: nowrap;
 }
 
 .media-preview {
@@ -1394,7 +1338,6 @@ a:hover {
     margin-top: 28px;
     flex-wrap: wrap;
     gap: 10px;
-    width: 100%;
 }
 
 .info-card .info-list {
@@ -1402,14 +1345,12 @@ a:hover {
     flex-direction: column;
     gap: 12px;
     margin-top: 20px;
-    max-width: 100%;
 }
 
 .info-item {
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    max-width: 100%;
 }
 
 .info-icon {
@@ -1423,32 +1364,19 @@ a:hover {
     justify-content: center;
     color: white;
     font-size: 1rem;
-    flex-shrink: 0;
-}
-
-.info-content {
-    flex: 1;
-    min-width: 0;
 }
 
 .info-content h4 {
     margin: 0 0 4px 0;
-    font-size: 0.9rem;
+    font-size: clamp(0.85rem, 2vw, 0.9rem);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .info-content p {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     color: var(--text-secondary);
     white-space: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
 }
 
 /* ===== GRAFFITI SECTION ===== */
@@ -1500,7 +1428,6 @@ a:hover {
     font-size: 0.7rem;
     color: var(--text-secondary);
     text-align: center;
-    white-space: nowrap;
 }
 
 .upload-cell.photo-preview {
@@ -1546,7 +1473,6 @@ a:hover {
     transition: all var(--transition-fast);
     max-width: 100%;
     flex-wrap: nowrap;
-    overflow: hidden;
 }
 
 .emergency-item:hover {
@@ -1578,26 +1504,23 @@ a:hover {
 
 .emergency-info h4 {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: clamp(0.85rem, 2vw, 0.9rem);
     line-height: 1.3;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-weight: 600;
 }
 
 .emergency-number {
-    font-size: 1.25rem;
+    font-size: clamp(1.1rem, 2.5vw, 1.25rem);
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.2;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .emergency-desc {
-    font-size: 0.75rem;
+    font-size: clamp(0.7rem, 1.8vw, 0.75rem);
     color: var(--text-secondary);
     margin: 0;
     line-height: 1.3;
@@ -1623,7 +1546,6 @@ a:hover {
     border-radius: var(--radius-lg);
     flex-wrap: nowrap;
     max-width: 100%;
-    overflow: hidden;
 }
 
 .contact-icon {
@@ -1651,17 +1573,14 @@ a:hover {
 
 .contact-info h4 {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: clamp(0.85rem, 2vw, 0.9rem);
     line-height: 1.3;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 600;
 }
 
 .contact-info p {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: clamp(0.7rem, 1.8vw, 0.75rem);
     color: var(--text-secondary);
     line-height: 1.3;
     white-space: nowrap;
@@ -1670,21 +1589,17 @@ a:hover {
 }
 
 .contact-number {
-    font-size: 1.1rem;
+    font-size: clamp(1rem, 2.5vw, 1.1rem);
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1.2;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .contact-link {
     color: var(--primary-color);
     font-weight: 500;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 /* ===== ADMIN SECTION ===== */
@@ -1718,7 +1633,7 @@ a:hover {
     white-space: nowrap;
     transition: all var(--transition-fast);
     flex-shrink: 0;
-    font-size: 0.85rem;
+    font-size: clamp(0.8rem, 1.8vw, 0.85rem);
 }
 
 .admin-tab:hover {
@@ -1770,27 +1685,23 @@ a:hover {
 
 .admin-stat-card .stat-header h4 {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: clamp(0.8rem, 1.8vw, 0.85rem);
     color: var(--text-secondary);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .admin-stat-card .stat-number {
-    font-size: 2rem;
+    font-size: clamp(1.5rem, 4vw, 2rem);
     font-weight: 700;
     margin-bottom: 6px;
     color: var(--text-primary);
-    white-space: nowrap;
 }
 
 .stat-trend {
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     padding: 3px 10px;
     border-radius: 16px;
     display: inline-block;
-    white-space: nowrap;
 }
 
 .stat-trend.up {
@@ -1816,8 +1727,6 @@ a:hover {
 .chart-card h4 {
     margin-bottom: 20px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .admin-actions {
@@ -1878,15 +1787,14 @@ a:hover {
     padding: 3px 10px;
     border-radius: 16px;
     color: white;
-    font-size: 0.7rem;
+    font-size: clamp(0.65rem, 1.5vw, 0.7rem);
     font-weight: 600;
     margin-bottom: 6px;
-    white-space: nowrap;
 }
 
 .report-title h4 {
     margin: 0 0 6px 0;
-    font-size: 1rem;
+    font-size: clamp(0.9rem, 2vw, 1rem);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1895,7 +1803,7 @@ a:hover {
 .report-meta {
     display: flex;
     gap: 8px;
-    font-size: 0.7rem;
+    font-size: clamp(0.65rem, 1.5vw, 0.7rem);
     color: var(--text-tertiary);
     flex-wrap: wrap;
 }
@@ -1913,15 +1821,13 @@ a:hover {
     padding: 5px 10px;
     border-radius: 16px;
     color: white;
-    font-size: 0.7rem;
+    font-size: clamp(0.65rem, 1.5vw, 0.7rem);
     font-weight: 600;
     display: inline-block;
-    white-space: nowrap;
 }
 
 .report-body {
     margin-bottom: 16px;
-    max-width: 100%;
 }
 
 .report-body p {
@@ -1932,30 +1838,26 @@ a:hover {
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
-    white-space: normal;
 }
 
 .report-details {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    max-width: 100%;
 }
 
 .detail {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     color: var(--text-secondary);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .detail i {
     color: var(--text-tertiary);
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
 }
 
 .report-actions {
@@ -1975,7 +1877,6 @@ a:hover {
     background: var(--bg-secondary);
     border-radius: var(--radius-lg);
     padding: 16px;
-    max-width: 100%;
 }
 
 .setting-item h4 {
@@ -1984,8 +1885,6 @@ a:hover {
     gap: 6px;
     margin-bottom: 12px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 /* ===== FOOTER ===== */
@@ -2008,30 +1907,25 @@ a:hover {
     justify-content: center;
     gap: 8px;
     margin-bottom: 12px;
-    font-size: 1rem;
+    font-size: clamp(0.9rem, 2.5vw, 1rem);
     font-weight: 600;
     flex-wrap: nowrap;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .footer-logo i {
     color: var(--primary-color);
-    flex-shrink: 0;
 }
 
 .footer-info {
     color: var(--text-tertiary);
-    font-size: 0.8rem;
+    font-size: clamp(0.7rem, 1.8vw, 0.8rem);
     max-width: 100%;
 }
 
 .footer-info p {
     margin: 3px 0;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .version {
@@ -2041,12 +1935,11 @@ a:hover {
     border-radius: 16px;
     display: inline-block;
     margin: 6px 0;
-    font-size: 0.75rem;
-    white-space: nowrap;
+    font-size: clamp(0.7rem, 1.8vw, 0.75rem);
 }
 
 .max-version {
-    font-size: 0.7rem;
+    font-size: clamp(0.65rem, 1.5vw, 0.7rem);
     opacity: 0.7;
     white-space: nowrap;
 }
@@ -2099,15 +1992,11 @@ a:hover {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    max-width: 100%;
 }
 
 .modal-header h3 {
     margin: 0;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 80%;
 }
 
 .modal-close {
@@ -2151,7 +2040,6 @@ a:hover {
     justify-content: flex-end;
     gap: 10px;
     flex-wrap: wrap;
-    max-width: 100%;
 }
 
 /* ===== NOTIFICATIONS ===== */
@@ -2179,7 +2067,6 @@ a:hover {
     align-items: flex-start;
     gap: 10px;
     max-width: 100%;
-    overflow: hidden;
 }
 
 @keyframes notificationSlideIn {
@@ -2218,28 +2105,20 @@ a:hover {
 .notification-content {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
 }
 
 .notification-title {
     font-weight: 600;
     margin-bottom: 3px;
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .notification-message {
-    font-size: 0.8rem;
+    font-size: clamp(0.75rem, 1.8vw, 0.8rem);
     color: var(--text-secondary);
     line-height: 1.4;
     word-break: break-word;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
 }
 
 .notification-close {
@@ -2276,7 +2155,6 @@ a:hover {
     text-align: center;
     max-width: 90%;
     padding: 16px;
-    overflow: hidden;
 }
 
 .preloader-spinner {
@@ -2284,19 +2162,15 @@ a:hover {
 }
 
 .preloader-text h3 {
-    font-size: 1.25rem;
+    font-size: clamp(1.1rem, 3vw, 1.25rem);
     margin-bottom: 6px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .preloader-text p {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: clamp(0.8rem, 2vw, 0.9rem);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 /* ===== SCROLLBAR ===== */
@@ -2323,53 +2197,6 @@ a:hover {
 
 /* Планшеты и небольшие ноутбуки */
 @media (min-width: 768px) {
-    html {
-        font-size: 17px;
-    }
-    
-    .container {
-        padding: 0 20px;
-    }
-    
-    .main-header {
-        padding: 18px 20px;
-    }
-    
-    .main-content {
-        padding: 24px 20px;
-    }
-    
-    .nav-container {
-        padding: 10px 20px;
-        gap: 4px;
-    }
-    
-    .logo-title {
-        font-size: 1.5rem;
-    }
-    
-    .logo-icon {
-        width: 44px;
-        height: 44px;
-        font-size: 1.5rem;
-    }
-    
-    .nav-item {
-        min-width: 80px;
-        max-width: 100px;
-        font-size: 0.8rem;
-        padding: 10px 6px;
-    }
-    
-    .nav-item i {
-        font-size: 1.25rem;
-    }
-    
-    .search-container {
-        flex-direction: row;
-        align-items: center;
-    }
-    
     .wifi-container {
         grid-template-columns: 1fr 1fr;
     }
@@ -2394,18 +2221,6 @@ a:hover {
         grid-template-columns: 1fr 1fr;
     }
     
-    .emergency-list {
-        gap: 14px;
-    }
-    
-    .emergency-item {
-        padding: 20px;
-    }
-    
-    .admin-tabs {
-        justify-content: center;
-    }
-    
     .admin-stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -2413,64 +2228,10 @@ a:hover {
     .settings-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-    
-    .modal {
-        width: 550px;
-    }
 }
 
 /* Ноутбуки и десктопы */
 @media (min-width: 1024px) {
-    html {
-        font-size: 18px;
-    }
-    
-    .container {
-        padding: 0 24px;
-        max-width: 1200px;
-    }
-    
-    .main-header {
-        padding: 20px 24px;
-    }
-    
-    .main-content {
-        padding: 28px 24px;
-    }
-    
-    .nav-container {
-        padding: 12px 24px;
-        justify-content: center;
-        gap: 6px;
-    }
-    
-    .nav-item {
-        min-width: 100px;
-        max-width: 120px;
-        padding: 12px 8px;
-        font-size: 0.85rem;
-    }
-    
-    .nav-item i {
-        font-size: 1.5rem;
-    }
-    
-    .logo-title {
-        font-size: 1.75rem;
-    }
-    
-    .logo-subtitle {
-        font-size: 0.85rem;
-    }
-    
-    .section-header h2 {
-        font-size: 1.75rem;
-    }
-    
-    .section-header p {
-        font-size: 1rem;
-    }
-    
     .wifi-container {
         grid-template-columns: 1fr 1fr 1fr;
         gap: 24px;
@@ -2489,47 +2250,8 @@ a:hover {
         grid-template-columns: repeat(4, 1fr);
     }
     
-    .emergency-list {
-        gap: 16px;
-    }
-    
-    .modal {
-        width: 600px;
-    }
-    
-    .map-container {
-        height: 400px;
-    }
-    
     .settings-grid {
         grid-template-columns: repeat(3, 1fr);
-    }
-    
-    .user-name {
-        max-width: 150px;
-    }
-}
-
-/* Большие экраны */
-@media (min-width: 1440px) {
-    .container {
-        max-width: 1400px;
-    }
-    
-    .wifi-container {
-        gap: 32px;
-    }
-    
-    .card {
-        padding: 28px;
-    }
-    
-    .emergency-item {
-        padding: 24px;
-    }
-    
-    .modal {
-        width: 650px;
     }
 }
 
@@ -2539,104 +2261,6 @@ a:hover {
         font-size: 14px;
     }
     
-    .logo-title {
-        font-size: 1rem;
-    }
-    
-    .logo-subtitle {
-        font-size: 0.65rem;
-    }
-    
-    .logo-icon {
-        width: 36px;
-        height: 36px;
-        font-size: 1rem;
-    }
-    
-    .nav-item {
-        min-width: 55px;
-        max-width: 65px;
-        padding: 6px 3px;
-        font-size: 0.65rem;
-    }
-    
-    .nav-item i {
-        font-size: 0.9rem;
-    }
-    
-    .btn {
-        padding: 10px 16px;
-        font-size: 0.8rem;
-        min-height: 40px;
-    }
-    
-    .btn-call-large {
-        padding: 8px 12px;
-        font-size: 0.8rem;
-        min-width: 80px;
-    }
-    
-    .btn-call-large span {
-        font-size: 0.75rem;
-    }
-    
-    .graffiti-map-btn {
-        min-width: 70px;
-        height: 40px;
-        font-size: 0.8rem;
-    }
-    
-    .form-input,
-    .form-select,
-    .form-textarea {
-        padding: 10px 12px;
-        font-size: 0.9rem;
-    }
-    
-    .emergency-item {
-        padding: 12px;
-        gap: 8px;
-    }
-    
-    .emergency-icon {
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
-        font-size: 1rem;
-    }
-    
-    .emergency-number {
-        font-size: 1.1rem;
-    }
-    
-    .emergency-desc {
-        font-size: 0.7rem;
-    }
-    
-    .contact-item {
-        padding: 12px;
-        gap: 8px;
-    }
-    
-    .contact-icon {
-        width: 36px;
-        height: 36px;
-        min-width: 36px;
-        font-size: 0.9rem;
-    }
-    
-    .contact-number {
-        font-size: 1rem;
-    }
-    
-    .admin-stat-card {
-        padding: 16px;
-    }
-    
-    .admin-stat-card .stat-number {
-        font-size: 1.75rem;
-    }
-    
     .filter-tag {
         padding: 5px 10px;
         font-size: 0.7rem;
@@ -2644,21 +2268,6 @@ a:hover {
     
     .user-name {
         max-width: 80px;
-        font-size: 0.8rem;
-    }
-    
-    .theme-toggle-small {
-        width: 36px;
-        height: 36px;
-        margin-left: 8px;
-    }
-    
-    .section-header h2 {
-        font-size: 1.1rem;
-    }
-    
-    .section-header p {
-        font-size: 0.75rem;
     }
 }
 
@@ -2673,14 +2282,6 @@ a:hover {
         width: 32px;
         height: 32px;
         font-size: 1rem;
-    }
-    
-    .logo-title {
-        font-size: 1.1rem;
-    }
-    
-    .logo-subtitle {
-        font-size: 0.65rem;
     }
     
     .nav-container {
@@ -2698,10 +2299,6 @@ a:hover {
     
     .section-header {
         margin-bottom: 16px;
-    }
-    
-    .section-header h2 {
-        font-size: 1.25rem;
     }
     
     .card {
@@ -2777,20 +2374,6 @@ a:hover {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
-    }
-    
-    .card:hover,
-    .emergency-item:hover,
-    .wifi-result-item:hover {
-        transform: none;
-    }
-    
-    .theme-toggle-small:hover {
-        transform: none;
-    }
-    
-    .theme-toggle-small:hover i {
-        transform: none;
     }
 }
 
