@@ -101,6 +101,30 @@ class SafeSevastopol {
             .app-container {
                 overflow-x: hidden;
             }
+            h1, h2, h3, h4, h5, h6, p, span, div {
+                overflow-wrap: break-word;
+                word-wrap: break-word;
+                hyphens: auto;
+            }
+            .logo-title, .logo-subtitle, .section-header h2, .section-header p {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+            }
+            @media (max-width: 480px) {
+                .logo-title {
+                    font-size: 1.1rem !important;
+                }
+                .logo-subtitle {
+                    font-size: 0.7rem !important;
+                }
+                .section-header h2 {
+                    font-size: 1.2rem !important;
+                }
+                .section-header p {
+                    font-size: 0.8rem !important;
+                }
+            }
         `;
         document.head.appendChild(style);
     }
@@ -140,11 +164,6 @@ class SafeSevastopol {
             });
         });
 
-        // Избранное - УБРАНО
-        // document.getElementById('toggleFavorite')?.addEventListener('click', () => {
-        //     this.toggleCurrentFavorite();
-        // });
-
         // Форма безопасности
         document.getElementById('nextStep')?.addEventListener('click', () => {
             this.nextSecurityStep();
@@ -156,6 +175,11 @@ class SafeSevastopol {
         
         document.getElementById('submitSecurityReport')?.addEventListener('click', () => {
             this.submitSecurityReport();
+        });
+
+        // Получение телефона из MAX для безопасности
+        document.getElementById('requestPhoneFromMax')?.addEventListener('click', () => {
+            this.requestPhoneFromMax();
         });
 
         // Геолокация для безопасности
@@ -251,19 +275,6 @@ class SafeSevastopol {
         document.getElementById('confirmLocation')?.addEventListener('click', () => {
             this.confirmLocation();
         });
-        
-        document.getElementById('closeConfirmModal')?.addEventListener('click', () => {
-            this.closeConfirmModal();
-        });
-        
-        document.getElementById('cancelConfirmLocation')?.addEventListener('click', () => {
-            this.closeConfirmModal();
-            this.openLocationPicker(this.locationContext);
-        });
-        
-        document.getElementById('acceptLocation')?.addEventListener('click', () => {
-            this.acceptLocation();
-        });
 
         // Очистка поиска
         document.getElementById('clearSearch')?.addEventListener('click', () => {
@@ -283,19 +294,31 @@ class SafeSevastopol {
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
         
         document.documentElement.setAttribute('data-theme', newTheme);
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', newTheme === 'dark' ? '#0c0c0e' : '#ffffff');
+        const themeColor = newTheme === 'dark' ? '#0c0c0e' : '#ffffff';
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', themeColor);
         
         // Сохраняем в localStorage
         localStorage.setItem('theme', newTheme);
         
-        // Обновляем иконки
+        // Обновляем иконки с анимацией
         const themeIcons = document.querySelectorAll('[data-theme-icon]');
         themeIcons.forEach(icon => {
-            icon.style.display = icon.dataset.themeIcon === newTheme ? 'none' : 'inline-block';
+            if (icon.dataset.themeIcon === newTheme) {
+                icon.style.display = 'none';
+            } else {
+                icon.style.display = 'inline-block';
+            }
         });
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
+        
+        // Плавная анимация вращения кнопки
+        const themeToggle = document.getElementById('themeToggleSmall');
+        themeToggle.style.transform = 'rotate(180deg)';
+        setTimeout(() => {
+            themeToggle.style.transform = '';
+        }, 300);
     }
 
     async loadUserData() {
@@ -321,6 +344,19 @@ class SafeSevastopol {
                     this.startParam = this.maxBridge.initDataUnsafe.start_param;
                     this.handleStartParam(this.startParam);
                 }
+                
+                // Заполняем имя в форме безопасности
+                const securityNameInput = document.getElementById('securityName');
+                if (securityNameInput && userData.first_name) {
+                    securityNameInput.value = userData.first_name;
+                    this.securityReport.data.name = userData.first_name;
+                }
+                
+                // Показываем имя из MAX
+                const maxUserNameSpan = document.getElementById('maxUserName');
+                if (maxUserNameSpan) {
+                    maxUserNameSpan.textContent = userData.first_name;
+                }
             }
             
             // Если нет данных из Bridge - используем демо-режим
@@ -333,6 +369,11 @@ class SafeSevastopol {
                     language_code: 'ru'
                 };
                 console.log('⚠️ Используем демо-режим');
+                
+                const maxUserNameSpan = document.getElementById('maxUserName');
+                if (maxUserNameSpan) {
+                    maxUserNameSpan.textContent = 'Демо';
+                }
             }
             
             this.currentUser = userData;
@@ -365,6 +406,53 @@ class SafeSevastopol {
                 userNameElement.textContent = 'Гость';
             }
         }
+    }
+
+    async requestPhoneFromMax() {
+        try {
+            if (!this.maxBridge?.requestContact) {
+                this.showNotification('Функция запроса телефона не доступна в демо-режиме', 'warning');
+                return;
+            }
+            
+            this.showNotification('Запрашиваем номер телефона...', 'info');
+            
+            const phone = await this.maxBridge.requestContact();
+            
+            if (phone) {
+                const phoneInput = document.getElementById('securityPhone');
+                if (phoneInput) {
+                    // Форматируем номер телефона
+                    const formattedPhone = this.formatPhoneNumber(phone);
+                    phoneInput.value = formattedPhone;
+                    this.securityReport.data.phone = phone;
+                    
+                    this.showNotification('Номер телефона получен из MAX', 'success');
+                    this.hapticFeedback('success');
+                }
+            } else {
+                this.showNotification('Не удалось получить номер телефона', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Ошибка запроса телефона:', error);
+            this.showNotification('Ошибка запроса телефона. Введите номер вручную.', 'error');
+        }
+    }
+
+    formatPhoneNumber(phone) {
+        // Убираем все нецифровые символы
+        const cleaned = phone.replace(/\D/g, '');
+        
+        // Форматируем российский номер
+        if (cleaned.length === 11 && (cleaned.startsWith('7') || cleaned.startsWith('8'))) {
+            const match = cleaned.match(/^(\d)(\d{3})(\d{3})(\d{2})(\d{2})$/);
+            if (match) {
+                return `+${match[1]} (${match[2]}) ${match[3]}-${match[4]}-${match[5]}`;
+            }
+        }
+        
+        // Возвращаем исходный номер если не удалось отформатировать
+        return phone;
     }
 
     handleStartParam(param) {
@@ -593,38 +681,6 @@ class SafeSevastopol {
             // Предлагаем выбрать на карте
             this.openLocationPicker('wifi_search');
         }
-    }
-
-    acceptLocation() {
-        if (!this.currentLocation) return;
-        
-        // Закрываем модалку подтверждения
-        this.closeConfirmModal();
-        
-        // Тактильная обратная связь
-        this.hapticFeedback('success');
-        
-        // Поиск ближайших точек
-        const nearestPoints = this.findNearestPoints(
-            this.currentLocation.coords.latitude, 
-            this.currentLocation.coords.longitude
-        );
-        
-        this.displayWifiPoints(nearestPoints);
-        
-        this.showNotification(`Найдено ${nearestPoints.length} точек поблизости`, 'success');
-    }
-
-    closeConfirmModal() {
-        const modal = document.getElementById('confirmLocationModal');
-        const overlay = document.getElementById('modalOverlay');
-        
-        if (modal) modal.style.display = 'none';
-        if (overlay) overlay.style.display = 'none';
-        
-        // Очищаем карту
-        this.confirmMap = null;
-        this.confirmMarker = null;
     }
 
     findNearestPoints(userLat, userLon, limit = 20) {
@@ -962,16 +1018,23 @@ class SafeSevastopol {
         if (nextBtn) nextBtn.style.display = 'flex';
         if (submitBtn) submitBtn.style.display = 'none';
         
-        // Очистка полей
+        // Очистка полей (кроме имени из MAX)
         const nameInput = document.getElementById('securityName');
         const phoneInput = document.getElementById('securityPhone');
+        const emailInput = document.getElementById('securityEmail');
         const addressInput = document.getElementById('manualAddress');
         const categorySelect = document.getElementById('securityCategory');
         const descInput = document.getElementById('securityDescription');
         const charCount = document.getElementById('charCount');
         
-        if (nameInput) nameInput.value = '';
+        // Сохраняем имя из MAX если оно есть
+        if (nameInput && !nameInput.value && this.currentUser?.first_name) {
+            nameInput.value = this.currentUser.first_name;
+            this.securityReport.data.name = this.currentUser.first_name;
+        }
+        
         if (phoneInput) phoneInput.value = '';
+        if (emailInput) emailInput.value = '';
         if (addressInput) addressInput.value = '';
         if (categorySelect) categorySelect.selectedIndex = 0;
         if (descInput) descInput.value = '';
@@ -1016,9 +1079,15 @@ class SafeSevastopol {
             case 1:
                 const name = document.getElementById('securityName')?.value.trim();
                 const phone = document.getElementById('securityPhone')?.value.trim();
+                const email = document.getElementById('securityEmail')?.value.trim();
                 
                 if (!name) {
                     this.showNotification('Введите ваше имя', 'error');
+                    return false;
+                }
+                
+                if (!phone) {
+                    this.showNotification('Введите номер телефона', 'error');
                     return false;
                 }
                 
@@ -1027,8 +1096,14 @@ class SafeSevastopol {
                     return false;
                 }
                 
+                if (email && !this.validateEmail(email)) {
+                    this.showNotification('Введите корректный email', 'error');
+                    return false;
+                }
+                
                 this.securityReport.data.name = name;
                 this.securityReport.data.phone = phone;
+                if (email) this.securityReport.data.email = email;
                 break;
                 
             case 2:
@@ -1065,6 +1140,11 @@ class SafeSevastopol {
         const cleanPhone = phone.replace(/\s|-|\(|\)/g, '');
         const russianRegex = /^(\+7|7|8)?[489][0-9]{9}$/;
         return russianRegex.test(cleanPhone);
+    }
+
+    validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
     }
 
     updateSecurityStepper() {
@@ -1104,6 +1184,7 @@ class SafeSevastopol {
         // Обновление данных формы
         const nameInput = document.getElementById('securityName');
         const phoneInput = document.getElementById('securityPhone');
+        const emailInput = document.getElementById('securityEmail');
         const addressInput = document.getElementById('manualAddress');
         
         if (nameInput && this.securityReport.data.name) {
@@ -1112,6 +1193,10 @@ class SafeSevastopol {
         
         if (phoneInput && this.securityReport.data.phone) {
             phoneInput.value = this.securityReport.data.phone;
+        }
+        
+        if (emailInput && this.securityReport.data.email) {
+            emailInput.value = this.securityReport.data.email;
         }
         
         if (addressInput && this.securityReport.data.address) {
@@ -1129,6 +1214,11 @@ class SafeSevastopol {
                 lon: position.coords.longitude
             };
             this.securityReport.data.address = `Геолокация: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
+            
+            const addressInput = document.getElementById('manualAddress');
+            if (addressInput) {
+                addressInput.value = `Геолокация: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
+            }
             
             // Тактильная обратная связь
             this.hapticFeedback('success');
@@ -1518,6 +1608,7 @@ class SafeSevastopol {
                     <h3 style="color: #333;">Информация о пользователе</h3>
                     <p><strong>Пользователь:</strong> ${data.userName} (${data.userId})</p>
                     ${data.phone ? `<p><strong>Телефон:</strong> ${data.phone}</p>` : ''}
+                    ${data.email ? `<p><strong>Email:</strong> ${data.email}</p>` : ''}
                 </div>
                 
                 <div style="margin: 20px 0;">
@@ -1687,14 +1778,6 @@ class SafeSevastopol {
                     this.nextSecurityStep();
                 }
             } else if (this.locationContext === 'wifi_search') {
-                this.currentLocation = {
-                    coords: {
-                        latitude: this.selectedLocation.lat,
-                        longitude: this.selectedLocation.lon,
-                        accuracy: 50
-                    }
-                };
-                
                 // Поиск ближайших точек
                 const nearestPoints = this.findNearestPoints(
                     this.selectedLocation.lat, 
@@ -1824,6 +1907,19 @@ class SafeSevastopol {
                 const value = e.target.value;
                 const isValid = this.validatePhone(value);
                 e.target.style.borderColor = isValid ? 'var(--success-color)' : 'var(--danger-color)';
+            });
+        }
+        
+        const emailInput = document.getElementById('securityEmail');
+        if (emailInput) {
+            emailInput.addEventListener('input', (e) => {
+                const value = e.target.value;
+                if (value) {
+                    const isValid = this.validateEmail(value);
+                    e.target.style.borderColor = isValid ? 'var(--success-color)' : 'var(--danger-color)';
+                } else {
+                    e.target.style.borderColor = '';
+                }
             });
         }
     }
@@ -2054,7 +2150,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Глобальные методы для вызова из HTML
 window.appMethods = {
-    toggleFavorite: (pointId, event) => window.app?.toggleFavorite(pointId, event),
     showOnMap: (pointId, event) => window.app?.showOnMap(pointId, event),
     reportWifiProblem: (pointId, event) => window.app?.reportWifiProblem(pointId, event),
     openInMaps: (pointId) => window.app?.openInMaps(pointId),
