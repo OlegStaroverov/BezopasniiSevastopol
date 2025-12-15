@@ -168,7 +168,7 @@
                         </div>
                         <button class="theme-toggle-small" id="themeToggleSmall" aria-label="Переключить тему">
                             <i class="fas fa-moon" data-theme-icon="dark"></i>
-                            <i class="fas fa-sun" data-theme-icon="light" style="display: none;"></i>
+                            <i class="fas fa-sun" data-theme-icon="light"></i>
                         </button>
                     </div>
                 </div>
@@ -370,7 +370,7 @@
                 </div>
             </section>
 
-            <!-- Секция: Безопасность -->
+            <!-- Секция: Безопасность (ПОЛНОСТЬЮ ПЕРЕПИСАНА) -->
             <section id="security-section" class="content-section">
                 <div class="section-header">
                     <h2><i class="fas fa-shield-alt"></i> Сообщить о подозрительных объектах</h2>
@@ -399,28 +399,22 @@
                             </div>
                         </div>
 
-                        <!-- Шаг 1: Контакты -->
+                        <!-- Шаг 1: Контакты (ИСПРАВЛЕННЫЙ) -->
                         <div class="form-step active" data-step="1">
                             <h3>Ваши контактные данные</h3>
                             <p>Укажите информацию для связи с вами</p>
                             
                             <div class="form-group">
                                 <label for="securityName">Ваше имя:</label>
-                                <div class="phone-input-group">
+                                <div class="name-input-group">
                                     <input type="text" id="securityName" class="form-input" 
                                            placeholder="Введите ваше имя" required>
-                                    <button class="btn-secondary" id="requestNameFromMax">
+                                    <button class="btn-secondary" id="requestNameFromMax" type="button">
                                         <i class="fas fa-user-check"></i>
-                                        <span>Взять из MAX</span>
+                                        <span>Из MAX</span>
                                     </button>
                                 </div>
                                 <div class="form-hint">Имя из MAX: <span id="maxUserName"></span></div>
-                                <div class="form-checkbox">
-                                    <input type="checkbox" id="confirmName" class="form-checkbox-input">
-                                    <label for="confirmName" class="form-checkbox-label">
-                                        Подтверждаю использование моего имени из MAX
-                                    </label>
-                                </div>
                             </div>
                             
                             <div class="form-group">
@@ -428,18 +422,12 @@
                                 <div class="phone-input-group">
                                     <input type="tel" id="securityPhone" class="form-input" 
                                            placeholder="+7 (XXX) XXX-XX-XX" required>
-                                    <button class="btn-secondary" id="requestPhoneFromMax">
+                                    <button class="btn-secondary" id="requestPhoneFromMax" type="button">
                                         <i class="fas fa-mobile-alt"></i>
-                                        <span>Взять из MAX</span>
+                                        <span>Из MAX</span>
                                     </button>
                                 </div>
                                 <div class="form-hint">Номер телефона нужен для уточнения деталей</div>
-                                <div class="form-checkbox">
-                                    <input type="checkbox" id="confirmPhone" class="form-checkbox-input">
-                                    <label for="confirmPhone" class="form-checkbox-label">
-                                        Подтверждаю использование моего телефона из MAX
-                                    </label>
-                                </div>
                             </div>
                             
                             <div class="form-group">
@@ -1038,24 +1026,20 @@
                 // Сохраняем в localStorage
                 localStorage.setItem('theme', theme);
                 
-                // Плавное переключение иконок
+                // Обновляем иконки плавно
                 themeIcons.forEach(icon => {
                     if (icon.dataset.themeIcon === theme) {
-                        icon.style.transition = 'opacity 0.3s ease';
-                        icon.style.opacity = '0';
-                        setTimeout(() => {
-                            icon.style.display = 'none';
-                            icon.style.opacity = '1';
-                        }, 300);
+                        icon.style.display = 'none';
                     } else {
                         icon.style.display = 'inline-block';
-                        icon.style.transition = 'opacity 0.3s ease';
-                        icon.style.opacity = '0';
-                        setTimeout(() => {
-                            icon.style.opacity = '1';
-                        }, 50);
                     }
                 });
+                
+                // Плавная анимация вращения
+                themeToggle.style.transform = 'rotate(180deg)';
+                setTimeout(() => {
+                    themeToggle.style.transform = '';
+                }, 300);
             }
             
             themeToggle.addEventListener('click', (e) => {
@@ -1084,8 +1068,7 @@
                 const elements = document.querySelectorAll('h1, h2, h3, p, .logo-title, .logo-subtitle, .emergency-info h4, .emergency-number, .emergency-desc');
                 elements.forEach(el => {
                     if (el.scrollWidth > el.clientWidth) {
-                        const currentSize = parseFloat(window.getComputedStyle(el).fontSize);
-                        el.style.fontSize = (currentSize - 1) + 'px';
+                        el.style.fontSize = 'calc(1em - 1px)';
                     }
                 });
             };
@@ -1100,59 +1083,102 @@
                 container.style.overflowX = 'hidden';
             });
             
-            // Добавляем стиль для группы ввода телефона
+            // Добавляем стиль для группы ввода телефона и имени
             const style = document.createElement('style');
             style.textContent = `
+                .name-input-group,
                 .phone-input-group {
                     display: flex;
                     gap: 8px;
                     align-items: center;
-                    width: 100%;
                 }
+                .name-input-group .form-input,
                 .phone-input-group .form-input {
+                    flex: 1;
+                }
+                .name-input-group .btn-secondary,
+                .phone-input-group .btn-secondary {
+                    min-width: 100px;
+                    flex-shrink: 0;
+                }
+                @media (max-width: 480px) {
+                    .name-input-group,
+                    .phone-input-group {
+                        flex-direction: column;
+                        align-items: stretch;
+                    }
+                    .name-input-group .btn-secondary,
+                    .phone-input-group .btn-secondary {
+                        width: 100%;
+                    }
+                }
+                
+                /* Фиксируем структуру карточек контактов */
+                .emergency-item {
+                    min-height: 80px;
+                }
+                .emergency-icon {
+                    width: 48px;
+                    height: 48px;
+                    min-width: 48px;
+                    flex-shrink: 0;
+                }
+                .emergency-info {
                     flex: 1;
                     min-width: 0;
                 }
-                .phone-input-group .btn-secondary {
-                    flex-shrink: 0;
-                    min-width: 120px;
+                .emergency-info h4 {
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
                 }
-                .form-checkbox {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    margin-top: 8px;
+                .emergency-number {
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                    line-height: 1.2;
                 }
-                .form-checkbox-input {
-                    width: 18px;
-                    height: 18px;
-                    flex-shrink: 0;
-                }
-                .form-checkbox-label {
-                    font-size: 0.85rem;
-                    color: var(--text-secondary);
-                    white-space: normal;
+                .emergency-desc {
+                    font-size: 0.75rem;
                     line-height: 1.3;
                 }
-                @media (max-width: 480px) {
-                    .phone-input-group {
-                        flex-direction: column;
-                        align-items: stretch;
-                        gap: 8px;
-                    }
-                    .phone-input-group .btn-secondary {
-                        width: 100%;
-                        min-width: 0;
-                    }
-                    .form-checkbox-label {
-                        font-size: 0.8rem;
-                    }
+                
+                /* Фиксируем заголовки */
+                h1, h2, h3, h4, h5, h6 {
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    max-width: 100%;
+                }
+                
+                /* Фиксируем навигацию */
+                .nav-container {
+                    justify-content: space-between;
+                }
+                .nav-item {
+                    min-width: 60px;
+                    max-width: 80px;
+                    flex: 1;
+                }
+                
+                /* Фиксируем фильтры Wi-Fi */
+                .filters-container {
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .filter-tags {
+                    flex-wrap: nowrap;
+                }
+                .filter-tag {
+                    flex-shrink: 0;
                 }
             `;
             document.head.appendChild(style);
+            
+            // Инициализация приложения MAX
+            if (window.WebApp && window.WebApp.ready) {
+                window.WebApp.ready();
+                console.log('✅ MAX Bridge инициализирован');
+            }
         });
     </script>
 </body>
