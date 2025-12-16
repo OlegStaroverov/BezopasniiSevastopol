@@ -1,7 +1,7 @@
 {
   "name": "Безопасный Севастополь",
   "short_name": "SafeSevastopol",
-  "description": "Wi-Fi, безопасность, граффити",
+  "description": "Wi-Fi, безопасность, граффит",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
