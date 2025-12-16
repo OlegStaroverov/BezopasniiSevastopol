@@ -1,43 +1,3 @@
-// Данные и конфигурация Sevastopol Hub - Оптимизированная версия
-(function() {
-    'use strict';
-    
-    // Конфигурация приложения
-    const AppConfig = {
-        name: "Безопасный Севастополь",
-        version: "2.0.0",
-        city: "Севастополь",
-        coordinates: { lat: 44.6166, lon: 33.5254 },
-        features: {
-            wifi: true,
-            security: true,
-            graffiti: true,
-            admin: true,
-            offline: true,
-            pwa: true
-        },
-        limits: {
-            maxMediaFiles: 5,
-            maxFileSize: 10 * 1024 * 1024,
-            maxGraffitiPhotos: 3,
-            descriptionMinLength: 10,
-            searchDebounce: 300,
-            cacheDuration: 24 * 60 * 60 * 1000 // 24 часа
-        },
-        urls: {
-            yandexMaps: "https://yandex.ru/maps/",
-            cityWebsite: "https://sev.gov.ru",
-            feedback: "https://forms.yandex.ru/feedback",
-            api: "https://api.sevastopol-hub.ru/v1"
-        },
-        performance: {
-            lazyLoadImages: true,
-            virtualScroll: true,
-            imageCompression: true,
-            maxImageWidth: 1024
-        }
-    };
-
 // Данные и конфигурация Sevastopol Hub
 window.ADMIN_USER_IDS = ['13897373', '90334880', '555666777'];
 
@@ -1932,453 +1892,134 @@ window.wifiPoints = [
   }
 ];
 
-// Индекс для быстрого поиска
-    const wifiSearchIndex = (function() {
-        const index = {
-            byId: new Map(),
-            byType: new Map(),
-            byTag: new Map(),
-            nameWords: new Map(),
-            addressWords: new Map()
-        };
-        
-        // Построение индекса
-        wifiPoints.forEach(point => {
-            // По ID
-            index.byId.set(point.id, point);
-            
-            // По типу
-            if (!index.byType.has(point.type)) {
-                index.byType.set(point.type, []);
-            }
-            index.byType.get(point.type).push(point);
-            
-            // По тегам
-            if (point.tags) {
-                point.tags.forEach(tag => {
-                    if (!index.byTag.has(tag)) {
-                        index.byTag.set(tag, []);
-                    }
-                    index.byTag.get(tag).push(point);
-                });
-            }
-            
-            // Индекс по словам в названии
-            const nameWords = point.name.toLowerCase().split(/[\s,.!?]+/);
-            nameWords.forEach(word => {
-                if (!index.nameWords.has(word)) {
-                    index.nameWords.set(word, []);
-                }
-                index.nameWords.get(word).push(point);
-            });
-            
-            // Индекс по словам в адресе
-            const addressWords = point.address.toLowerCase().split(/[\s,.!?]+/);
-            addressWords.forEach(word => {
-                if (!index.addressWords.has(word)) {
-                    index.addressWords.set(word, []);
-                }
-                index.addressWords.get(word).push(point);
-            });
-        });
-        
-        return {
-            search: function(query) {
-                const searchTerm = query.toLowerCase().trim();
-                if (!searchTerm) return wifiPoints;
-                
-                const results = new Set();
-                
-                // Поиск по ID
-                if (!isNaN(searchTerm)) {
-                    const point = index.byId.get(parseInt(searchTerm));
-                    if (point) results.add(point);
-                }
-                
-                // Поиск по словам в названии
-                const nameWords = searchTerm.split(/\s+/);
-                nameWords.forEach(word => {
-                    const points = index.nameWords.get(word);
-                    if (points) {
-                        points.forEach(point => results.add(point));
-                    }
-                });
-                
-                // Поиск по словам в адресе
-                const addressWords = searchTerm.split(/\s+/);
-                addressWords.forEach(word => {
-                    const points = index.addressWords.get(word);
-                    if (points) {
-                        points.forEach(point => results.add(point));
-                    }
-                });
-                
-                // Поиск по типу
-                const typePoints = index.byType.get(searchTerm);
-                if (typePoints) {
-                    typePoints.forEach(point => results.add(point));
-                }
-                
-                // Поиск по тегам
-                const tagPoints = index.byTag.get(searchTerm);
-                if (tagPoints) {
-                    tagPoints.forEach(point => results.add(point));
-                }
-                
-                return Array.from(results);
-            },
-            
-            filterByType: function(type) {
-                return index.byType.get(type) || [];
-            },
-            
-            filterByTag: function(tag) {
-                return index.byTag.get(tag) || [];
-            },
-            
-            getById: function(id) {
-                return index.byId.get(id);
-            }
-        };
-    })();
-    
-    // Кэш данных с TTL
-    const AppCache = {
-        data: new Map(),
-        timestamps: new Map(),
-        
-        set: function(key, value, ttl = AppConfig.limits.cacheDuration) {
-            this.data.set(key, value);
-            this.timestamps.set(key, Date.now() + ttl);
-            
-            // Автоочистка просроченных записей
-            this.cleanup();
-            
-            // Сохранение в persistent storage
-            this.persist(key, value);
-        },
-        
-        get: function(key) {
-            const timestamp = this.timestamps.get(key);
-            
-            // Проверка на просроченность
-            if (timestamp && Date.now() > timestamp) {
-                this.data.delete(key);
-                this.timestamps.delete(key);
-                return null;
-            }
-            
-            return this.data.get(key) || this.loadFromStorage(key);
-        },
-        
-        delete: function(key) {
-            this.data.delete(key);
-            this.timestamps.delete(key);
-            localStorage.removeItem(`cache_${key}`);
-        },
-        
-        cleanup: function() {
-            const now = Date.now();
-            for (const [key, timestamp] of this.timestamps.entries()) {
-                if (now > timestamp) {
-                    this.data.delete(key);
-                    this.timestamps.delete(key);
-                }
-            }
-        },
-        
-        persist: function(key, value) {
-            try {
-                localStorage.setItem(`cache_${key}`, JSON.stringify({
-                    data: value,
-                    timestamp: Date.now()
-                }));
-            } catch (error) {
-                console.warn('Cache persistence failed:', error);
-            }
-        },
-        
-        loadFromStorage: function(key) {
-            try {
-                const item = localStorage.getItem(`cache_${key}`);
-                if (!item) return null;
-                
-                const { data, timestamp } = JSON.parse(item);
-                
-                // Проверка TTL
-                if (Date.now() - timestamp > AppConfig.limits.cacheDuration) {
-                    localStorage.removeItem(`cache_${key}`);
-                    return null;
-                }
-                
-                // Сохраняем в памяти
-                this.set(key, data);
-                return data;
-            } catch (error) {
-                return null;
-            }
-        },
-        
-        clear: function() {
-            this.data.clear();
-            this.timestamps.clear();
-            
-            // Очистка localStorage
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('cache_')) {
-                    localStorage.removeItem(key);
-                }
-            });
-        }
-    };
-    
-    // Утилитарные функции с оптимизацией
-    const AppUtils = {
-        // Быстрое вычисление расстояния с кешированием
-        distanceCache: new Map(),
-        
-        calculateDistance: function(lat1, lon1, lat2, lon2) {
-            const cacheKey = `${lat1},${lon1},${lat2},${lon2}`;
-            
-            if (this.distanceCache.has(cacheKey)) {
-                return this.distanceCache.get(cacheKey);
-            }
-            
-            const R = 6371;
-            const dLat = this.deg2rad(lat2 - lat1);
-            const dLon = this.deg2rad(lon2 - lon1);
-            
-            const a = 
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-            
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            const distance = R * c;
-            
-            this.distanceCache.set(cacheKey, distance);
-            return distance;
-        },
-        
-        deg2rad: function(deg) {
-            return deg * (Math.PI/180);
-        },
-        
-        formatDistance: function(distance) {
-            if (distance < 1) {
-                return `${(distance * 1000).toFixed(0)} м`;
-            }
-            return `${distance.toFixed(2)} км`;
-        },
-        
-        // Оптимизированная валидация телефона
-        phoneRegex: /^(\+7|7|8)?[489][0-9]{9}$/,
-        
-        validatePhone: function(phone) {
-            if (!phone) return false;
-            const cleanPhone = phone.replace(/\s|-|\(|\)/g, '');
-            return this.phoneRegex.test(cleanPhone);
-        },
-        
-        // Оптимизированная валидация email
-        emailRegex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-        
-        validateEmail: function(email) {
-            return this.emailRegex.test(email);
-        },
-        
-        // Генерация ID с timestamp
-        generateReportId: function() {
-            const timestamp = Date.now().toString(36);
-            const random = Math.random().toString(36).substr(2, 9);
-            return `RPT-${timestamp}-${random.toUpperCase()}`;
-        },
-        
-        // Форматирование даты с кешированием
-        dateCache: new Map(),
-        
-        formatDate: function(date, format = 'datetime') {
-            const cacheKey = `${date.getTime()}_${format}`;
-            
-            if (this.dateCache.has(cacheKey)) {
-                return this.dateCache.get(cacheKey);
-            }
-            
-            let result;
-            
-            switch(format) {
-                case 'date':
-                    result = date.toLocaleDateString('ru-RU');
-                    break;
-                case 'time':
-                    result = date.toLocaleTimeString('ru-RU', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                    });
-                    break;
-                case 'datetime':
-                default:
-                    result = date.toLocaleString('ru-RU', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    break;
-            }
-            
-            this.dateCache.set(cacheKey, result);
-            return result;
-        },
-        
-        // Дебаунс функция
-        debounce: function(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        },
-        
-        // Троттлинг функция
-        throttle: function(func, limit) {
-            let inThrottle;
-            return function() {
-                const args = arguments;
-                const context = this;
-                if (!inThrottle) {
-                    func.apply(context, args);
-                    inThrottle = true;
-                    setTimeout(() => inThrottle = false, limit);
-                }
-            };
-        },
-        
-        // Оптимизированное сохранение в хранилище
-        async saveToStorage(key, value) {
-            try {
-                // Приоритет: SecureStorage -> DeviceStorage -> localStorage
-                if (window.WebApp?.SecureStorage) {
-                    await window.WebApp.SecureStorage.setItem(key, JSON.stringify(value));
-                } else if (window.WebApp?.DeviceStorage) {
-                    window.WebApp.DeviceStorage.setItem(key, JSON.stringify(value));
-                } else {
-                    localStorage.setItem(key, JSON.stringify(value));
-                }
-                return true;
-            } catch (error) {
-                console.error('Storage error:', error);
-                return false;
-            }
-        },
-        
-        // Оптимизированная загрузка из хранилища
-        async loadFromStorage(key) {
-            try {
-                let data;
-                
-                if (window.WebApp?.SecureStorage) {
-                    data = await window.WebApp.SecureStorage.getItem(key);
-                } else if (window.WebApp?.DeviceStorage) {
-                    data = window.WebApp.DeviceStorage.getItem(key);
-                } else {
-                    data = localStorage.getItem(key);
-                }
-                
-                return data ? JSON.parse(data) : null;
-            } catch (error) {
-                console.error('Storage load error:', error);
-                return null;
-            }
-        },
-        
-        // Сжатие изображений (Web Worker)
-        compressImage: function(file, maxWidth = AppConfig.performance.maxImageWidth) {
-            return new Promise((resolve, reject) => {
-                if (!file.type.startsWith('image/')) {
-                    resolve(file);
-                    return;
-                }
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const canvas = document.createElement('canvas');
-                        let width = img.width;
-                        let height = img.height;
-                        
-                        if (width > maxWidth) {
-                            height = (height * maxWidth) / width;
-                            width = maxWidth;
-                        }
-                        
-                        canvas.width = width;
-                        canvas.height = height;
-                        
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        
-                        canvas.toBlob((blob) => {
-                            const compressedFile = new File([blob], file.name, {
-                                type: 'image/jpeg',
-                                lastModified: Date.now()
-                            });
-                            resolve(compressedFile);
-                        }, 'image/jpeg', 0.7);
-                    };
-                    img.src = e.target.result;
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
-    };
-    
-    // Экспорт в глобальную область видимости
-    window.ADMIN_USER_IDS = ['13897373', '90334880', '555666777'];
-    window.wifiPoints = wifiPoints;
-    window.wifiSearchIndex = wifiSearchIndex;
-    window.AppConfig = AppConfig;
-    window.AppCache = AppCache;
-    window.AppUtils = AppUtils;
-    
-    // Инициализация кэша при загрузке
-    document.addEventListener('DOMContentLoaded', function() {
-        // Предзагрузка часто используемых данных
-        const preloadData = [
-            'user_settings',
-            'favorite_points',
-            'recent_searches'
-        ];
-        
-        preloadData.forEach(key => {
-            AppCache.get(key);
-        });
-        
-        // Очистка старого кэша при запуске
-        const currentVersion = localStorage.getItem('app_version');
-        if (currentVersion !== AppConfig.version) {
-            AppCache.clear();
-            localStorage.setItem('app_version', AppConfig.version);
-        }
-    });
-    
-    // Service Worker регистрация
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(registration => {
-                    console.log('ServiceWorker registered:', registration);
-                })
-                .catch(error => {
-                    console.log('ServiceWorker registration failed:', error);
-                });
-        });
+// Конфигурация приложения
+window.AppConfig = {
+    name: "Безопасный Севастополь",
+    version: "1.0.0",
+    city: "Севастополь",
+    coordinates: { lat: 44.6166, lon: 33.5254 },
+    features: {
+        wifi: true,
+        security: true,
+        graffiti: true,
+        admin: true
+    },
+    limits: {
+        maxMediaFiles: 5,
+        maxFileSize: 10 * 1024 * 1024, // 10MB
+        maxGraffitiPhotos: 3,
+        descriptionMinLength: 10
+    },
+    urls: {
+        yandexMaps: "https://yandex.ru/maps/",
+        cityWebsite: "https://sev.gov.ru",
+        feedback: "https://forms.yandex.ru/feedback"
     }
-})();
+};
+
+// Кэш данных
+window.AppCache = {
+    userLocation: null,
+    settings: {}
+};
+
+// Инициализация кэша
+function initCache() {
+    try {
+        // Проверяем наличие MAX Bridge SecureStorage
+        if (window.WebApp && window.WebApp.SecureStorage) {
+            window.WebApp.SecureStorage.getItem('appSettings').then(settings => {
+                if (settings) {
+                    window.AppCache.settings = JSON.parse(settings);
+                }
+            });
+        } else {
+            // Fallback на localStorage
+            const savedSettings = localStorage.getItem('appSettings');
+            if (savedSettings) {
+                window.AppCache.settings = JSON.parse(savedSettings);
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка инициализации кэша:', error);
+    }
+}
+
+// Утилитарные функции
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Радиус Земли в км
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function formatDistance(distance) {
+    if (distance < 1) {
+        return `${(distance * 1000).toFixed(0)} м`;
+    }
+    return `${distance.toFixed(2)} км`;
+}
+
+function getCurrentTimestamp() {
+    return new Date().toISOString();
+}
+
+function validatePhone(phone) {
+    if (!phone) return false;
+    const cleanPhone = phone.replace(/\s|-|\(|\)/g, '');
+    const russianRegex = /^(\+7|7|8)?[489][0-9]{9}$/;
+    return russianRegex.test(cleanPhone);
+}
+
+function generateReportId() {
+    return `RPT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+}
+
+// Сохранение в MAX SecureStorage или localStorage
+async function saveToStorage(key, value) {
+    try {
+        if (window.WebApp && window.WebApp.SecureStorage) {
+            await window.WebApp.SecureStorage.setItem(key, JSON.stringify(value));
+        } else {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+        return true;
+    } catch (error) {
+        console.error('Ошибка сохранения:', error);
+        return false;
+    }
+}
+
+// Загрузка из MAX SecureStorage или localStorage
+async function loadFromStorage(key) {
+    try {
+        if (window.WebApp && window.WebApp.SecureStorage) {
+            const data = await window.WebApp.SecureStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        } else {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки:', error);
+        return null;
+    }
+}
+
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', initCache);
+
+// Экспорт функций для использования в app.js
+window.AppUtils = {
+    calculateDistance,
+    formatDistance,
+    getCurrentTimestamp,
+    validatePhone,
+    generateReportId,
+    saveToStorage,
+    loadFromStorage
+};
