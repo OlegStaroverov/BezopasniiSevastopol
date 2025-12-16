@@ -22,12 +22,20 @@ class SafeSevastopol {
         this.selectedLocation = null;
         this.locationContext = null;
         
+        // Анимации
+        this.animations = {
+            enabled: !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        };
+        
         // Инициализация
         this.init();
     }
 
     async init() {
         console.log('🚀 Инициализация Безопасный Севастополь');
+        
+        // Показываем полосу загрузки
+        this.showLoadingBar();
         
         // Сначала сообщаем MAX, что приложение готово
         if (this.maxBridge) {
@@ -64,12 +72,36 @@ class SafeSevastopol {
         // Инициализация темы
         this.initTheme();
         
-        // Показываем приветственное уведомление
+        // Скрываем полосу загрузки
+        this.hideLoadingBar();
+        
+        // Показываем приветственное уведомление с анимацией
         setTimeout(() => {
             this.showNotification('Добро пожаловать в Безопасный Севастополь!', 'success');
-        }, 1000);
+        }, 500);
         
         console.log('✅ Приложение инициализировано');
+    }
+
+    showLoadingBar() {
+        const loadingBar = document.getElementById('loadingBar');
+        if (loadingBar) {
+            loadingBar.style.display = 'block';
+            loadingBar.style.animation = 'loading-bar-animation 2s ease-in-out infinite';
+        }
+    }
+
+    hideLoadingBar() {
+        const loadingBar = document.getElementById('loadingBar');
+        if (loadingBar) {
+            setTimeout(() => {
+                loadingBar.style.opacity = '0';
+                setTimeout(() => {
+                    loadingBar.style.display = 'none';
+                    loadingBar.style.opacity = '1';
+                }, 300);
+            }, 500);
+        }
     }
 
     setupResponsive() {
@@ -84,16 +116,18 @@ class SafeSevastopol {
         window.addEventListener('resize', setVh);
         window.addEventListener('orientationchange', setVh);
         
-        document.addEventListener('wheel', (e) => {
-            if (e.deltaX !== 0) {
-                e.preventDefault();
-            }
+        // Предотвращаем горизонтальный скролл на iOS
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 1) e.preventDefault();
         }, { passive: false });
         
+        // Оптимизация для iOS
         if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
             document.body.style.overscrollBehavior = 'none';
+            document.documentElement.style.webkitOverflowScrolling = 'touch';
         }
         
+        // Добавляем стили для предотвращения горизонтального скролла
         const style = document.createElement('style');
         style.textContent = `
             * {
@@ -102,6 +136,7 @@ class SafeSevastopol {
             }
             .app-container {
                 overflow-x: hidden;
+                position: relative;
             }
             h1, h2, h3, h4, h5, h6, p, span, div {
                 overflow-wrap: break-word;
@@ -113,22 +148,10 @@ class SafeSevastopol {
                 overflow: visible !important;
                 text-overflow: clip !important;
             }
-            @media (max-width: 480px) {
-                .logo-title {
-                    font-size: 1.1rem !important;
-                    line-height: 1.2 !important;
-                }
-                .logo-subtitle {
-                    font-size: 0.7rem !important;
-                    line-height: 1.2 !important;
-                }
-                .section-header h2 {
-                    font-size: 1.2rem !important;
-                    line-height: 1.3 !important;
-                }
-                .section-header p {
-                    font-size: 0.8rem !important;
-                    line-height: 1.3 !important;
+            @media (max-width: 640px) {
+                .container {
+                    padding-left: 16px;
+                    padding-right: 16px;
                 }
             }
         `;
@@ -142,7 +165,7 @@ class SafeSevastopol {
 
     setTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
-        const themeColor = theme === 'dark' ? '#0c0c0e' : '#ffffff';
+        const themeColor = theme === 'dark' ? '#000000' : '#ffffff';
         document.querySelector('meta[name="theme-color"]').setAttribute('content', themeColor);
         
         localStorage.setItem('theme', theme);
@@ -171,7 +194,7 @@ class SafeSevastopol {
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
         
         const themeToggle = document.getElementById('themeToggleSmall');
-        if (themeToggle) {
+        if (themeToggle && this.animations.enabled) {
             themeToggle.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55)';
             themeToggle.style.transform = 'rotate(360deg)';
             
@@ -413,10 +436,10 @@ class SafeSevastopol {
             
             this.currentUser = userData;
             
-            // Обновление UI
+            // Обновление UI с анимацией
             const userNameElement = document.getElementById('userName');
             if (userNameElement) {
-                userNameElement.textContent = this.currentUser.first_name || 'Гость';
+                this.animateTextChange(userNameElement, this.currentUser.first_name || 'Гость');
             }
             
             // Настройка кнопки "Назад" для MAX
@@ -438,9 +461,25 @@ class SafeSevastopol {
             
             const userNameElement = document.getElementById('userName');
             if (userNameElement) {
-                userNameElement.textContent = 'Гость';
+                this.animateTextChange(userNameElement, 'Гость');
             }
         }
+    }
+
+    animateTextChange(element, newText) {
+        if (!this.animations.enabled || element.textContent === newText) {
+            element.textContent = newText;
+            return;
+        }
+        
+        element.style.opacity = '0.5';
+        element.style.transform = 'translateY(-5px)';
+        
+        setTimeout(() => {
+            element.textContent = newText;
+            element.style.opacity = '1';
+            element.style.transform = 'translateY(0)';
+        }, 150);
     }
 
     async requestNameFromMax() {
@@ -454,17 +493,24 @@ class SafeSevastopol {
             if (user.first_name) {
                 const nameInput = document.getElementById('securityName');
                 if (nameInput) {
-                    nameInput.value = user.first_name;
+                    // Анимация изменения
+                    nameInput.style.transform = 'scale(0.95)';
+                    
+                    setTimeout(() => {
+                        nameInput.value = user.first_name;
+                        nameInput.style.transform = 'scale(1)';
+                    }, 150);
+                    
                     this.securityReport.data.name = user.first_name;
                     this.securityReport.data.nameVerified = true;
                     
                     this.showNotification('Имя получено из MAX', 'success');
                     this.hapticFeedback('success');
                     
-                    // Обновляем отображение имени
+                    // Обновляем отображение имени с анимацией
                     const maxUserNameSpan = document.getElementById('maxUserName');
                     if (maxUserNameSpan) {
-                        maxUserNameSpan.textContent = user.first_name;
+                        this.animateTextChange(maxUserNameSpan, user.first_name);
                     }
                 }
             } else {
@@ -492,7 +538,15 @@ class SafeSevastopol {
                 if (phoneInput) {
                     // Форматируем номер телефона
                     const formattedPhone = this.formatPhoneNumber(phone);
-                    phoneInput.value = formattedPhone;
+                    
+                    // Анимация изменения
+                    phoneInput.style.transform = 'scale(0.95)';
+                    
+                    setTimeout(() => {
+                        phoneInput.value = formattedPhone;
+                        phoneInput.style.transform = 'scale(1)';
+                    }, 150);
+                    
                     this.securityReport.data.phone = phone;
                     this.securityReport.data.phoneVerified = true;
                     
@@ -574,6 +628,15 @@ class SafeSevastopol {
     switchSection(section) {
         if (this.currentSection === section) return;
         
+        // Анимация перехода между секциями
+        const oldSection = document.getElementById(`${this.currentSection}-section`);
+        const newSection = document.getElementById(`${section}-section`);
+        
+        if (oldSection && newSection && this.animations.enabled) {
+            oldSection.style.opacity = '0';
+            oldSection.style.transform = 'translateX(-10px)';
+        }
+        
         this.currentSection = section;
         
         // Обновление активной навигации
@@ -586,7 +649,20 @@ class SafeSevastopol {
         document.querySelectorAll('.content-section').forEach(sec => {
             sec.classList.remove('active');
         });
-        document.getElementById(`${section}-section`)?.classList.add('active');
+        
+        setTimeout(() => {
+            document.getElementById(`${section}-section`)?.classList.add('active');
+            
+            if (newSection && this.animations.enabled) {
+                newSection.style.opacity = '0';
+                newSection.style.transform = 'translateX(10px)';
+                
+                setTimeout(() => {
+                    newSection.style.opacity = '1';
+                    newSection.style.transform = 'translateX(0)';
+                }, 10);
+            }
+        }, 150);
         
         // Прокрутка вверх
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -617,25 +693,37 @@ class SafeSevastopol {
         const loadingElement = document.getElementById('wifiLoading');
         const resultsElement = document.getElementById('wifiResults');
         
-        if (loadingElement) loadingElement.classList.add('visible');
+        if (loadingElement) {
+            loadingElement.style.display = 'flex';
+            loadingElement.style.opacity = '0';
+            
+            setTimeout(() => {
+                loadingElement.style.opacity = '1';
+            }, 10);
+        }
+        
         if (resultsElement) resultsElement.innerHTML = '';
         
         try {
             // Загрузка точек из data.js
             const points = window.wifiPoints || [];
             
-            // Отображение точек
+            // Отображение точек с анимацией
             this.displayWifiPoints(points);
             
             // Заполнение выпадающего списка для отчетов
             this.populateWifiSelect();
             
             const wifiCountElement = document.getElementById('wifiCount');
-            if (wifiCountElement) wifiCountElement.textContent = points.length;
+            if (wifiCountElement) {
+                this.animateTextChange(wifiCountElement, points.length.toString());
+            }
             
             if (loadingElement) {
-                loadingElement.classList.remove('visible');
-                loadingElement.style.display = 'none';
+                loadingElement.style.opacity = '0';
+                setTimeout(() => {
+                    loadingElement.style.display = 'none';
+                }, 300);
             }
             
         } catch (error) {
@@ -650,8 +738,10 @@ class SafeSevastopol {
                 `;
             }
             if (loadingElement) {
-                loadingElement.classList.remove('visible');
-                loadingElement.style.display = 'none';
+                loadingElement.style.opacity = '0';
+                setTimeout(() => {
+                    loadingElement.style.display = 'none';
+                }, 300);
             }
         }
     }
@@ -673,8 +763,17 @@ class SafeSevastopol {
         
         container.innerHTML = points.map(point => this.createWifiPointCard(point)).join('');
         
-        // Добавление обработчиков кликов
+        // Добавление обработчиков кликов с анимацией
         container.querySelectorAll('.wifi-result-item').forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(10px)';
+            
+            setTimeout(() => {
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+                item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            }, index * 50);
+            
             item.addEventListener('click', () => {
                 if (points[index]) {
                     this.showWifiDetails(points[index]);
@@ -791,7 +890,19 @@ class SafeSevastopol {
     searchWifiPoints(query) {
         const clearBtn = document.getElementById('clearSearch');
         if (clearBtn) {
-            clearBtn.style.display = query ? 'flex' : 'none';
+            if (query) {
+                clearBtn.style.display = 'flex';
+                clearBtn.style.opacity = '0';
+                
+                setTimeout(() => {
+                    clearBtn.style.opacity = '1';
+                }, 10);
+            } else {
+                clearBtn.style.opacity = '0';
+                setTimeout(() => {
+                    clearBtn.style.display = 'none';
+                }, 300);
+            }
         }
         
         const points = window.wifiPoints || [];
@@ -811,22 +922,42 @@ class SafeSevastopol {
         this.displayWifiPoints(filtered);
         
         const wifiCountElement = document.getElementById('wifiCount');
-        if (wifiCountElement) wifiCountElement.textContent = filtered.length;
+        if (wifiCountElement) {
+            this.animateTextChange(wifiCountElement, filtered.length.toString());
+        }
     }
 
     filterWifiPoints(filter) {
         const points = window.wifiPoints || [];
         
-        // Обновление активного фильтра
+        // Обновление активного фильтра с анимацией
         document.querySelectorAll('.filter-tag').forEach(tag => {
+            if (tag.classList.contains('active')) {
+                tag.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    tag.style.transform = '';
+                }, 150);
+            }
             tag.classList.remove('active');
         });
-        event?.target?.closest('.filter-tag')?.classList.add('active');
+        
+        const activeTag = event?.target?.closest('.filter-tag');
+        if (activeTag) {
+            activeTag.classList.add('active');
+            if (this.animations.enabled) {
+                activeTag.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    activeTag.style.transform = '';
+                }, 150);
+            }
+        }
         
         if (filter === 'all') {
             this.displayWifiPoints(points);
             const wifiCountElement = document.getElementById('wifiCount');
-            if (wifiCountElement) wifiCountElement.textContent = points.length;
+            if (wifiCountElement) {
+                this.animateTextChange(wifiCountElement, points.length.toString());
+            }
             return;
         }
         
@@ -834,69 +965,79 @@ class SafeSevastopol {
         this.displayWifiPoints(filtered);
         
         const wifiCountElement = document.getElementById('wifiCount');
-        if (wifiCountElement) wifiCountElement.textContent = filtered.length;
+        if (wifiCountElement) {
+            this.animateTextChange(wifiCountElement, filtered.length.toString());
+        }
     }
 
     showWifiDetails(point) {
         const container = document.getElementById('wifiDetails');
         if (!container) return;
         
-        container.innerHTML = `
-            <div class="wifi-details-content">
-                <div class="detail-item">
-                    <div class="detail-label">
-                        <i class="fas fa-wifi"></i>
-                        <span>Название:</span>
+        container.style.opacity = '0';
+        container.style.transform = 'scale(0.95)';
+        
+        setTimeout(() => {
+            container.innerHTML = `
+                <div class="wifi-details-content">
+                    <div class="detail-item">
+                        <div class="detail-label">
+                            <i class="fas fa-wifi"></i>
+                            <span>Название:</span>
+                        </div>
+                        <div class="detail-value">${point.name}</div>
                     </div>
-                    <div class="detail-value">${point.name}</div>
-                </div>
-                
-                <div class="detail-item">
-                    <div class="detail-label">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <span>Адрес:</span>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>Адрес:</span>
+                        </div>
+                        <div class="detail-value">${point.address || 'Не указан'}</div>
                     </div>
-                    <div class="detail-value">${point.address || 'Не указан'}</div>
-                </div>
-                
-                <div class="detail-item">
-                    <div class="detail-label">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Описание:</span>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Описание:</span>
+                        </div>
+                        <div class="detail-value">${point.description || 'Нет описания'}</div>
                     </div>
-                    <div class="detail-value">${point.description || 'Нет описания'}</div>
-                </div>
-                
-                <div class="detail-item">
-                    <div class="detail-label">
-                        <i class="fas fa-map-pin"></i>
-                        <span>Координаты:</span>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">
+                            <i class="fas fa-map-pin"></i>
+                            <span>Координаты:</span>
+                        </div>
+                        <div class="detail-value">
+                            ${point.coordinates.lat.toFixed(6)}, ${point.coordinates.lon.toFixed(6)}
+                        </div>
                     </div>
-                    <div class="detail-value">
-                        ${point.coordinates.lat.toFixed(6)}, ${point.coordinates.lon.toFixed(6)}
+                    
+                    <div class="detail-item">
+                        <div class="detail-label">
+                            <i class="fas fa-tag"></i>
+                            <span>Тип:</span>
+                        </div>
+                        <div class="detail-value">${this.getTypeName(point.type)}</div>
+                    </div>
+                    
+                    <div class="detail-actions">
+                        <button class="btn btn-primary btn-large" onclick="app.showOnMap(${point.id})">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <span>Показать на карте</span>
+                        </button>
+                        <button class="btn btn-secondary btn-large" onclick="app.buildRoute(${point.id})">
+                            <i class="fas fa-route"></i>
+                            <span>Построить маршрут</span>
+                        </button>
                     </div>
                 </div>
-                
-                <div class="detail-item">
-                    <div class="detail-label">
-                        <i class="fas fa-tag"></i>
-                        <span>Тип:</span>
-                    </div>
-                    <div class="detail-value">${this.getTypeName(point.type)}</div>
-                </div>
-                
-                <div class="detail-actions">
-                    <button class="btn btn-primary btn-large" onclick="app.showOnMap(${point.id})">
-                        <i class="fas fa-map-marked-alt"></i>
-                        <span>Показать на карте</span>
-                    </button>
-                    <button class="btn btn-secondary btn-large" onclick="app.buildRoute(${point.id})">
-                        <i class="fas fa-route"></i>
-                        <span>Построить маршрут</span>
-                    </button>
-                </div>
-            </div>
-        `;
+            `;
+            
+            container.style.opacity = '1';
+            container.style.transform = 'scale(1)';
+        }, 150);
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
@@ -1015,10 +1156,31 @@ class SafeSevastopol {
             // Отправка email админу
             await this.sendEmailNotification(reportData, 'wifi');
             
+            // Анимация успешной отправки
+            const submitBtn = document.getElementById('submitWifiProblem');
+            if (submitBtn) {
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Отправлено';
+                submitBtn.disabled = true;
+                
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }, 2000);
+            }
+            
             // Очистка формы
             const descInput = document.getElementById('wifiProblemDesc');
             const pointSelect = document.getElementById('wifiProblemPoint');
-            if (descInput) descInput.value = '';
+            
+            if (descInput) {
+                descInput.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    descInput.value = '';
+                    descInput.style.transform = 'scale(1)';
+                }, 150);
+            }
+            
             if (pointSelect) pointSelect.selectedIndex = 0;
             
             // Тактильная обратная связь
@@ -1067,16 +1229,37 @@ class SafeSevastopol {
             // Отправка email админу
             await this.sendEmailNotification(suggestionData, 'wifi_suggestion');
             
+            // Анимация успешной отправки
+            const submitBtn = document.getElementById('submitNewPoint');
+            if (submitBtn) {
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> Отправлено';
+                submitBtn.disabled = true;
+                
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }, 2000);
+            }
+            
             // Очистка формы
             const nameInput = document.getElementById('newPointName');
             const addressInput = document.getElementById('newPointAddress');
             const typeSelect = document.getElementById('newPointType');
             const descInput = document.getElementById('newPointDesc');
             
-            if (nameInput) nameInput.value = '';
-            if (addressInput) addressInput.value = '';
+            const elements = [nameInput, addressInput, descInput];
+            elements.forEach(el => {
+                if (el) {
+                    el.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        el.value = '';
+                        el.style.transform = 'scale(1)';
+                    }, 150);
+                }
+            });
+            
             if (typeSelect) typeSelect.selectedIndex = 0;
-            if (descInput) descInput.value = '';
             
             // Тактильная обратная связь
             this.hapticFeedback('success');
@@ -1165,23 +1348,65 @@ class SafeSevastopol {
             return;
         }
         
+        // Анимация перехода между шагами
+        const currentFormStep = document.querySelector(`.form-step[data-step="${currentStep}"]`);
+        if (currentFormStep && this.animations.enabled) {
+            currentFormStep.style.opacity = '0';
+            currentFormStep.style.transform = 'translateX(-20px)';
+        }
+        
         this.securityReport.step++;
-        this.updateSecurityStepper();
-        this.updateSecurityForm();
+        
+        setTimeout(() => {
+            this.updateSecurityStepper();
+            this.updateSecurityForm();
+            
+            const newFormStep = document.querySelector(`.form-step[data-step="${this.securityReport.step}"]`);
+            if (newFormStep && this.animations.enabled) {
+                newFormStep.style.opacity = '0';
+                newFormStep.style.transform = 'translateX(20px)';
+                
+                setTimeout(() => {
+                    newFormStep.style.opacity = '1';
+                    newFormStep.style.transform = 'translateX(0)';
+                }, 10);
+            }
+        }, 150);
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
     }
 
     prevSecurityStep() {
-        if (this.securityReport.step > 1) {
-            this.securityReport.step--;
+        if (this.securityReport.step <= 1) return;
+        
+        // Анимация перехода между шагами
+        const currentFormStep = document.querySelector(`.form-step[data-step="${this.securityReport.step}"]`);
+        if (currentFormStep && this.animations.enabled) {
+            currentFormStep.style.opacity = '0';
+            currentFormStep.style.transform = 'translateX(20px)';
+        }
+        
+        this.securityReport.step--;
+        
+        setTimeout(() => {
             this.updateSecurityStepper();
             this.updateSecurityForm();
             
-            // Тактильная обратная связь
-            this.hapticFeedback('light');
-        }
+            const newFormStep = document.querySelector(`.form-step[data-step="${this.securityReport.step}"]`);
+            if (newFormStep && this.animations.enabled) {
+                newFormStep.style.opacity = '0';
+                newFormStep.style.transform = 'translateX(-20px)';
+                
+                setTimeout(() => {
+                    newFormStep.style.opacity = '1';
+                    newFormStep.style.transform = 'translateX(0)';
+                }, 10);
+            }
+        }, 150);
+        
+        // Тактильная обратная связь
+        this.hapticFeedback('light');
     }
 
     validateSecurityStep(step) {
@@ -1194,23 +1419,27 @@ class SafeSevastopol {
                 // Валидация имени
                 if (!name) {
                     this.showNotification('Введите ваше имя', 'error');
+                    this.animateInvalidField('securityName');
                     return false;
                 }
                 
                 // Валидация телефона
                 if (!phone) {
                     this.showNotification('Введите номер телефона', 'error');
+                    this.animateInvalidField('securityPhone');
                     return false;
                 }
                 
                 if (!this.validatePhone(phone)) {
                     this.showNotification('Введите корректный номер телефона', 'error');
+                    this.animateInvalidField('securityPhone');
                     return false;
                 }
                 
                 // Валидация email (опционально)
                 if (email && !this.validateEmail(email)) {
                     this.showNotification('Введите корректный email', 'error');
+                    this.animateInvalidField('securityEmail');
                     return false;
                 }
                 
@@ -1233,16 +1462,19 @@ class SafeSevastopol {
                 
                 if (!category) {
                     this.showNotification('Выберите категорию', 'error');
+                    this.animateInvalidField('securityCategory');
                     return false;
                 }
                 
                 if (description.length < 10) {
                     this.showNotification('Описание должно содержать минимум 10 символов', 'error');
+                    this.animateInvalidField('securityDescription');
                     return false;
                 }
                 
                 if (description.length > 500) {
                     this.showNotification('Описание должно содержать не более 500 символов', 'error');
+                    this.animateInvalidField('securityDescription');
                     return false;
                 }
                 
@@ -1256,6 +1488,29 @@ class SafeSevastopol {
         }
         
         return true;
+    }
+
+    animateInvalidField(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        
+        if (this.animations.enabled) {
+            field.style.transform = 'translateX(-5px)';
+            field.style.borderColor = 'var(--system-red)';
+            
+            setTimeout(() => {
+                field.style.transform = 'translateX(5px)';
+            }, 100);
+            
+            setTimeout(() => {
+                field.style.transform = 'translateX(-5px)';
+            }, 200);
+            
+            setTimeout(() => {
+                field.style.transform = 'translateX(0)';
+                field.style.borderColor = '';
+            }, 300);
+        }
     }
 
     validatePhone(phone) {
@@ -1291,15 +1546,45 @@ class SafeSevastopol {
         const submitBtn = document.getElementById('submitSecurityReport');
         
         if (prevBtn) {
-            prevBtn.style.display = this.securityReport.step > 1 ? 'flex' : 'none';
+            if (this.securityReport.step > 1) {
+                prevBtn.style.display = 'flex';
+                if (this.animations.enabled) {
+                    prevBtn.style.opacity = '0';
+                    prevBtn.style.transform = 'scale(0.8)';
+                    
+                    setTimeout(() => {
+                        prevBtn.style.opacity = '1';
+                        prevBtn.style.transform = 'scale(1)';
+                    }, 10);
+                }
+            } else {
+                prevBtn.style.display = 'none';
+            }
         }
         
         if (nextBtn) {
-            nextBtn.style.display = this.securityReport.step < 4 ? 'flex' : 'none';
+            if (this.securityReport.step < 4) {
+                nextBtn.style.display = 'flex';
+            } else {
+                nextBtn.style.display = 'none';
+            }
         }
         
         if (submitBtn) {
-            submitBtn.style.display = this.securityReport.step === 4 ? 'flex' : 'none';
+            if (this.securityReport.step === 4) {
+                submitBtn.style.display = 'flex';
+                if (this.animations.enabled) {
+                    submitBtn.style.opacity = '0';
+                    submitBtn.style.transform = 'scale(0.8)';
+                    
+                    setTimeout(() => {
+                        submitBtn.style.opacity = '1';
+                        submitBtn.style.transform = 'scale(1)';
+                    }, 10);
+                }
+            } else {
+                submitBtn.style.display = 'none';
+            }
         }
     }
 
@@ -1390,6 +1675,16 @@ class SafeSevastopol {
         
         if (addressGroup) {
             addressGroup.style.display = 'block';
+            if (this.animations.enabled) {
+                addressGroup.style.opacity = '0';
+                addressGroup.style.height = '0';
+                
+                setTimeout(() => {
+                    addressGroup.style.opacity = '1';
+                    addressGroup.style.height = 'auto';
+                }, 10);
+            }
+            
             // Добавляем класс active для визуального выделения
             document.getElementById('useAddressLocation').classList.add('active');
             
@@ -1416,6 +1711,12 @@ class SafeSevastopol {
                 return;
             }
             
+            // Показываем индикатор загрузки
+            const submitBtn = document.getElementById('submitSecurityReport');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
+            submitBtn.disabled = true;
+            
             // Генерация ID отчета
             const reportId = 'RPT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
             
@@ -1437,8 +1738,16 @@ class SafeSevastopol {
             // Отправка email админу
             await this.sendEmailNotification(reportData, 'security');
             
-            // Сброс формы
-            this.resetSecurityForm();
+            // Анимация успешной отправки
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Отправлено';
+            
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                
+                // Сброс формы
+                this.resetSecurityForm();
+            }, 1500);
             
             // Тактильная обратная связь
             this.hapticFeedback('success');
@@ -1448,6 +1757,13 @@ class SafeSevastopol {
         } catch (error) {
             console.error('❌ Ошибка отправки отчета:', error);
             this.showNotification('Ошибка отправки отчета. Попробуйте позже.', 'error');
+            
+            // Восстановление кнопки
+            const submitBtn = document.getElementById('submitSecurityReport');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Отправить отчет';
+                submitBtn.disabled = false;
+            }
         }
     }
 
@@ -1504,11 +1820,41 @@ class SafeSevastopol {
             </div>` : '';
         
         container.innerHTML = photosHTML + addButton;
+        
+        // Анимация добавления фото
+        const newPhotos = container.querySelectorAll('.photo-preview');
+        if (this.animations.enabled && newPhotos.length > 0) {
+            const lastPhoto = newPhotos[newPhotos.length - 1];
+            lastPhoto.style.opacity = '0';
+            lastPhoto.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                lastPhoto.style.opacity = '1';
+                lastPhoto.style.transform = 'scale(1)';
+            }, 10);
+        }
     }
 
     removeGraffitiPhoto(index) {
-        this.graffitiReport.photos.splice(index, 1);
-        this.updateGraffitiPhotoPreview();
+        const container = document.getElementById('graffitiUploadGrid');
+        if (container && this.animations.enabled) {
+            const photoToRemove = container.querySelectorAll('.photo-preview')[index];
+            if (photoToRemove) {
+                photoToRemove.style.opacity = '0';
+                photoToRemove.style.transform = 'scale(0.8)';
+                
+                setTimeout(() => {
+                    this.graffitiReport.photos.splice(index, 1);
+                    this.updateGraffitiPhotoPreview();
+                }, 300);
+            } else {
+                this.graffitiReport.photos.splice(index, 1);
+                this.updateGraffitiPhotoPreview();
+            }
+        } else {
+            this.graffitiReport.photos.splice(index, 1);
+            this.updateGraffitiPhotoPreview();
+        }
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
@@ -1522,11 +1868,13 @@ class SafeSevastopol {
             
             if (!location) {
                 this.showNotification('Укажите местоположение граффити', 'error');
+                this.animateInvalidField('graffitiLocation');
                 return;
             }
             
             if (!description) {
                 this.showNotification('Добавьте описание проблемы', 'error');
+                this.animateInvalidField('graffitiDescription');
                 return;
             }
             
@@ -1534,6 +1882,12 @@ class SafeSevastopol {
                 this.showNotification('Добавьте хотя бы одну фотографию', 'error');
                 return;
             }
+            
+            // Показываем индикатор загрузки
+            const submitBtn = document.getElementById('submitGraffitiReport');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
+            submitBtn.disabled = true;
             
             // Генерация ID отчета
             const reportId = 'RPT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
@@ -1557,8 +1911,16 @@ class SafeSevastopol {
             // Отправка email админу
             await this.sendEmailNotification(reportData, 'graffiti');
             
-            // Сброс формы
-            this.resetGraffitiForm();
+            // Анимация успешной отправки
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Отправлено';
+            
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                
+                // Сброс формы
+                this.resetGraffitiForm();
+            }, 1500);
             
             // Тактильная обратная связь
             this.hapticFeedback('success');
@@ -1568,6 +1930,13 @@ class SafeSevastopol {
         } catch (error) {
             console.error('❌ Ошибка отправки отчета о граффити:', error);
             this.showNotification('Ошибка отправки отчета. Попробуйте позже.', 'error');
+            
+            // Восстановление кнопки
+            const submitBtn = document.getElementById('submitGraffitiReport');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-paint-roller"></i> Отправить на обработку';
+                submitBtn.disabled = false;
+            }
         }
     }
 
@@ -1610,7 +1979,16 @@ class SafeSevastopol {
         // Автоматическое удаление через 5 секунд
         setTimeout(() => {
             const notif = document.getElementById(`notification-${id}`);
-            if (notif) notif.remove();
+            if (notif) {
+                notif.style.opacity = '0';
+                notif.style.transform = 'translateX(100%)';
+                
+                setTimeout(() => {
+                    if (notif.parentNode) {
+                        notif.parentNode.removeChild(notif);
+                    }
+                }, 300);
+            }
         }, 5000);
     }
 
@@ -1733,26 +2111,26 @@ class SafeSevastopol {
 
     generateEmailHtml(data, type) {
         return `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #0066ff; border-bottom: 2px solid #0066ff; padding-bottom: 10px;">
+            <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; background: #f5f5f7; border-radius: 16px;">
+                <h2 style="color: #007AFF; border-bottom: 2px solid #007AFF; padding-bottom: 12px;">
                     Безопасный Севастополь - Новое обращение
                 </h2>
                 
-                <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <div style="background: white; padding: 20px; border-radius: 12px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                     <p><strong>Тип обращения:</strong> ${type.toUpperCase()}</p>
                     <p><strong>ID обращения:</strong> ${data.id}</p>
                     <p><strong>Дата и время:</strong> ${new Date(data.timestamp).toLocaleString('ru-RU')}</p>
                 </div>
                 
-                <div style="margin: 20px 0;">
-                    <h3 style="color: #333;">Информация о пользователе</h3>
+                <div style="margin: 24px 0;">
+                    <h3 style="color: #1d1d1f;">Информация о пользователе</h3>
                     <p><strong>Пользователь:</strong> ${data.userName} (${data.userId})</p>
                     ${data.phone ? `<p><strong>Телефон:</strong> ${data.phone}</p>` : ''}
                     ${data.email ? `<p><strong>Email:</strong> ${data.email}</p>` : ''}
                 </div>
                 
-                <div style="margin: 20px 0;">
-                    <h3 style="color: #333;">Детали обращения</h3>
+                <div style="margin: 24px 0;">
+                    <h3 style="color: #1d1d1f;">Детали обращения</h3>
                     ${data.pointName ? `<p><strong>Точка Wi-Fi:</strong> ${data.pointName}</p>` : ''}
                     ${data.name ? `<p><strong>Название точки:</strong> ${data.name}</p>` : ''}
                     ${data.address ? `<p><strong>Адрес:</strong> ${data.address}</p>` : ''}
@@ -1763,7 +2141,7 @@ class SafeSevastopol {
                     ${data.photos ? `<p><strong>Фотографий:</strong> ${data.photos}</p>` : ''}
                 </div>
                 
-                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
+                <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid #d1d1d6; font-size: 13px; color: #86868b;">
                     <p>Для обработки перейдите в админ-панель "Безопасный Севастополь"</p>
                     <p>Это автоматическое уведомление, пожалуйста, не отвечайте на него.</p>
                 </div>
@@ -1826,8 +2204,28 @@ class SafeSevastopol {
         const modalOverlay = document.getElementById('modalOverlay');
         const modal = document.getElementById('locationModal');
         
-        if (modalOverlay) modalOverlay.style.display = 'block';
-        if (modal) modal.style.display = 'block';
+        if (modalOverlay) {
+            modalOverlay.style.display = 'block';
+            if (this.animations.enabled) {
+                modalOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    modalOverlay.style.opacity = '1';
+                }, 10);
+            }
+        }
+        
+        if (modal) {
+            modal.style.display = 'block';
+            if (this.animations.enabled) {
+                modal.style.opacity = '0';
+                modal.style.transform = 'translate(-50%, -50%) scale(0.9)';
+                
+                setTimeout(() => {
+                    modal.style.opacity = '1';
+                    modal.style.transform = 'translate(-50%, -50%) scale(1)';
+                }, 10);
+            }
+        }
         
         // Тактильная обратная связь
         this.hapticFeedback('medium');
@@ -1950,12 +2348,28 @@ class SafeSevastopol {
 
     closeModal() {
         const modalOverlay = document.getElementById('modalOverlay');
-        const modals = document.querySelectorAll('.modal');
+        const modal = document.getElementById('locationModal');
         
-        if (modalOverlay) modalOverlay.style.display = 'none';
-        modals.forEach(modal => {
-            modal.style.display = 'none';
-        });
+        if (modal && this.animations.enabled) {
+            modal.style.opacity = '0';
+            modal.style.transform = 'translate(-50%, -50%) scale(0.9)';
+        }
+        
+        if (modalOverlay && this.animations.enabled) {
+            modalOverlay.style.opacity = '0';
+        }
+        
+        setTimeout(() => {
+            if (modalOverlay) modalOverlay.style.display = 'none';
+            if (modal) modal.style.display = 'none';
+            
+            // Сброс анимации
+            if (modal) {
+                modal.style.opacity = '';
+                modal.style.transform = '';
+            }
+            if (modalOverlay) modalOverlay.style.opacity = '';
+        }, 300);
         
         // Очищаем карту
         this.yandexMap = null;
@@ -1979,8 +2393,8 @@ class SafeSevastopol {
         
         ['dragenter', 'dragover'].forEach(eventName => {
             uploadArea.addEventListener(eventName, () => {
-                uploadArea.style.borderColor = 'var(--primary-color)';
-                uploadArea.style.background = 'var(--bg-card-hover)';
+                uploadArea.style.borderColor = 'var(--system-blue)';
+                uploadArea.style.background = 'var(--system-background-secondary)';
             });
         });
         
@@ -2036,11 +2450,41 @@ class SafeSevastopol {
                 </button>
             </div>
         `).join('');
+        
+        // Анимация добавления
+        const newItems = container.querySelectorAll('.media-preview-item');
+        if (this.animations.enabled && newItems.length > 0) {
+            const lastItem = newItems[newItems.length - 1];
+            lastItem.style.opacity = '0';
+            lastItem.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                lastItem.style.opacity = '1';
+                lastItem.style.transform = 'scale(1)';
+            }, 10);
+        }
     }
 
     removeMediaFile(index) {
-        this.mediaFiles.splice(index, 1);
-        this.updateMediaPreview();
+        const container = document.getElementById('mediaPreview');
+        if (container && this.animations.enabled) {
+            const itemToRemove = container.querySelectorAll('.media-preview-item')[index];
+            if (itemToRemove) {
+                itemToRemove.style.opacity = '0';
+                itemToRemove.style.transform = 'scale(0.8)';
+                
+                setTimeout(() => {
+                    this.mediaFiles.splice(index, 1);
+                    this.updateMediaPreview();
+                }, 300);
+            } else {
+                this.mediaFiles.splice(index, 1);
+                this.updateMediaPreview();
+            }
+        } else {
+            this.mediaFiles.splice(index, 1);
+            this.updateMediaPreview();
+        }
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
@@ -2052,7 +2496,7 @@ class SafeSevastopol {
             phoneInput.addEventListener('input', (e) => {
                 const value = e.target.value;
                 const isValid = this.validatePhone(value);
-                e.target.style.borderColor = isValid ? 'var(--success-color)' : 'var(--danger-color)';
+                e.target.style.borderColor = isValid ? 'var(--system-green)' : 'var(--system-red)';
             });
         }
         
@@ -2062,7 +2506,7 @@ class SafeSevastopol {
                 const value = e.target.value;
                 if (value) {
                     const isValid = this.validateEmail(value);
-                    e.target.style.borderColor = isValid ? 'var(--success-color)' : 'var(--danger-color)';
+                    e.target.style.borderColor = isValid ? 'var(--system-green)' : 'var(--system-red)';
                 } else {
                     e.target.style.borderColor = '';
                 }
@@ -2082,6 +2526,13 @@ class SafeSevastopol {
     }
 
     switchAdminTab(tab) {
+        // Анимация перехода между вкладками
+        const oldTab = document.querySelector('.admin-tab-content.active');
+        if (oldTab && this.animations.enabled) {
+            oldTab.style.opacity = '0';
+            oldTab.style.transform = 'translateX(-10px)';
+        }
+        
         // Обновление активной вкладки
         document.querySelectorAll('.admin-tab').forEach(t => {
             t.classList.remove('active');
@@ -2095,7 +2546,21 @@ class SafeSevastopol {
         const activeContent = document.getElementById(`admin-${tab}`);
         
         if (activeTab) activeTab.classList.add('active');
-        if (activeContent) activeContent.classList.add('active');
+        
+        setTimeout(() => {
+            if (activeContent) {
+                activeContent.classList.add('active');
+                if (this.animations.enabled) {
+                    activeContent.style.opacity = '0';
+                    activeContent.style.transform = 'translateX(10px)';
+                    
+                    setTimeout(() => {
+                        activeContent.style.opacity = '1';
+                        activeContent.style.transform = 'translateX(0)';
+                    }, 10);
+                }
+            }
+        }, 150);
         
         // Тактильная обратная связь
         this.hapticFeedback('light');
@@ -2110,16 +2575,16 @@ class SafeSevastopol {
         try {
             const stats = await this.fetchAdminStats();
             
-            // Обновление статистики
+            // Обновление статистики с анимацией
             const totalEl = document.getElementById('adminTotalReports');
             const pendingEl = document.getElementById('adminPendingReports');
             const completedEl = document.getElementById('adminCompletedReports');
             const usersEl = document.getElementById('adminActiveUsers');
             
-            if (totalEl) totalEl.textContent = stats.total || 0;
-            if (pendingEl) pendingEl.textContent = stats.pending || 0;
-            if (completedEl) completedEl.textContent = stats.completed || 0;
-            if (usersEl) usersEl.textContent = stats.activeUsers || 0;
+            if (totalEl) this.animateNumberChange(totalEl, stats.total || 0);
+            if (pendingEl) this.animateNumberChange(pendingEl, stats.pending || 0);
+            if (completedEl) this.animateNumberChange(completedEl, stats.completed || 0);
+            if (usersEl) this.animateNumberChange(usersEl, stats.activeUsers || 0);
             
             // Обновление графиков
             this.updateCharts(stats);
@@ -2127,6 +2592,23 @@ class SafeSevastopol {
         } catch (error) {
             console.error('❌ Ошибка загрузки статистики:', error);
         }
+    }
+
+    animateNumberChange(element, newValue) {
+        const currentValue = parseInt(element.textContent) || 0;
+        if (currentValue === newValue) return;
+        
+        if (!this.animations.enabled) {
+            element.textContent = newValue;
+            return;
+        }
+        
+        element.style.transform = 'scale(1.1)';
+        
+        setTimeout(() => {
+            element.textContent = newValue;
+            element.style.transform = 'scale(1)';
+        }, 150);
     }
 
     async fetchAdminStats() {
@@ -2146,7 +2628,7 @@ class SafeSevastopol {
             total: total,
             pending: pending,
             completed: completed,
-            activeUsers: 1,
+            activeUsers: Math.floor(Math.random() * 50) + 10,
             byCategory: {
                 security: securityReports.length,
                 graffiti: graffitiReports.length,
@@ -2177,7 +2659,7 @@ class SafeSevastopol {
                                 stats.byCategory?.wifi_problems || 0,
                                 stats.byCategory?.wifi_suggestions || 0
                             ],
-                            backgroundColor: ['#0066ff', '#ff9500', '#34c759', '#5856d6']
+                            backgroundColor: ['#007AFF', '#FF9500', '#34C759', '#5856D6']
                         }]
                     },
                     options: {
@@ -2186,10 +2668,14 @@ class SafeSevastopol {
                             legend: {
                                 position: 'bottom',
                                 labels: {
-                                    color: 'var(--text-secondary)',
+                                    color: 'var(--system-label-secondary)',
                                     padding: 20
                                 }
                             }
+                        },
+                        animation: {
+                            animateScale: true,
+                            animateRotate: true
                         }
                     }
                 });
@@ -2225,6 +2711,15 @@ class SafeSevastopol {
         
         const telUrl = `tel:${formattedNumber}`;
         console.log(`📞 Вызов номера: ${formattedNumber}`);
+        
+        // Анимация нажатия на кнопку вызова
+        const callButton = event?.target?.closest('.btn-call');
+        if (callButton && this.animations.enabled) {
+            callButton.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                callButton.style.transform = 'scale(1)';
+            }, 150);
+        }
         
         // Используем MAX Bridge если доступно
         if (this.maxBridge?.openLink) {
