@@ -1,4 +1,4 @@
-// Админ-панель Sevastopol Hub
+// Админ-панель Sevastopol Hub - Премиум версия с анимациями
 class AdminPanel {
     constructor(app) {
         this.app = app;
@@ -19,6 +19,11 @@ class AdminPanel {
             security: 'security-admin@sevastopol.ru',
             wifi: 'wifi-admin@sevastopol.ru',
             graffiti: 'graffiti-admin@sevastopol.ru'
+        };
+        
+        // Анимации
+        this.animations = {
+            enabled: !window.matchMedia('(prefers-reduced-motion: reduce)').matches
         };
         
         this.init();
@@ -132,9 +137,31 @@ class AdminPanel {
             if (this.app && this.app.showNotification) {
                 this.app.showNotification(`Email для ${type} сохранен`, 'success');
             }
+            
+            // Анимация успешного сохранения
+            if (this.animations.enabled) {
+                input.style.borderColor = '#34C759';
+                input.style.boxShadow = '0 0 0 3px rgba(52, 199, 89, 0.2)';
+                
+                setTimeout(() => {
+                    input.style.borderColor = '';
+                    input.style.boxShadow = '';
+                }, 2000);
+            }
         } else {
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Введите корректный email', 'error');
+            }
+            
+            // Анимация ошибки
+            if (this.animations.enabled) {
+                input.style.borderColor = '#FF3B30';
+                input.style.animation = 'shake 0.5s ease';
+                
+                setTimeout(() => {
+                    input.style.borderColor = '';
+                    input.style.animation = '';
+                }, 500);
             }
         }
     }
@@ -145,17 +172,57 @@ class AdminPanel {
     }
 
     renderDashboard() {
-        // Обновление статистики
-        document.getElementById('adminTotalReports').textContent = this.stats.total;
-        document.getElementById('adminPendingReports').textContent = this.stats.byStatus['new'] || 0;
-        document.getElementById('adminCompletedReports').textContent = this.stats.byStatus['resolved'] || 0;
+        // Обновление статистики с анимацией
+        this.animateStat('adminTotalReports', this.stats.total);
+        this.animateStat('adminPendingReports', this.stats.byStatus['new'] || 0);
+        this.animateStat('adminCompletedReports', this.stats.byStatus['resolved'] || 0);
         
         // Расчет активных пользователей
         const activeUsers = Math.floor(50 + Math.random() * 50);
-        document.getElementById('adminActiveUsers').textContent = activeUsers;
+        this.animateStat('adminActiveUsers', activeUsers);
         
         // Обновление графиков
         this.updateCharts();
+    }
+
+    animateStat(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        const currentValue = parseInt(element.textContent) || 0;
+        
+        if (!this.animations.enabled) {
+            element.textContent = value;
+            return;
+        }
+        
+        // Анимация изменения числа
+        let start = currentValue;
+        const duration = 500; // ms
+        const startTime = Date.now();
+        
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeProgress = 1 - Math.pow(1 - progress, 3); // Кубическое замедление
+            
+            const current = Math.floor(start + (value - start) * easeProgress);
+            element.textContent = current;
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                element.textContent = value;
+                
+                // Микро-анимация при завершении
+                element.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    element.style.transform = 'scale(1)';
+                }, 150);
+            }
+        };
+        
+        requestAnimationFrame(animate);
     }
 
     updateCharts() {
@@ -177,21 +244,43 @@ class AdminPanel {
                             this.stats.byType.wifi || 0,
                             this.stats.byType.graffiti || 0
                         ],
-                        backgroundColor: ['#0066ff', '#34c759', '#ff9500'],
+                        backgroundColor: ['#007AFF', '#34C759', '#FF9500'],
                         borderWidth: 2,
-                        borderColor: 'var(--bg-primary)'
+                        borderColor: 'var(--system-background)',
+                        hoverOffset: 15,
+                        hoverBorderWidth: 3
                     }]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: true,
+                    cutout: '70%',
                     plugins: {
                         legend: {
                             position: 'bottom',
                             labels: {
-                                color: 'var(--text-secondary)',
-                                padding: 20
+                                color: 'var(--system-label-secondary)',
+                                padding: 20,
+                                font: {
+                                    size: 12
+                                }
                             }
+                        },
+                        tooltip: {
+                            backgroundColor: 'var(--system-background-elevated)',
+                            titleColor: 'var(--system-label)',
+                            bodyColor: 'var(--system-label-secondary)',
+                            borderColor: 'var(--system-separator)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            padding: 12
                         }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true,
+                        duration: 1000,
+                        easing: 'easeOutQuart'
                     }
                 }
             });
@@ -212,8 +301,26 @@ class AdminPanel {
         // Сортируем по дате (новые сверху)
         filteredReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        // Рендеринг
-        container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'security')).join('');
+        // Анимация исчезновения
+        if (this.animations.enabled) {
+            container.style.opacity = '0.5';
+            container.style.transform = 'scale(0.98)';
+            
+            setTimeout(() => {
+                container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'security')).join('');
+                
+                // Анимация появления
+                container.style.opacity = '0';
+                container.style.transform = 'scale(1.02)';
+                
+                setTimeout(() => {
+                    container.style.opacity = '1';
+                    container.style.transform = 'scale(1)';
+                }, 10);
+            }, 200);
+        } else {
+            container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'security')).join('');
+        }
     }
 
     renderWifiReports() {
@@ -225,8 +332,24 @@ class AdminPanel {
         // Сортируем по дате (новые сверху)
         filteredReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        // Рендеринг
-        container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'wifi')).join('');
+        if (this.animations.enabled) {
+            container.style.opacity = '0.5';
+            container.style.transform = 'scale(0.98)';
+            
+            setTimeout(() => {
+                container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'wifi')).join('');
+                
+                container.style.opacity = '0';
+                container.style.transform = 'scale(1.02)';
+                
+                setTimeout(() => {
+                    container.style.opacity = '1';
+                    container.style.transform = 'scale(1)';
+                }, 10);
+            }, 200);
+        } else {
+            container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'wifi')).join('');
+        }
     }
 
     renderGraffitiReports() {
@@ -238,16 +361,32 @@ class AdminPanel {
         // Сортируем по дате (новые сверху)
         filteredReports.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        // Рендеринг
-        container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'graffiti')).join('');
+        if (this.animations.enabled) {
+            container.style.opacity = '0.5';
+            container.style.transform = 'scale(0.98)';
+            
+            setTimeout(() => {
+                container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'graffiti')).join('');
+                
+                container.style.opacity = '0';
+                container.style.transform = 'scale(1.02)';
+                
+                setTimeout(() => {
+                    container.style.opacity = '1';
+                    container.style.transform = 'scale(1)';
+                }, 10);
+            }, 200);
+        } else {
+            container.innerHTML = filteredReports.map(report => this.createReportCard(report, 'graffiti')).join('');
+        }
     }
 
     createReportCard(report, type) {
         const statusColors = {
-            'new': '#ff9500',
-            'in_progress': '#0066ff',
-            'resolved': '#34c759',
-            'rejected': '#ff3b30'
+            'new': '#FF9500',
+            'in_progress': '#007AFF',
+            'resolved': '#34C759',
+            'rejected': '#FF3B30'
         };
         
         const typeIcons = {
@@ -257,9 +396,9 @@ class AdminPanel {
         };
         
         const typeColors = {
-            'security': '#0066ff',
-            'wifi': '#34c759',
-            'graffiti': '#ff9500'
+            'security': '#007AFF',
+            'wifi': '#34C759',
+            'graffiti': '#FF9500'
         };
         
         const getStatusText = (status) => {
@@ -287,7 +426,7 @@ class AdminPanel {
             <div class="report-card" data-id="${report.id}" data-type="${type}">
                 <div class="report-header">
                     <div class="report-title">
-                        <div class="report-type-badge" style="background: ${typeColors[type] || '#666'}">
+                        <div class="report-type-badge" style="background: ${typeColors[type] || '#8E8E93'}">
                             <i class="${typeIcons[type] || 'fas fa-question'}"></i>
                             <span>${type.toUpperCase()}</span>
                         </div>
@@ -298,7 +437,7 @@ class AdminPanel {
                         </div>
                     </div>
                     <div class="report-status">
-                        <span class="status-badge" style="background: ${statusColors[report.status] || '#666'}">
+                        <span class="status-badge" style="background: ${statusColors[report.status] || '#8E8E93'}">
                             ${getStatusText(report.status)}
                         </span>
                     </div>
@@ -358,12 +497,36 @@ class AdminPanel {
             
             link.href = url;
             link.download = `sevastopol-${type}-reports-${new Date().toISOString().split('T')[0]}.csv`;
+            link.style.display = 'none';
+            
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             
+            URL.revokeObjectURL(url);
+            
             if (this.app && this.app.showNotification) {
                 this.app.showNotification(`Данные ${type} экспортированы`, 'success');
+            }
+            
+            // Анимация кнопки
+            const button = document.getElementById(`export${this.capitalizeFirstLetter(type)}Data`);
+            if (button) {
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check"></i> Экспортировано';
+                button.disabled = true;
+                
+                if (this.animations.enabled) {
+                    button.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        button.style.transform = 'scale(1)';
+                    }, 150);
+                }
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }, 2000);
             }
             
         } catch (error) {
@@ -372,6 +535,10 @@ class AdminPanel {
                 this.app.showNotification('Ошибка экспорта данных', 'error');
             }
         }
+    }
+
+    capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
     convertToCSV(data) {
@@ -397,6 +564,21 @@ class AdminPanel {
                 this.app.showNotification('Обновление данных...', 'info');
             }
             
+            // Анимация кнопки обновления
+            const button = document.getElementById(`refresh${this.capitalizeFirstLetter(type)}`);
+            if (button) {
+                const originalText = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-sync fa-spin"></i> Обновление';
+                
+                if (this.animations.enabled) {
+                    button.style.transform = 'rotate(0deg)';
+                    setTimeout(() => {
+                        button.style.transform = 'rotate(360deg)';
+                    }, 10);
+                }
+            }
+            
             await this.loadReports();
             await this.loadStats();
             this.renderDashboard();
@@ -413,10 +595,27 @@ class AdminPanel {
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Данные обновлены', 'success');
             }
+            
+            // Восстановление кнопки
+            if (button) {
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-sync"></i> Обновить';
+                    button.style.transform = '';
+                }, 1000);
+            }
         } catch (error) {
             console.error('Ошибка обновления данных:', error);
             if (this.app && this.app.showNotification) {
                 this.app.showNotification('Ошибка обновления данных', 'error');
+            }
+            
+            // Восстановление кнопки при ошибке
+            const button = document.getElementById(`refresh${this.capitalizeFirstLetter(type)}`);
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-sync"></i> Обновить';
+                button.style.transform = '';
             }
         }
     }
@@ -434,6 +633,24 @@ class AdminPanel {
         if (report && report.status !== 'resolved') {
             report.status = 'resolved';
             this.saveReports(type);
+            
+            // Анимация изменения статуса
+            const reportCard = document.querySelector(`.report-card[data-id="${reportId}"]`);
+            if (reportCard && this.animations.enabled) {
+                const statusBadge = reportCard.querySelector('.status-badge');
+                if (statusBadge) {
+                    statusBadge.style.transform = 'scale(0.8)';
+                    setTimeout(() => {
+                        statusBadge.textContent = '✅ Решено';
+                        statusBadge.style.background = '#34C759';
+                        statusBadge.style.transform = 'scale(1.1)';
+                        setTimeout(() => {
+                            statusBadge.style.transform = 'scale(1)';
+                        }, 150);
+                    }, 150);
+                }
+            }
+            
             this.refreshReports(type);
             
             if (this.app && this.app.showNotification) {
@@ -447,6 +664,24 @@ class AdminPanel {
         if (report && report.status !== 'rejected') {
             report.status = 'rejected';
             this.saveReports(type);
+            
+            // Анимация изменения статуса
+            const reportCard = document.querySelector(`.report-card[data-id="${reportId}"]`);
+            if (reportCard && this.animations.enabled) {
+                const statusBadge = reportCard.querySelector('.status-badge');
+                if (statusBadge) {
+                    statusBadge.style.transform = 'scale(0.8)';
+                    setTimeout(() => {
+                        statusBadge.textContent = '❌ Отклонено';
+                        statusBadge.style.background = '#FF3B30';
+                        statusBadge.style.transform = 'scale(1.1)';
+                        setTimeout(() => {
+                            statusBadge.style.transform = 'scale(1)';
+                        }, 150);
+                    }, 150);
+                }
+            }
+            
             this.refreshReports(type);
             
             if (this.app && this.app.showNotification) {
