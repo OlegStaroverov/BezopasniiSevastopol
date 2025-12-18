@@ -1,93 +1,149 @@
-// Конфигурация MAX Bridge для Безопасный Севастополь
-window.MAX_CONFIG = {
-    app_name: "Безопасный Севастополь",
-    version: "2.0.0",
-    bridge_version: "1.0",
-    
-    // Темы: dark, light, max
-    themes: {
-        dark: "#000000",
-        light: "#FFFFFF",
-        max: "#007AFF"
-    },
-    
-    // Настройки интерфейса
-    ui: {
-        theme_color: "#007AFF",
-        background_color: "#000000",
-        primary_color: "#007AFF",
-        accent_color: "#FF9500",
-        success_color: "#34C759",
-        warning_color: "#FF9500",
-        error_color: "#FF3B30"
-    },
-    
-    // Разрешения
-    permissions: {
-        required: ["storage", "location"],
-        optional: ["camera", "contacts", "biometric"]
-    },
-    
-    // Обработка событий
-    events: {
-        onReady: function() {
-            console.log("✅ MAX Bridge готов");
-            if (window.app) {
-                window.app.initMaxBridge();
-            }
-        },
-        onClose: function() {
-            console.log("Приложение закрывается");
-            return false;
-        },
-        onBackButton: function() {
-            if (window.app) {
-                return window.app.handleBackButton();
-            }
-            return true;
-        },
-        onThemeChange: function(theme) {
-            if (window.app) {
-                window.app.setTheme(theme);
-            }
-        }
-    },
-    
-    // Deep linking
-    deep_links: {
-        prefixes: ["sevastopol://", "https://sevastopol-hub.ru/"],
-        handlers: {
-            "wifi": "switchToWifi",
-            "security": "switchToSecurity",
-            "graffiti": "switchToGraffiti",
-            "contacts": "switchToContacts",
-            "admin": "switchToAdmin"
-        }
-    },
-    
-    // Настройки производительности
-    performance: {
-        cache_assets: true,
-        lazy_load_images: true,
-        compress_images: true,
-        max_image_size: 1024,
-        use_service_worker: true
-    },
-    
-    // Конфигурация форм
-    forms: {
-        max_media_files: 5,
-        max_file_size: 10 * 1024 * 1024, // 10MB
-        max_graffiti_photos: 3,
-        description_min_length: 10,
-        description_max_length: 500,
-        phone_pattern: /^(\+7|7|8)?[489][0-9]{9}$/
-    }
-};
+/* max-config.js
+   Центральный конфиг мини-приложения MAX
+   Используется:
+   - app.js
+   - email-service.js
+   - admin-panel.js
+*/
 
-// Инициализация конфигурации
-document.addEventListener('DOMContentLoaded', function() {
-    if (window.MAX_CONFIG && window.app) {
-        console.log('✅ MAX Config загружен');
+(() => {
+  "use strict";
+
+  /**
+   * ID администраторов MAX
+   * ⚠️ ОБЯЗАТЕЛЬНО заменить на реальные user.id из MAX
+   * Пример можно посмотреть через:
+   * window.WebApp.initDataUnsafe.user.id
+   */
+  window.ADMIN_USER_IDS = [
+    "100000001",
+    "100000002"
+  ];
+
+  /**
+   * Основной конфиг приложения
+   */
+  window.AppConfig = {
+    appName: "Городской помощник",
+
+    /**
+     * Email / backend
+     * endpoint — ваш сервер, который реально отправляет почту
+     * (Node, Python, PHP — не важно)
+     */
+    email: {
+      endpoint: "https://YOUR-DOMAIN.RU/api/send-email",
+
+      /**
+       * Необязательно.
+       * Если сервер ожидает публичный ключ клиента
+       */
+      apiKey: "",
+
+      /**
+       * Email'ы по умолчанию (если админ не переопределил в админке)
+       */
+      adminEmails: {
+        security: "security@your-domain.ru",
+        wifi: "wifi@your-domain.ru",
+        graffiti: "graffiti@your-domain.ru"
+      }
+    },
+
+    /**
+     * Поведение UI
+     */
+    ui: {
+      /**
+       * Максимальная длина текста в формах
+       */
+      maxDescriptionLength: 1000,
+
+      /**
+       * Использовать haptic feedback (если доступно)
+       */
+      haptics: true,
+
+      /**
+       * Использовать подтверждение перед отправкой
+       */
+      confirmBeforeSend: true
+    },
+
+    /**
+     * Wi-Fi
+     */
+    wifi: {
+      /**
+       * Максимальное расстояние (в метрах) для "НАЙТИ БЛИЖАЙШИЕ"
+       */
+      nearestRadius: 1500,
+
+      /**
+       * Максимум точек в списке
+       */
+      maxResults: 20
+    },
+
+    /**
+     * Безопасность
+     */
+    security: {
+      /**
+       * Требовать телефон обязательно
+       */
+      phoneRequired: true,
+
+      /**
+       * Email необязателен
+       */
+      emailOptional: true
+    },
+
+    /**
+     * Карты (Яндекс)
+     * Используется в:
+     *  - Безопасности
+     *  - Wi-Fi → Найти ближайшие
+     */
+    maps: {
+      provider: "yandex",
+
+      /**
+       * API ключ Яндекс.Карт (Web)
+       * https://developer.tech.yandex.ru/
+       */
+      apiKey: "YANDEX_MAPS_API_KEY",
+
+      /**
+       * Начальная точка (если геолокация недоступна)
+       */
+      defaultCenter: {
+        lat: 55.751244,
+        lon: 37.618423
+      },
+
+      zoom: 14
+    },
+
+    /**
+     * Хранилище
+     */
+    storage: {
+      /**
+       * Ключи localStorage
+       */
+      keys: {
+        security: "reports_security",
+        wifi: "reports_wifi",
+        graffiti: "reports_graffiti"
+      }
     }
-});
+  };
+
+  /**
+   * Обратная совместимость
+   * (если где-то используется MaxConfig)
+   */
+  window.MaxConfig = window.AppConfig;
+})();
