@@ -1,373 +1,526 @@
-// Админ-панель Sevastopol Hub - Версия 2.0
-class AdminPanel {
-    constructor(app) {
-        this.app = app;
-        this.currentTab = 'dashboard';
-        this.reports = {
-            security: [],
-            wifi: [],
-            graffiti: []
-        };
-        this.stats = {};
-        
-        this.init();
+// admin-panel.js — Admin UI inside #admin-section (dynamic build)
+// Функции:
+//  - показывает обращения (security / wifi / graffiti)
+//  - фильтр по статусу
+//  - смена статуса (new / in_progress / resolved)
+//  - экспорт CSV
+//  - дашборд: счетчики + график (если Chart.js доступен)
+
+(() => {
+  "use strict";
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+  const esc = (s) =>
+    String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+
+  const nowISO = () => new Date().toISOString();
+
+  // ------- AppData helpers (совместимо с fallback из app.js) -------
+  const AppData = window.AppData;
+
+  const readReports = async (type) => {
+    try {
+      const list = await AppData.getReports(type);
+      return Array.isArray(list) ? list : [];
+    } catch (_) {
+      return [];
+    }
+  };
+
+  // update list полностью (используем приватные методы если есть, иначе localStorage)
+  const writeReports = async (type, list) => {
+    const key = `reports_${type}`;
+    try {
+      if (AppData._save) return await AppData._save(key, list);
+    } catch (_) {}
+    try {
+      localStorage.setItem(key, JSON.stringify(list));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const updateReportStatus = async (type, id, status) => {
+    const list = await readReports(type);
+    const idx = list.findIndex((r) => String(r.id) === String(id));
+    if (idx < 0) return false;
+    list[idx].status = status;
+    list[idx].updatedAt = nowISO();
+    return writeReports(type, list);
+  };
+
+  const exportCSV = (filename, rows) => {
+    const escCSV = (v) => {
+      const s = String(v ?? "");
+      if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
+      return s;
+    };
+    const csv = rows.map((r) => r.map(escCSV).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  // ------- UI Builder -------
+  class AdminPanel {
+    constructor() {
+      this.root = $("#admin-section");
+      this.isAdmin = false;
+      this.chart = null;
+
+      this.activeTab = "dashboard";
+      this.activeType = "security"; // for lists
+      this.statusFilter = "all";
+
+      this._boot();
     }
 
-    async init() {
-        await this.loadReports();
-        await this.loadStats();
-        this.setupEventListeners();
-        this.renderDashboard();
+    _boot() {
+      // Проверка админа делаем так же, как в app.js
+      const uid = window.WebApp?.initDataUnsafe?.user?.id;
+      const admins = (window.ADMIN_USER_IDS || []).map(String);
+      this.isAdmin = uid != null && admins.includes(String(uid));
+
+      if (!this.root) return;
+      if (!this.isAdmin) {
+        this.root.innerHTML = `
+          <div class="glass-card form-card">
+            <div class="placeholder">Доступ только для администраторов</div>
+          </div>`;
+        return;
+      }
+
+      // Собираем UI
+      this.root.innerHTML = this._template();
+
+      // bind
+      this._bindTabs();
+      this._bindFilters();
+      this._bindExports();
+      this._bindEmailSettings();
+
+      // initial
+      this.refreshAll();
     }
 
-    async loadReports() {
-        try {
-            // Загрузка отчетов из хранилища
-            this.reports.security = await AppData.getReports('security') || [];
-            this.reports.wifi = await AppData.getReports('wifi') || [];
-            this.reports.graffiti = await AppData.getReports('graffiti') || [];
-            
-            console.log('📊 Отчеты загружены:', {
-                security: this.reports.security.length,
-                wifi: this.reports.wifi.length,
-                graffiti: this.reports.graffiti.length
-            });
-            
-        } catch (error) {
-            console.error('Ошибка загрузки отчетов:', error);
-        }
-    }
-
-    async loadStats() {
-        this.stats = {
-            total: 0,
-            byType: {},
-            byStatus: {},
-            today: 0,
-            week: 0,
-            month: 0
-        };
-        
-        Object.keys(this.reports).forEach(type => {
-            const typeReports = this.reports[type];
-            this.stats.total += typeReports.length;
-            this.stats.byType[type] = typeReports.length;
-            
-            typeReports.forEach(report => {
-                this.stats.byStatus[report.status] = (this.stats.byStatus[report.status] || 0) + 1;
-                
-                const reportDate = new Date(report.timestamp);
-                const now = new Date();
-                const diffDays = Math.floor((now - reportDate) / (1000 * 60 * 60 * 24));
-                
-                if (diffDays === 0) this.stats.today++;
-                if (diffDays < 7) this.stats.week++;
-                if (diffDays < 30) this.stats.month++;
-            });
-        });
-    }
-
-    setupEventListeners() {
-        // Фильтры
-        document.getElementById('securityFilter')?.addEventListener('change', (e) => {
-            this.filterReports('security', e.target.value);
-        });
-        
-        // Экспорт данных
-        document.getElementById('exportSecurity')?.addEventListener('click', () => this.exportData('security'));
-        document.getElementById('exportWifi')?.addEventListener('click', () => this.exportData('wifi'));
-        document.getElementById('exportGraffiti')?.addEventListener('click', () => this.exportData('graffiti'));
-        
-        // Обновление
-        document.getElementById('refreshSecurity')?.addEventListener('click', () => this.refreshTab('security'));
-        document.getElementById('refreshWifi')?.addEventListener('click', () => this.refreshTab('wifi'));
-        document.getElementById('refreshGraffiti')?.addEventListener('click', () => this.refreshTab('graffiti'));
-        
-        // Настройки email
-        document.getElementById('saveSecurityEmail')?.addEventListener('click', () => this.saveEmail('security'));
-        document.getElementById('saveWifiEmail')?.addEventListener('click', () => this.saveEmail('wifi'));
-        document.getElementById('saveGraffitiEmail')?.addEventListener('click', () => this.saveEmail('graffiti'));
-    }
-
-    renderDashboard() {
-        // Обновление статистики
-        document.getElementById('totalReports').textContent = this.stats.total || 0;
-        document.getElementById('pendingReports').textContent = this.stats.byStatus['new'] || 0;
-        document.getElementById('completedReports').textContent = this.stats.byStatus['resolved'] || 0;
-        
-        // Активные пользователи (заглушка)
-        document.getElementById('activeUsers').textContent = '25';
-        
-        // Обновление графиков
-        this.updateCharts();
-    }
-
-    updateCharts() {
-        if (window.Chart) {
-            const ctx = document.getElementById('reportsChart');
-            if (ctx) {
-                // Удаляем старый график если есть
-                const oldChart = Chart.getChart(ctx);
-                if (oldChart) {
-                    oldChart.destroy();
-                }
-                
-                new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Безопасность', 'Wi-Fi', 'Граффити'],
-                        datasets: [{
-                            data: [
-                                this.stats.byType.security || 0,
-                                this.stats.byType.wifi || 0,
-                                this.stats.byType.graffiti || 0
-                            ],
-                            backgroundColor: ['#007AFF', '#34C759', '#FF9500'],
-                            borderWidth: 2,
-                            borderColor: 'var(--bg-card)'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    color: 'var(--text-primary)',
-                                    padding: 20
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        }
-    }
-
-    async filterReports(type, status) {
-        try {
-            let filteredReports = this.reports[type];
-            
-            if (status !== 'all') {
-                filteredReports = filteredReports.filter(r => r.status === status);
-            }
-            
-            const container = document.getElementById(`${type}ReportsList`);
-            if (container) {
-                container.innerHTML = filteredReports.map(report => 
-                    this.createReportCard(report, type)
-                ).join('');
-            }
-            
-        } catch (error) {
-            console.error(`Ошибка фильтрации отчетов ${type}:`, error);
-        }
-    }
-
-    createReportCard(report, type) {
-        const typeIcons = {
-            security: 'fas fa-shield-alt',
-            wifi: 'fas fa-wifi',
-            graffiti: 'fas fa-spray-can'
-        };
-        
-        const statusBadges = {
-            new: '<span class="status-badge status-new">Новый</span>',
-            in_progress: '<span class="status-badge status-in-progress">В работе</span>',
-            resolved: '<span class="status-badge status-resolved">Решено</span>',
-            rejected: '<span class="status-badge status-rejected">Отклонено</span>'
-        };
-        
-        const formatDate = (dateString) => {
-            return new Date(dateString).toLocaleString('ru-RU', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        };
-        
-        return `
-            <div class="report-item">
-                <div class="report-header">
-                    <div class="report-title">
-                        <h4>${report.pointName || report.address || 'Без названия'}</h4>
-                        <div class="report-meta">
-                            <span>ID: ${report.id}</span>
-                            <span>${formatDate(report.timestamp)}</span>
-                        </div>
-                    </div>
-                    <div class="report-status">
-                        ${statusBadges[report.status] || ''}
-                    </div>
-                </div>
-                <div class="report-body">
-                    <p>${report.description || 'Нет описания'}</p>
-                    <div class="report-details">
-                        <div class="detail">
-                            <i class="fas fa-user"></i>
-                            <span>${report.userName || 'Аноним'}</span>
-                        </div>
-                        ${report.userPhone ? `
-                        <div class="detail">
-                            <i class="fas fa-phone"></i>
-                            <span>${report.userPhone}</span>
-                        </div>
-                        ` : ''}
-                        ${report.address ? `
-                        <div class="detail">
-                            <i class="fas fa-map-marker-alt"></i>
-                            <span>${report.address}</span>
-                        </div>
-                        ` : ''}
-                    </div>
-                </div>
-                <div class="report-actions">
-                    <button class="btn btn-sm" onclick="admin.resolveReport('${report.id}', '${type}')">
-                        <i class="fas fa-check"></i> Решено
-                    </button>
-                    <button class="btn btn-sm btn-secondary" onclick="admin.rejectReport('${report.id}', '${type}')">
-                        <i class="fas fa-times"></i> Отклонить
-                    </button>
-                </div>
+    _template() {
+      return `
+        <div class="glass-card form-card" style="display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="font-weight:900;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              Административная панель
             </div>
-        `;
+            <button class="btn btn-primary btn-compact" id="adminRefresh" type="button">
+              <i class="fas fa-sync"></i><span>Обновить</span>
+            </button>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Админ вкладки" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+            <button class="tab is-active" data-admin-tab="dashboard" type="button" role="tab" aria-selected="true">Дашборд</button>
+            <button class="tab" data-admin-tab="security" type="button" role="tab" aria-selected="false">Безопасность</button>
+            <button class="tab" data-admin-tab="wifi" type="button" role="tab" aria-selected="false">Wi-Fi</button>
+            <button class="tab" data-admin-tab="settings" type="button" role="tab" aria-selected="false">Настройки</button>
+          </div>
+
+          <div class="tab-content is-active" data-admin-tab-content="dashboard">
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;">
+              ${this._statCard("Всего", "adminTotal")}
+              ${this._statCard("Новые", "adminNew")}
+              ${this._statCard("В работе", "adminInProgress")}
+              ${this._statCard("Решено", "adminResolved")}
+            </div>
+
+            <div class="glass-card" style="padding:14px;border-radius:18px;">
+              <div style="font-weight:900;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">По категориям</div>
+              <canvas id="adminChart" height="120"></canvas>
+            </div>
+          </div>
+
+          <div class="tab-content" data-admin-tab-content="security">
+            ${this._listHeader("security")}
+            <div id="adminList_security" class="cards-grid" aria-label="Список обращений безопасности"></div>
+          </div>
+
+          <div class="tab-content" data-admin-tab-content="wifi">
+            ${this._listHeader("wifi")}
+            <div id="adminList_wifi" class="cards-grid" aria-label="Список обращений Wi-Fi"></div>
+          </div>
+
+          <div class="tab-content" data-admin-tab-content="settings">
+            <div class="glass-card" style="padding:14px;border-radius:18px;">
+              <div style="font-weight:900;margin-bottom:12px;">Email для уведомлений</div>
+
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+                ${this._emailSetting("security", "Безопасность")}
+                ${this._emailSetting("wifi", "Wi-Fi")}
+                ${this._emailSetting("graffiti", "Граффити")}
+              </div>
+
+              <div style="margin-top:12px;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                Отправка email работает через ваш серверный endpoint (см. AppConfig.email.endpoint).
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
-    async exportData(type) {
-        try {
-            const data = this.reports[type] || [];
-            const csv = this.convertToCSV(data);
-            
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            
-            link.href = url;
-            link.download = `sevastopol-${type}-reports-${new Date().toISOString().split('T')[0]}.csv`;
-            link.style.display = 'none';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            URL.revokeObjectURL(url);
-            
-            if (this.app && this.app.showNotification) {
-                this.app.showNotification(`Данные ${type} экспортированы`, 'success');
-            }
-            
-        } catch (error) {
-            console.error('Ошибка экспорта данных:', error);
-            if (this.app && this.app.showNotification) {
-                this.app.showNotification('Ошибка экспорта данных', 'error');
-            }
-        }
+    _statCard(title, id) {
+      return `
+        <div class="glass-card" style="padding:14px;border-radius:18px;">
+          <div style="color:var(--muted);font-weight:800;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(title)}</div>
+          <div id="${id}" style="font-weight:900;font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">0</div>
+        </div>
+      `;
     }
 
-    convertToCSV(data) {
-        if (data.length === 0) return '';
-        
-        const headers = Object.keys(data[0]);
-        const rows = data.map(item => 
-            headers.map(header => {
-                const value = item[header];
-                if (typeof value === 'object') {
-                    return JSON.stringify(value);
-                }
-                return `"${String(value).replace(/"/g, '""')}"`;
-            }).join(',')
-        );
-        
-        return [headers.join(','), ...rows].join('\n');
+    _listHeader(type) {
+      const t = esc(type);
+      return `
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <select class="form-select" id="adminStatusFilter_${t}" style="min-width:220px;">
+              <option value="all">Все статусы</option>
+              <option value="new">Новые</option>
+              <option value="in_progress">В работе</option>
+              <option value="resolved">Решено</option>
+            </select>
+            <button class="btn btn-primary btn-compact" id="adminExport_${t}" type="button">
+              <i class="fas fa-download"></i><span>Экспорт CSV</span>
+            </button>
+          </div>
+          <div style="color:var(--muted);font-weight:800;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            Тип: ${t.toUpperCase()}
+          </div>
+        </div>
+      `;
     }
 
-    async refreshTab(type) {
-        try {
-            await this.loadReports();
-            await this.loadStats();
-            
-            if (type === 'dashboard') {
-                this.renderDashboard();
-            } else {
-                this.filterReports(type, 'all');
-            }
-            
-            if (this.app && this.app.showNotification) {
-                this.app.showNotification('Данные обновлены', 'success');
-            }
-            
-        } catch (error) {
-            console.error('Ошибка обновления данных:', error);
-            if (this.app && this.app.showNotification) {
-                this.app.showNotification('Ошибка обновления данных', 'error');
-            }
-        }
+    _emailSetting(type, title) {
+      const t = esc(type);
+      const lab = esc(title);
+      return `
+        <div class="glass-card" style="padding:12px;border-radius:18px;">
+          <div style="font-weight:900;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${lab}</div>
+          <div class="form-group" style="gap:8px;">
+            <label for="adminEmail_${t}">Email</label>
+            <input id="adminEmail_${t}" class="form-input" type="email" placeholder="name@domain.ru" />
+            <button class="btn btn-primary btn-compact" id="adminEmailSave_${t}" type="button">
+              <i class="fas fa-save"></i><span>Сохранить</span>
+            </button>
+          </div>
+        </div>
+      `;
     }
 
-    async saveEmail(type) {
-        const inputId = `email${type.charAt(0).toUpperCase() + type.slice(1)}`;
-        const input = document.getElementById(inputId);
-        
-        if (!input || !window.EmailService) return;
-        
-        const email = input.value.trim();
-        
-        if (email && AppData.validateEmail(email)) {
-            window.EmailService.updateAdminEmail(type, email);
-            
-            if (this.app && this.app.showNotification) {
-                this.app.showNotification(`Email для ${type} сохранен`, 'success');
-            }
+    _bindTabs() {
+      const refresh = $("#adminRefresh");
+      refresh?.addEventListener("click", () => this.refreshAll());
+
+      $$("#admin-section [data-admin-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const tab = btn.dataset.adminTab;
+          if (!tab) return;
+          this.activeTab = tab;
+
+          $$("#admin-section [data-admin-tab]").forEach((b) => {
+            b.classList.toggle("is-active", b.dataset.adminTab === tab);
+            b.setAttribute("aria-selected", b.dataset.adminTab === tab ? "true" : "false");
+          });
+
+          $$("#admin-section [data-admin-tab-content]").forEach((c) => {
+            c.classList.toggle("is-active", c.dataset.adminTabContent === tab);
+          });
+
+          if (tab === "security") this.refreshList("security");
+          if (tab === "wifi") this.refreshList("wifi");
+          if (tab === "dashboard") this.refreshDashboard();
+        });
+      });
+    }
+
+    _bindFilters() {
+      const s = $("#adminStatusFilter_security");
+      const w = $("#adminStatusFilter_wifi");
+      s?.addEventListener("change", () => this.refreshList("security"));
+      w?.addEventListener("change", () => this.refreshList("wifi"));
+    }
+
+    _bindExports() {
+      $("#adminExport_security")?.addEventListener("click", async () => {
+        const list = await readReports("security");
+        exportCSV("security_reports.csv", this._csvRows("security", list));
+      });
+      $("#adminExport_wifi")?.addEventListener("click", async () => {
+        const list = await readReports("wifi");
+        exportCSV("wifi_reports.csv", this._csvRows("wifi", list));
+      });
+    }
+
+    _bindEmailSettings() {
+      const svc = window.EmailService;
+      const emails = svc?.getAdminEmails ? svc.getAdminEmails() : (window.AppConfig?.adminEmails || {});
+
+      const fill = (type, val) => {
+        const input = $(`#adminEmail_${type}`);
+        if (input) input.value = val || "";
+      };
+
+      fill("security", emails.security || "");
+      fill("wifi", emails.wifi || "");
+      fill("graffiti", emails.graffiti || "");
+
+      const bindSave = (type) => {
+        $(`#adminEmailSave_${type}`)?.addEventListener("click", () => {
+          const input = $(`#adminEmail_${type}`);
+          const v = input ? String(input.value || "").trim() : "";
+          const ok = svc?.setAdminEmail ? svc.setAdminEmail(type, v) : false;
+          if (ok) this._toast("Сохранено", "success");
+          else this._toast("Не удалось сохранить", "danger");
+        });
+      };
+
+      bindSave("security");
+      bindSave("wifi");
+      bindSave("graffiti");
+    }
+
+    async refreshAll() {
+      await this.refreshDashboard();
+      await this.refreshList("security");
+      await this.refreshList("wifi");
+      this._toast("Данные обновлены", "success");
+    }
+
+    async refreshDashboard() {
+      const sec = await readReports("security");
+      const wifi = await readReports("wifi");
+      const all = [...sec, ...wifi];
+
+      const total = all.length;
+      const cntNew = all.filter((r) => r.status === "new").length;
+      const cntProg = all.filter((r) => r.status === "in_progress").length;
+      const cntRes = all.filter((r) => r.status === "resolved").length;
+
+      $("#adminTotal") && ($("#adminTotal").textContent = String(total));
+      $("#adminNew") && ($("#adminNew").textContent = String(cntNew));
+      $("#adminInProgress") && ($("#adminInProgress").textContent = String(cntProg));
+      $("#adminResolved") && ($("#adminResolved").textContent = String(cntRes));
+
+      // Chart
+      const hasChart = typeof window.Chart !== "undefined";
+      if (!hasChart) return;
+
+      const ctx = $("#adminChart");
+      if (!ctx) return;
+
+      const data = {
+        labels: ["Безопасность", "Wi-Fi"],
+        datasets: [{
+          label: "Обращения",
+          data: [sec.length, wifi.length]
+        }]
+      };
+
+      try {
+        if (this.chart) {
+          this.chart.data = data;
+          this.chart.update();
         } else {
-            if (this.app && this.app.showNotification) {
-                this.app.showNotification('Введите корректный email', 'error');
+          this.chart = new window.Chart(ctx, {
+            type: "doughnut",
+            data,
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { display: true }
+              }
             }
+          });
         }
+      } catch (_) {
+        // ignore chart failures
+      }
     }
 
-    // Методы для работы с отчетами
-    async resolveReport(reportId, type) {
-        // В реальном приложении здесь была бы логика обновления статуса в базе данных
-        const report = this.reports[type]?.find(r => r.id === reportId);
-        
-        if (report) {
-            report.status = 'resolved';
-            
-            if (this.app && this.app.showNotification) {
-                this.app.showNotification('Отчет помечен как решенный', 'success');
-            }
-            
-            // Обновление UI
-            this.filterReports(type, 'all');
-            this.renderDashboard();
-        }
+    async refreshList(type) {
+      const list = await readReports(type);
+
+      const filterEl = $(`#adminStatusFilter_${type}`);
+      const filter = filterEl ? String(filterEl.value || "all") : "all";
+
+      const filtered = filter === "all" ? list : list.filter((r) => r.status === filter);
+
+      const box = $(`#adminList_${type}`);
+      if (!box) return;
+      box.innerHTML = "";
+
+      if (!filtered.length) {
+        box.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Нет обращений</div>`;
+        return;
+      }
+
+      filtered.forEach((r) => {
+        box.appendChild(this._renderCard(type, r));
+      });
     }
 
-    async rejectReport(reportId, type) {
-        // В реальном приложении здесь была бы логика обновления статуса в базе данных
-        const report = this.reports[type]?.find(r => r.id === reportId);
-        
-        if (report) {
-            report.status = 'rejected';
-            
-            if (this.app && this.app.showNotification) {
-                this.app.showNotification('Отчет отклонен', 'info');
-            }
-            
-            // Обновление UI
-            this.filterReports(type, 'all');
-            this.renderDashboard();
-        }
-    }
-}
+    _renderCard(type, r) {
+      const card = document.createElement("div");
+      card.className = "wifi-card"; // используем готовый премиальный стиль карточки
 
-// Экспорт глобального объекта админ-панели
-let admin;
-document.addEventListener('DOMContentLoaded', () => {
-    if (window.app) {
-        admin = new AdminPanel(window.app);
-        window.admin = admin;
+      const title = document.createElement("div");
+      title.className = "wifi-card-title";
+      title.textContent = `${String(r.id || "").trim() || "Без ID"} • ${this._statusLabel(r.status)}`;
+      title.title = title.textContent;
+
+      const sub = document.createElement("div");
+      sub.className = "wifi-card-sub";
+      sub.textContent = `${(r.type || type).toUpperCase()}${r.subtype ? ` (${r.subtype})` : ""} • ${r.timestamp || ""}`;
+      sub.title = sub.textContent;
+
+      const payload = r.payload || {};
+      const line1 = document.createElement("div");
+      line1.className = "wifi-card-sub";
+      line1.textContent = `Имя: ${payload.name || "—"} • Тел: ${payload.phone || "—"}`;
+      line1.title = line1.textContent;
+
+      const line2 = document.createElement("div");
+      line2.className = "wifi-card-sub";
+      const place =
+        payload.place ||
+        payload.address ||
+        (payload.location?.lat && payload.location?.lon ? `${payload.location.lat}, ${payload.location.lon}` : "");
+      line2.textContent = `Место: ${place || "—"}`;
+      line2.title = line2.textContent;
+
+      const desc = document.createElement("div");
+      desc.className = "wifi-card-sub";
+      desc.textContent = `Описание: ${String(payload.description || "").slice(0, 140) || "—"}`;
+      desc.title = payload.description || "—";
+
+      const actions = document.createElement("div");
+      actions.style.display = "flex";
+      actions.style.gap = "10px";
+      actions.style.flexWrap = "wrap";
+      actions.style.marginTop = "10px";
+
+      const btnNew = this._statusBtn("Новые", "new", type, r.id);
+      const btnProg = this._statusBtn("В работе", "in_progress", type, r.id);
+      const btnRes = this._statusBtn("Решено", "resolved", type, r.id);
+
+      actions.append(btnNew, btnProg, btnRes);
+
+      card.append(title, sub, line1, line2, desc, actions);
+      return card;
     }
-});
+
+    _statusBtn(label, status, type, id) {
+      const b = document.createElement("button");
+      b.className = "btn btn-primary btn-compact";
+      b.type = "button";
+      b.innerHTML = `<span>${esc(label)}</span>`;
+      b.addEventListener("click", async () => {
+        const ok = await updateReportStatus(type, id, status);
+        if (ok) {
+          this._toast("Статус обновлен", "success");
+          await this.refreshDashboard();
+          await this.refreshList(type);
+        } else {
+          this._toast("Не удалось обновить статус", "danger");
+        }
+      });
+      return b;
+    }
+
+    _statusLabel(s) {
+      if (s === "in_progress") return "В работе";
+      if (s === "resolved") return "Решено";
+      return "Новое";
+    }
+
+    _csvRows(type, list) {
+      const head = ["id", "type", "subtype", "status", "timestamp", "name", "phone", "email", "place/address", "coords", "description"];
+      const rows = [head];
+
+      list.forEach((r) => {
+        const p = r.payload || {};
+        const coords =
+          p.location?.lat && p.location?.lon ? `${p.location.lat},${p.location.lon}` : "";
+        const place = p.place || p.address || "";
+        rows.push([
+          r.id || "",
+          r.type || type,
+          r.subtype || "",
+          r.status || "",
+          r.timestamp || "",
+          p.name || "",
+          p.phone || "",
+          p.email || "",
+          place,
+          coords,
+          (p.description || "").replaceAll("\n", " ")
+        ]);
+      });
+
+      return rows;
+    }
+
+    _toast(msg, kind = "success") {
+      // маленькая нотификация без ломания layout
+      const el = document.createElement("div");
+      el.style.position = "fixed";
+      el.style.left = "50%";
+      el.style.top = "16px";
+      el.style.transform = "translateX(-50%)";
+      el.style.zIndex = "9999";
+      el.style.padding = "10px 14px";
+      el.style.borderRadius = "14px";
+      el.style.whiteSpace = "nowrap";
+      el.style.maxWidth = "92vw";
+      el.style.overflow = "hidden";
+      el.style.textOverflow = "ellipsis";
+      el.style.fontWeight = "900";
+      el.style.fontSize = "13px";
+      el.style.backdropFilter = "blur(14px)";
+      el.style.webkitBackdropFilter = "blur(14px)";
+      el.style.border = "1px solid rgba(255,255,255,.16)";
+      el.style.boxShadow = "0 16px 40px rgba(0,0,0,.35)";
+      el.style.color = "rgba(255,255,255,.92)";
+
+      const bg =
+        kind === "danger" ? "rgba(255,59,48,.78)" :
+        kind === "warning" ? "rgba(255,159,10,.78)" :
+        "rgba(52,199,89,.68)";
+      el.style.background = bg;
+
+      el.textContent = String(msg || "").slice(0, 140);
+      document.body.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transition = "opacity 240ms ease";
+        setTimeout(() => el.remove(), 260);
+      }, 1600);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // не ломаемся, если нет AppData
+    if (!window.AppData) return;
+    window.adminPanel = new AdminPanel();
+  });
+})();
