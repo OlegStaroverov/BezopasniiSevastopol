@@ -1,310 +1,147 @@
-// Email Service для отправки уведомлений администраторам - Версия 2.0
-class EmailService {
-    constructor() {
-        this.config = {
-            adminEmails: {
-                wifi: 'wifi@sevastopol-hub.ru',
-                security: 'security@sevastopol-hub.ru',
-                graffiti: 'graffiti@sevastopol-hub.ru',
-                general: 'admin@sevastopol-hub.ru'
-            },
-            defaultFrom: 'noreply@sevastopol-hub.ru',
-            apiEndpoint: 'https://api.sevastopol-hub.ru/email/send'
-        };
-        
-        this.init();
-    }
+// email-service.js — real email sender via backend endpoint
+// ВАЖНО: безопасная отправка email напрямую из браузера невозможна без бэкенда.
+// Этот модуль отправляет обращение на ваш сервер (endpoint), а уже сервер отправляет email.
+// Настройка:
+//   window.AppConfig.email.endpoint = "https://your-domain.com/api/send-email"
+//   (опционально) window.AppConfig.email.apiKey = "public-client-key" (если используете)
+//   window.AppConfig.adminEmails = { security: "...", wifi: "...", graffiti: "..." }
 
-    init() {
-        this.loadConfig();
-        this.setupTemplates();
-        this.setupEventListeners();
-    }
+(() => {
+  "use strict";
 
-    loadConfig() {
-        try {
-            const savedConfig = localStorage.getItem('emailServiceConfig');
-            if (savedConfig) {
-                this.config = { ...this.config, ...JSON.parse(savedConfig) };
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки конфигурации email:', error);
-        }
-    }
+  const safeStr = (v, max = 5000) => {
+    if (v == null) return "";
+    const s = String(v);
+    return s.length > max ? s.slice(0, max) : s;
+  };
 
-    saveConfig() {
-        try {
-            localStorage.setItem('emailServiceConfig', JSON.stringify(this.config));
-        } catch (error) {
-            console.error('Ошибка сохранения конфигурации email:', error);
-        }
-    }
+  const getCfg = () => (window.AppConfig || window.MaxConfig || {});
 
-    setupTemplates() {
-        this.templates = {
-            security: this.createSecurityTemplate.bind(this),
-            graffiti: this.createGraffitiTemplate.bind(this),
-            wifi_problem: this.createWifiProblemTemplate.bind(this),
-            wifi_suggestion: this.createWifiSuggestionTemplate.bind(this)
-        };
+  const storage = {
+    get(key) {
+      try { return localStorage.getItem(key); } catch (_) { return null; }
+    },
+    set(key, val) {
+      try { localStorage.setItem(key, val); return true; } catch (_) { return false; }
     }
+  };
 
-    setupEventListeners() {
-        // Обработчики для админ-панели
-        document.addEventListener('adminEmailUpdated', (event) => {
-            if (event.detail && event.detail.type && event.detail.email) {
-                this.updateAdminEmail(event.detail.type, event.detail.email);
-            }
-        });
-    }
+  const defaults = () => {
+    const cfg = getCfg();
+    const adminEmails = cfg.adminEmails || cfg.email?.adminEmails || {};
+    return {
+      endpoint: cfg.email?.endpoint || cfg.emailEndpoint || "",
+      apiKey: cfg.email?.apiKey || cfg.emailApiKey || "",
+      adminEmails: {
+        security: adminEmails.security || "",
+        wifi: adminEmails.wifi || "",
+        graffiti: adminEmails.graffiti || ""
+      }
+    };
+  };
 
-    async sendEmail(emailData) {
-        try {
-            console.log('📧 Отправка email:', {
-                to: emailData.to,
-                subject: emailData.subject,
-                type: emailData.type
-            });
-            
-            // Показываем уведомление
-            if (window.app && window.app.showNotification) {
-                window.app.showNotification('Отправка email...', 'info');
-            }
-            
-            // Симуляция отправки
-            await this.simulateSending(emailData);
-            
-            // Логирование
-            this.logSending(emailData);
-            
-            // Успешное уведомление
-            if (window.app && window.app.showNotification) {
-                window.app.showNotification('Email отправлен', 'success');
-            }
-            
-            return { success: true, message: 'Email успешно отправлен' };
-            
-        } catch (error) {
-            console.error('❌ Ошибка отправки email:', error);
-            
-            if (window.app && window.app.showNotification) {
-                window.app.showNotification('Ошибка отправки email', 'error');
-            }
-            
-            return { success: false, error: error.message };
-        }
-    }
+  const EmailService = {
+    config: defaults(),
 
-    async simulateSending(emailData) {
-        return new Promise((resolve) => {
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += 20;
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    resolve({ ok: true });
-                }
-            }, 100);
-        });
-    }
+    refreshConfig() {
+      this.config = defaults();
+      return this.config;
+    },
 
-    logSending(emailData) {
-        try {
-            const log = {
-                timestamp: new Date().toISOString(),
-                to: emailData.to,
-                subject: emailData.subject,
-                type: emailData.type || 'general',
-                success: true
-            };
-            
-            const logs = JSON.parse(localStorage.getItem('emailLogs') || '[]');
-            logs.unshift(log);
-            
-            // Храним только последние 50 записей
-            if (logs.length > 50) {
-                logs.pop();
-            }
-            
-            localStorage.setItem('emailLogs', JSON.stringify(logs));
-            
-            // Анимация отправки
-            this.animateEmailSent();
-        } catch (error) {
-            console.error('Ошибка логирования email:', error);
-        }
-    }
-
-    animateEmailSent() {
-        const emailElements = document.querySelectorAll('.fa-envelope, .email-icon');
-        emailElements.forEach(element => {
-            element.style.animation = 'emailSent 0.5s ease';
-            setTimeout(() => {
-                element.style.animation = '';
-            }, 500);
-        });
-    }
-
-    getEmailLogs(limit = 20) {
-        try {
-            const logs = JSON.parse(localStorage.getItem('emailLogs') || '[]');
-            return logs.slice(0, limit);
-        } catch (error) {
-            console.error('Ошибка получения логов email:', error);
-            return [];
-        }
-    }
-
-    // Методы для админ-панели
-    updateAdminEmail(type, email) {
-        if (this.config.adminEmails[type]) {
-            this.config.adminEmails[type] = email;
-            this.saveConfig();
-            
-            // Уведомление об обновлении
-            if (window.app && window.app.showNotification) {
-                window.app.showNotification(`Email для ${type} обновлен`, 'success');
-            }
-            
-            return true;
-        }
-        return false;
-    }
-
+    // Адреса админов: сначала из localStorage (если админ изменял), иначе из AppConfig
     getAdminEmails() {
-        return { ...this.config.adminEmails };
-    }
+      this.refreshConfig();
+      const fromStorage = {
+        security: storage.get("admin_email_security") || "",
+        wifi: storage.get("admin_email_wifi") || "",
+        graffiti: storage.get("admin_email_graffiti") || ""
+      };
 
-    testConnection() {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve({
-                    success: true,
-                    message: 'Соединение с email сервисом установлено',
-                    responseTime: '150ms'
-                });
-            }, 800);
-        });
-    }
+      return {
+        security: fromStorage.security || this.config.adminEmails.security || "",
+        wifi: fromStorage.wifi || this.config.adminEmails.wifi || "",
+        graffiti: fromStorage.graffiti || this.config.adminEmails.graffiti || ""
+      };
+    },
 
-    // Шаблоны email
-    createSecurityTemplate(data) {
-        const categoryNames = {
-            suspicious_object: 'Подозрительный предмет',
-            suspicious_activity: 'Подозрительная активность',
-            dangerous_situation: 'Опасная ситуация',
-            other: 'Другое'
-        };
-        
-        return `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #f5f5f7; border-radius: 12px;">
-                <div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #007AFF;">
-                    <h1 style="color: #1d1d1f; margin: 0 0 8px 0;">🚨 Сообщение о безопасности</h1>
-                    <p style="color: #86868b; margin: 0;">ID: ${data.id}</p>
-                </div>
-                
-                <div style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h3 style="color: #1d1d1f; margin-top: 0;">📋 Основная информация</h3>
-                    <p><strong>Дата:</strong> ${new Date(data.timestamp).toLocaleString('ru-RU')}</p>
-                    <p><strong>Статус:</strong> <span style="color: #FF9500; font-weight: bold;">НОВЫЙ</span></p>
-                    <p><strong>Категория:</strong> ${categoryNames[data.category] || data.category}</p>
-                </div>
-                
-                <div style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h3 style="color: #1d1d1f; margin-top: 0;">👤 Контактная информация</h3>
-                    <p><strong>Имя:</strong> ${data.userName || 'Не указано'}</p>
-                    ${data.phone ? `<p><strong>Телефон:</strong> ${data.phone}</p>` : ''}
-                    ${data.email ? `<p><strong>Email:</strong> ${data.email}</p>` : ''}
-                </div>
-                
-                <div style="background: white; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h3 style="color: #1d1d1f; margin-top: 0;">📍 Детали сообщения</h3>
-                    ${data.address ? `<p><strong>Адрес:</strong> ${data.address}</p>` : ''}
-                    ${data.description ? `<p><strong>Описание:</strong><br>${data.description}</p>` : ''}
-                    ${data.mediaFiles ? `<p><strong>Медиафайлов:</strong> ${data.mediaFiles}</p>` : ''}
-                </div>
-                
-                <div style="text-align: center; padding-top: 16px; border-top: 1px solid #d1d1d6; color: #86868b; font-size: 12px;">
-                    <p>Безопасный Севастополь - автоматическое уведомление</p>
-                </div>
-            </div>
-        `;
-    }
+    setAdminEmail(type, email) {
+      const t = String(type || "").trim();
+      const e = safeStr(email, 180).trim();
+      if (!t) return false;
 
-    createGraffitiTemplate(data) {
-        return this.createSecurityTemplate(data)
-            .replace('Сообщение о безопасности', 'Сообщение о граффити')
-            .replace('🚨', '🎨');
-    }
+      const key =
+        t === "security" ? "admin_email_security" :
+        t === "wifi" ? "admin_email_wifi" :
+        t === "graffiti" ? "admin_email_graffiti" :
+        null;
 
-    createWifiProblemTemplate(data) {
-        return this.createSecurityTemplate(data)
-            .replace('Сообщение о безопасности', 'Проблема с Wi-Fi')
-            .replace('🚨', '📶');
-    }
+      if (!key) return false;
+      return storage.set(key, e);
+    },
 
-    createWifiSuggestionTemplate(data) {
-        return this.createSecurityTemplate(data)
-            .replace('Сообщение о безопасности', 'Предложение новой точки Wi-Fi')
-            .replace('🚨', '💡');
-    }
+    // Реальная отправка — POST на ваш сервер
+    // payload: { to, subject, text, html, meta }
+    async sendEmail(payload) {
+      this.refreshConfig();
 
-    // Универсальный метод для отправки уведомлений
-    async sendNotification(type, data) {
-        const emailData = {
-            to: this.config.adminEmails[type] || this.config.adminEmails.general,
-            subject: this.getEmailSubject(type, data),
-            html: this.templates[type] ? this.templates[type](data) : this.createDefaultTemplate(data),
-            type: type
-        };
-        
-        return await this.sendEmail(emailData);
-    }
+      const endpoint = this.config.endpoint;
+      if (!endpoint) {
+        throw new Error("EMAIL_ENDPOINT_NOT_CONFIGURED");
+      }
 
-    getEmailSubject(type, data) {
-        const subjects = {
-            security: `СРОЧНО: Сообщение о безопасности #${data.id}`,
-            graffiti: `Граффити для удаления #${data.id}`,
-            wifi_problem: `Проблема с Wi-Fi: ${data.pointName || 'Неизвестная точка'}`,
-            wifi_suggestion: `Предложение новой точки Wi-Fi: ${data.name || 'Без названия'}`
-        };
-        return subjects[type] || `Новое обращение #${data.id}`;
-    }
+      const to = safeStr(payload?.to, 220).trim();
+      const subject = safeStr(payload?.subject, 220).trim();
+      const text = safeStr(payload?.text, 12000);
+      const html = safeStr(payload?.html, 20000);
+      const meta = payload?.meta && typeof payload.meta === "object" ? payload.meta : {};
 
-    createDefaultTemplate(data) {
-        return `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-                <h2>Новое обращение в Безопасный Севастополь</h2>
-                <p><strong>ID:</strong> ${data.id}</p>
-                <p><strong>Дата:</strong> ${new Date(data.timestamp).toLocaleString('ru-RU')}</p>
-                <p><strong>Тип:</strong> ${data.type}</p>
-                ${data.description ? `<p><strong>Описание:</strong> ${data.description}</p>` : ''}
-            </div>
-        `;
-    }
-}
+      if (!to || !subject || (!text && !html)) {
+        throw new Error("EMAIL_INVALID_REQUEST");
+      }
 
-// Экспорт глобального сервиса
-window.EmailService = new EmailService();
-
-// Добавляем CSS анимацию для email
-if (!document.querySelector('#email-styles')) {
-    const style = document.createElement('style');
-    style.id = 'email-styles';
-    style.textContent = `
-        @keyframes emailSent {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
+      const body = {
+        to,
+        subject,
+        text,
+        html,
+        meta,
+        // полезно серверу: user/device info from MAX (если есть)
+        webapp: {
+          platform: window.WebApp?.platform || "",
+          version: window.WebApp?.version || "",
+          user: window.WebApp?.initDataUnsafe?.user || null
         }
-        
-        .email-icon {
-            transition: transform 0.3s ease;
-        }
-        
-        .email-icon.sending {
-            animation: emailSent 0.5s ease;
-        }
-    `;
-    document.head.appendChild(style);
-}
+      };
+
+      const headers = {
+        "Content-Type": "application/json"
+      };
+
+      // Если ваш сервер ожидает ключ/токен
+      if (this.config.apiKey) headers["X-Client-Key"] = this.config.apiKey;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        mode: "cors",
+        credentials: "omit"
+      });
+
+      if (!res.ok) {
+        let details = "";
+        try { details = await res.text(); } catch (_) {}
+        throw new Error(`EMAIL_SEND_FAILED:${res.status}:${details}`);
+      }
+
+      // ожидаем JSON: { ok: true, messageId?: "..."}
+      try {
+        return await res.json();
+      } catch (_) {
+        return { ok: true };
+      }
+    }
+  };
+
+  window.EmailService = EmailService;
+})();
