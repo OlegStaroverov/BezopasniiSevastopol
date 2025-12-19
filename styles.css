@@ -66,7 +66,7 @@ img, video {
   --space-6: 30px;
 
   /* Sizes */
-  --nav-h: 76px;
+  --nav-h: 64px;
   --btn-h: 48px;
   --btn-h-compact: 40px;
 
@@ -698,18 +698,23 @@ html[data-theme="light"] .upload {
 /* -------------------- Bottom Nav -------------------- */
 .bottom-nav {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  right: auto;
+  bottom: calc(env(safe-area-inset-bottom) + var(--space-2));
   z-index: 12;
 
-  height: calc(var(--nav-h) + env(safe-area-inset-bottom));
-  padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));
+  width: min(560px, calc(100% - 2 * var(--space-3)));
+  height: var(--nav-h);
+
+  padding: var(--space-2);
+  border-radius: 22px;
 
   background: rgba(10, 12, 18, .36);
   backdrop-filter: blur(var(--blur));
   -webkit-backdrop-filter: blur(var(--blur));
-  border-top: 1px solid var(--stroke2);
+  border: 1px solid var(--stroke2);
+  box-shadow: var(--shadow-soft);
 
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -721,7 +726,7 @@ html[data-theme="light"] .bottom-nav {
 }
 
 .nav-item {
-  border-radius: 18px;
+  border-radius: 16px;
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.05);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
@@ -733,7 +738,7 @@ html[data-theme="light"] .bottom-nav {
   gap: 4px;
 
   height: 100%;
-  min-height: 56px;
+  min-height: 48ыpx;
 
   transition: transform var(--dur-2) var(--ease),
               filter var(--dur-2) var(--ease),
