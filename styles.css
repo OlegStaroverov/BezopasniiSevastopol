@@ -384,34 +384,14 @@ html[data-theme="light"] .btn-secondary {
   }
 }
 
-@media (max-width: 640px) {
-   .nav-item span {
-     display: none;
-   }
-   
-   .nav-item {
-     gap: 0;
-   }
-}
-
-@media (min-width: 641px){
-   .nav-item span {
-     display: none;
-   }
-   
-   .nav-item {
-     gap: 0;
-   }
-}
-
 @media (max-width: 1024px) {
-   .nav-item span {
-     display: none;
-   }
-   
-   .nav-item {
-     gap: 0;
-   }
+  .bottom-nav .nav-item span {
+    display: none;
+  }
+
+  .bottom-nav .nav-item {
+    gap: 0;
+  }
 }
 
 .form-group {
@@ -737,8 +717,8 @@ html[data-theme="light"] .upload {
   width: min(560px, calc(100% - 2 * var(--space-3)));
   height: var(--nav-h);
 
-  padding: var(--space-2);
-  border-radius: 22px;
+  padding: var(--space-1);
+  border-radius: 20px;
 
   background: rgba(10, 12, 18, .36);
   backdrop-filter: blur(var(--blur));
@@ -746,8 +726,7 @@ html[data-theme="light"] .upload {
   border: 1px solid var(--stroke2);
   box-shadow: var(--shadow-soft);
 
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
   gap: var(--space-2);
 }
 
@@ -762,13 +741,15 @@ html[data-theme="light"] .bottom-nav {
   box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
 
   display: flex;
+  flex: 1;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
 
   height: 100%;
-  min-height: 48ыpx;
+  min-height: 48px;
 
   transition: transform var(--dur-2) var(--ease),
               filter var(--dur-2) var(--ease),
