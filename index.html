@@ -100,19 +100,40 @@
 
             <div class="form-group">
               <label>Локация *</label>
-
-              <!-- (1) Эти 3 кнопки теперь такие же, как остальные: синие, закругленные -->
-              <div class="segmented">
-                <button class="btn btn-primary" id="useCurrentLocation" type="button">
-                  <i class="fas fa-location-arrow"></i><span>МОЕ МЕСТОПОЛОЖЕНИЕ</span>
+            
+              <div class="location-actions">
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  id="useCurrentLocation">
+                  МОЁ МЕСТОПОЛОЖЕНИЕ
                 </button>
-                <button class="btn btn-primary" id="useManualLocation" type="button">
-                  <i class="fas fa-pen"></i><span>УКАЗАТЬ АДРЕС</span>
+            
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  id="selectOnMap">
+                  ВЫБРАТЬ НА КАРТЕ
                 </button>
-                <button class="btn btn-primary" id="useMapLocation" type="button">
-                  <i class="fas fa-map-marked-alt"></i><span>ВЫБРАТЬ НА КАРТЕ</span>
+            
+                <button
+                  type="button"
+                  class="btn btn-tertiary"
+                  id="showAddressInput">
+                  УКАЗАТЬ АДРЕС
                 </button>
               </div>
+            
+              <!-- СКРЫТО ПО УМОЛЧАНИЮ -->
+              <div class="address-input-wrapper" hidden>
+                <input
+                  type="text"
+                  id="addressInput"
+                  class="form-input"
+                  autocomplete="street-address"
+                />
+              </div>
+            </div>
 
               <div class="form-hint" id="locationHint" title="Адрес/координаты добавятся в обращение">
                 Адрес/координаты будут добавлены в обращение
