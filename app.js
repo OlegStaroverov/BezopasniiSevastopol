@@ -247,44 +247,6 @@
       const form = $("#securityForm");
       if (!form) return;
 
-      const phoneInput = $("#securityPhone");
-      if (phoneInput) {
-        // При фокусе - если поле пустое, ставим +7
-        phoneInput.addEventListener("focus", () => {
-          if (!phoneInput.value.trim()) {
-            phoneInput.value = "+7";
-          }
-        });
-    
-        // При вводе - следим чтобы +7 всегда было в начале
-        phoneInput.addEventListener("input", (e) => {
-          const value = e.target.value;
-          
-          // Если удалили +7, восстанавливаем
-          if (!value.startsWith("+7")) {
-            // Оставляем только цифры
-            const digits = value.replace(/\D/g, '');
-            
-            // Если начиналось с 8 или 7 - делаем +7
-            if (digits.startsWith('8') || digits.startsWith('7')) {
-              e.target.value = "+7" + digits.slice(1);
-            } else {
-              e.target.value = "+7" + digits;
-            }
-          }
-        });
-    
-        // При потере фокуса - убираем лишнее
-        phoneInput.addEventListener("blur", (e) => {
-          const value = e.target.value.replace(/\D/g, '');
-          if (value.startsWith('7') || value.startsWith('8')) {
-            e.target.value = "+7" + value.slice(1);
-          } else if (value.length > 0 && !value.startsWith('7')) {
-            e.target.value = "+7" + value;
-          }
-        });
-      }
-      
       // Name from MAX
       const useMaxName = $("#useMaxName");
       if (useMaxName) {
@@ -546,36 +508,6 @@
       const form = $("#wifiProblemForm");
       if (!form) return;
 
-      const wifiProblemPhone = $("#wifiProblemPhone");
-      if (wifiProblemPhone) {
-        wifiProblemPhone.addEventListener("focus", () => {
-          if (!wifiProblemPhone.value.trim()) {
-            wifiProblemPhone.value = "+7";
-          }
-        });
-      
-        wifiProblemPhone.addEventListener("input", (e) => {
-          const value = e.target.value;
-          if (!value.startsWith("+7")) {
-            const digits = value.replace(/\D/g, '');
-            if (digits.startsWith('8') || digits.startsWith('7')) {
-              e.target.value = "+7" + digits.slice(1);
-            } else {
-              e.target.value = "+7" + digits;
-            }
-          }
-        });
-      
-        wifiProblemPhone.addEventListener("blur", (e) => {
-          const value = e.target.value.replace(/\D/g, '');
-          if (value.startsWith('7') || value.startsWith('8')) {
-            e.target.value = "+7" + value.slice(1);
-          } else if (value.length > 0 && !value.startsWith('7')) {
-            e.target.value = "+7" + value;
-          }
-        });
-      }
-      
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -645,36 +577,6 @@
       const form = $("#wifiNewForm");
       if (!form) return;
 
-      const wifiNewPhone = $("#wifiNewPhone");
-      if (wifiNewPhone) {
-        wifiNewPhone.addEventListener("focus", () => {
-          if (!wifiNewPhone.value.trim()) {
-            wifiNewPhone.value = "+7";
-          }
-        });
-      
-        wifiNewPhone.addEventListener("input", (e) => {
-          const value = e.target.value;
-          if (!value.startsWith("+7")) {
-            const digits = value.replace(/\D/g, '');
-            if (digits.startsWith('8') || digits.startsWith('7')) {
-              e.target.value = "+7" + digits.slice(1);
-            } else {
-              e.target.value = "+7" + digits;
-            }
-          }
-        });
-      
-        wifiNewPhone.addEventListener("blur", (e) => {
-          const value = e.target.value.replace(/\D/g, '');
-          if (value.startsWith('7') || value.startsWith('8')) {
-            e.target.value = "+7" + value.slice(1);
-          } else if (value.length > 0 && !value.startsWith('7')) {
-            e.target.value = "+7" + value;
-          }
-        });
-      }
-      
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
