@@ -899,6 +899,12 @@ html[data-theme="light"] .modal-sheet {
   width: 100%;
 }
 
+/* Отступ после появляющегося поля адреса до следующего поля (Описание) */
+.address-input-wrapper {
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-5); /* делает заметный отступ до "Описание*" */
+}
+
 /* Bottom nav icons colors */
 html[data-theme="dark"] .nav-item i {
   color: rgba(255,255,255,.92);
