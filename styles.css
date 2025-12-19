@@ -746,12 +746,12 @@ html[data-theme="light"] .bottom-nav {
 }
 
 .nav-item i {
-  font-size: 10px;
+  font-size: 16px;
   opacity: .95;
 }
 
 .nav-item span {
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: .2px;
   color: var(--muted);
