@@ -239,6 +239,16 @@
         c.classList.toggle("is-active", c.dataset.tabContent === n);
       });
 
+      const subtitle = document.getElementById("wifiSectionSubtitle");
+      if (subtitle) {
+        const map = {
+          search: "Поиск точек доступа интернета по Севастополю",
+          problem: "Сообщите о проблеме с точкой доступа Wi-Fi",
+          new: "Предложите новую точку доступа"
+        };
+        subtitle.textContent = map[n] || map.search;
+        subtitle.title = subtitle.textContent;
+      
       if (!opts.silent) this.haptic("light");
     }
 
