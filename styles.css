@@ -887,3 +887,23 @@ html[data-theme="light"] .modal-sheet {
     scroll-behavior: auto !important;
   }
 }
+
+/* === Location buttons layout === */
+.location-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.location-btn {
+  width: 100%;
+}
+
+/* Bottom nav icons colors */
+html[data-theme="dark"] .nav-item i {
+  color: rgba(255,255,255,.92);
+}
+
+html[data-theme="light"] .nav-item i {
+  color: rgba(0,0,0,.85);
+}
