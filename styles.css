@@ -729,11 +729,12 @@ html[data-theme="light"] .bottom-nav {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: flex-start; /* Меняем на flex-start */
+  gap: 2px; /* Уменьшаем отступ */
 
   height: 100%;
   min-height: 56px;
+  padding-top: 6px; /* Добавляем паддинг сверху */
 
   transition: transform var(--dur-2) var(--ease),
               filter var(--dur-2) var(--ease),
@@ -741,8 +742,9 @@ html[data-theme="light"] .bottom-nav {
 }
 
 .nav-item i {
-  font-size: 16px;
+  font-size: 20px; /* Увеличиваем размер иконок */
   opacity: .95;
+  margin-top: 2px; /* Отступ сверху */
 }
 
 .nav-item span {
