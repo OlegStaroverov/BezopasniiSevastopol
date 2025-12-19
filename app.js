@@ -265,33 +265,6 @@
             this.haptic("warning");
           }
         });
-
-        // Автоматическое форматирование телефона
-        const phoneInput = $("#securityPhone");
-        if (phoneInput) {
-          phoneInput.addEventListener("input", (e) => {
-            const cursorPos = e.target.selectionStart;
-            const normalized = this._normalizePhone(e.target.value);
-            
-            // Обновляем значение только если оно изменилось
-            if (normalized !== e.target.value) {
-              e.target.value = normalized;
-              
-              // Восстанавливаем позицию курсора
-              setTimeout(() => {
-                e.target.setSelectionRange(cursorPos, cursorPos);
-              }, 0);
-            }
-          });
-          
-          // Также при потере фокуса
-          phoneInput.addEventListener("blur", (e) => {
-            const normalized = this._normalizePhone(e.target.value);
-            if (normalized !== e.target.value) {
-              e.target.value = normalized;
-            }
-          });
-        
       }
 
       // Location buttons
@@ -374,8 +347,7 @@
 
     _collectSecurityForm() {
       const name = clampStr($("#securityName")?.value || "", 120);
-      const rawPhone = $("#securityPhone")?.value || "";
-      const phone = this._normalizePhone(rawPhone);
+      const phone = clampStr($("#securityPhone")?.value || "", 40);
       const email = clampStr($("#securityEmail")?.value || "", 140);
       const category = clampStr($("#securityCategory")?.value || "", 60);
       const description = clampStr($("#securityDescription")?.value || "", 1200);
@@ -536,35 +508,12 @@
       const form = $("#wifiProblemForm");
       if (!form) return;
 
-      const phoneInputWifiProblem = $("#wifiProblemPhone");
-      if (phoneInputWifiProblem) {
-        phoneInputWifiProblem.addEventListener("input", (e) => {
-          const cursorPos = e.target.selectionStart;
-          const normalized = this._normalizePhone(e.target.value);
-          
-          if (normalized !== e.target.value) {
-            e.target.value = normalized;
-            
-            setTimeout(() => {
-              e.target.setSelectionRange(cursorPos, cursorPos);
-            }, 0);
-          }
-        });
-        
-        phoneInputWifiProblem.addEventListener("blur", (e) => {
-          const normalized = this._normalizePhone(e.target.value);
-          if (normalized !== e.target.value) {
-            e.target.value = normalized;
-          }
-        });
-      }
-
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const d = {
           name: clampStr($("#wifiProblemName")?.value || "", 120),
-          phone: this._normalizePhone($("#wifiProblemPhone")?.value || ""),
+          phone: clampStr($("#wifiProblemPhone")?.value || "", 40),
           email: clampStr($("#wifiProblemEmail")?.value || "", 140),
           place: clampStr($("#wifiProblemPlace")?.value || "", 220),
           description: clampStr($("#wifiProblemDescription")?.value || "", 1200)
@@ -628,35 +577,12 @@
       const form = $("#wifiNewForm");
       if (!form) return;
 
-      const phoneInputWifiNew = $("#wifiNewPhone");
-      if (phoneInputWifiNew) {
-        phoneInputWifiNew.addEventListener("input", (e) => {
-          const cursorPos = e.target.selectionStart;
-          const normalized = this._normalizePhone(e.target.value);
-          
-          if (normalized !== e.target.value) {
-            e.target.value = normalized;
-            
-            setTimeout(() => {
-              e.target.setSelectionRange(cursorPos, cursorPos);
-            }, 0);
-          }
-        });
-        
-        phoneInputWifiNew.addEventListener("blur", (e) => {
-          const normalized = this._normalizePhone(e.target.value);
-          if (normalized !== e.target.value) {
-            e.target.value = normalized;
-          }
-        });
-      }
-      
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const d = {
           name: clampStr($("#wifiNewName")?.value || "", 120),
-          phone: this._normalizePhone($("#wifiNewPhone")?.value || ""),
+          phone: clampStr($("#wifiNewPhone")?.value || "", 40),
           email: clampStr($("#wifiNewEmail")?.value || "", 140),
           place: clampStr($("#wifiNewPlace")?.value || "", 220),
           description: clampStr($("#wifiNewDescription")?.value || "", 1200)
@@ -998,32 +924,6 @@
       return /^(\+7|7|8)?[489]\d{9}$/.test(s);
     }
 
-    _normalizePhone(phone) {
-      let str = String(phone || "").trim();
-      
-      // Удаляем все нецифровые символы кроме +
-      str = str.replace(/[^\d+]/g, '');
-      
-      // Если номер начинается с 8, заменяем на +7
-      if (str.startsWith('8')) {
-        str = '+7' + str.slice(1);
-      }
-      // Если номер начинается с 7, добавляем +
-      else if (str.startsWith('7') && !str.startsWith('+7')) {
-        str = '+' + str;
-      }
-      // Если номер начинается с цифры (но не с 7 или 8), добавляем +7
-      else if (/^\d/.test(str) && !str.startsWith('+')) {
-        str = '+7' + str;
-      }
-      // Если номер вообще без кода, добавляем +7
-      else if (!str.startsWith('+')) {
-        str = '+7' + str;
-      }
-      
-      return str.slice(0, 20); // Ограничиваем длину
-    }
-  
     _validateEmail(email) {
       const s = String(email || "").trim();
       if (!s) return true;
