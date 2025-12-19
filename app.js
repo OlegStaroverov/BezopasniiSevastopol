@@ -996,5 +996,35 @@
   // ---------- Boot ----------
   document.addEventListener("DOMContentLoaded", () => {
     window.app = new SafeSevastopolApp();
+    // === ЛОКАЦИЯ: показать ручной ввод адреса ===
+    const showAddressBtn = document.getElementById('showAddressInput');
+    const addressWrapper = document.querySelector('.address-input-wrapper');
+    const addressInput = document.getElementById('addressInput');
+    
+    if (showAddressBtn && addressWrapper) {
+      showAddressBtn.addEventListener('click', () => {
+        if (addressWrapper.hasAttribute('hidden')) {
+          addressWrapper.removeAttribute('hidden');
+    
+          // небольшая анимация появления
+          addressWrapper.animate(
+            [
+              { opacity: 0, transform: 'translateY(-6px)' },
+              { opacity: 1, transform: 'translateY(0)' }
+            ],
+            {
+              duration: 200,
+              easing: 'ease-out',
+              fill: 'forwards'
+            }
+          );
+    
+          // фокус в поле
+          setTimeout(() => {
+            addressInput?.focus();
+          }, 150);
+        }
+      });
+    }
   });
 })();
