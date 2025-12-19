@@ -217,17 +217,6 @@ html[data-theme="light"] .topbar {
   max-width: min(68vw, 560px);
 }
 
-.brand-subtitle {
-  font-size: var(--fz-sm);
-  color: var(--muted);
-  line-height: 1.1;
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: min(68vw, 560px);
-}
-
 /* -------------------- Buttons -------------------- */
 .btn {
   height: var(--btn-h);
