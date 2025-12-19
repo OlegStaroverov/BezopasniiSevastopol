@@ -101,24 +101,15 @@
               <label>Локация *</label>
             
               <div class="location-actions">
-                <button
-                  type="button"
-                  class="btn btn-primary"
-                  id="useCurrentLocation">
-                  МОЁ МЕСТОПОЛОЖЕНИЕ
+                <button type="button" class="btn btn-primary location-btn" id="useCurrentLocation">
+                  МОЕ МЕСТОПОЛОЖЕНИЕ
                 </button>
-            
-                <button
-                  type="button"
-                  class="btn btn-secondary"
-                  id="selectOnMap">
+              
+                <button type="button" class="btn btn-primary location-btn" id="selectOnMap">
                   ВЫБРАТЬ НА КАРТЕ
                 </button>
-            
-                <button
-                  type="button"
-                  class="btn btn-tertiary"
-                  id="showAddressInput">
+              
+                <button type="button" class="btn btn-primary location-btn" id="showAddressInput">
                   УКАЗАТЬ АДРЕС
                 </button>
               </div>
@@ -133,17 +124,6 @@
                 />
               </div>
             </div>
-
-              <div class="form-hint" id="locationHint" title="Адрес/координаты добавятся в обращение">
-                Адрес/координаты будут добавлены в обращение
-              </div>
-
-              <div class="input-row">
-                <input id="manualAddress" class="form-input" type="text" placeholder="Адрес (улица, дом, ориентир)" />
-                <button class="btn btn-primary btn-compact" id="showOnMap" type="button">
-                  <i class="fas fa-map"></i><span>Карта</span>
-                </button>
-              </div>
 
               <input id="securityCoordinates" class="form-input is-hidden" type="text" readonly />
             </div>
