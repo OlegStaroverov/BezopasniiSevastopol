@@ -301,6 +301,8 @@ html[data-theme="light"] .btn-secondary {
   padding: 0 14px;
   border-radius: 14px;
   font-size: var(--fz-sm);
+  flex-shrink: 0; /* Не даем кнопке сжиматься */
+  white-space: nowrap; /* Текст не переносится */
 }
 
 .btn-wide {
@@ -441,9 +443,17 @@ html[data-theme="light"] .form-textarea {
   display: flex;
   gap: var(--space-2);
   align-items: center;
+  flex-wrap: nowrap; /* Запрещаем перенос */
 }
 
-.input-row > * { min-width: 0; }
+.input-row > input {
+  flex: 1; /* Поле ввода занимает всё доступное пространство */
+  min-width: 0; /* Но может сжиматься */
+}
+
+.input-row > .btn-compact {
+  flex-shrink: 0; /* Кнопка не сжимается */
+}
 
 .form-hint {
   font-size: var(--fz-xs);
