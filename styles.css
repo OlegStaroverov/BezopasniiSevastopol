@@ -301,6 +301,7 @@ html[data-theme="light"] .btn-secondary {
   padding: 0 14px;
   border-radius: 14px;
   font-size: var(--fz-sm);
+  min-width: 100px;
 }
 
 .btn-wide {
@@ -443,7 +444,10 @@ html[data-theme="light"] .form-textarea {
   align-items: center;
 }
 
-.input-row > * { min-width: 0; }
+.input-row > * { 
+  min-width: 0;
+  flex-shrink: 0;
+}
 
 .form-hint {
   font-size: var(--fz-xs);
@@ -704,6 +708,7 @@ html[data-theme="light"] .upload {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-2);
+  align-items: center;
 }
 
 html[data-theme="light"] .bottom-nav {
@@ -724,6 +729,7 @@ html[data-theme="light"] .bottom-nav {
 
   height: 100%;
   min-height: 56px;
+  padding: 4px 0;
 
   transition: transform var(--dur-2) var(--ease),
               filter var(--dur-2) var(--ease),
@@ -733,6 +739,7 @@ html[data-theme="light"] .bottom-nav {
 .nav-item i {
   font-size: 16px;
   opacity: .95;
+  margin-bottom: 2px;
 }
 
 .nav-item span {
@@ -740,6 +747,7 @@ html[data-theme="light"] .bottom-nav {
   font-weight: 800;
   letter-spacing: .2px;
   color: var(--muted);
+  text-align: center;
 
   white-space: nowrap;
   overflow: hidden;
