@@ -66,8 +66,7 @@ img, video {
   --space-6: 30px;
 
   /* Sizes */
-  /* ↓ было 76px — делаем панель чуть ниже, чтобы не съедала экран */
-  --nav-h: 64px;
+  --nav-h: 76px;
   --btn-h: 48px;
   --btn-h-compact: 40px;
 
@@ -88,7 +87,7 @@ img, video {
   --blur: 14px;
 
   /* Accent */
-  --blue: #0A84FF;
+  --blue: #0A84FF; /* iOS-ish blue */
   --blue2: #2E6BFF;
 
   /* Defaults (dark) */
@@ -142,6 +141,7 @@ html[data-theme="light"] {
   padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
 }
 
+/* Keep scrolling smooth */
 .main {
   padding: var(--space-4);
   padding-top: var(--space-3);
@@ -149,7 +149,10 @@ html[data-theme="light"] {
   margin: 0 auto;
 }
 
-.main * { min-width: 0; }
+/* Prevent weird overflow in flex children */
+.main * {
+  min-width: 0;
+}
 
 /* -------------------- Topbar -------------------- */
 .topbar {
@@ -161,14 +164,18 @@ html[data-theme="light"] {
   backdrop-filter: blur(var(--blur));
   -webkit-backdrop-filter: blur(var(--blur));
   border-bottom: 1px solid var(--stroke2);
+}
 
+html[data-theme="light"] .topbar {
+  background: rgba(255,255,255,.56);
+}
+
+.topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
 }
-
-html[data-theme="light"] .topbar { background: rgba(255,255,255,.56); }
 
 .brand {
   display: flex;
@@ -188,7 +195,9 @@ html[data-theme="light"] .topbar { background: rgba(255,255,255,.56); }
   box-shadow: var(--shadow-soft);
 }
 
-.brand-mark i { font-size: 18px; }
+.brand-mark i {
+  font-size: 18px;
+}
 
 .brand-text {
   display: flex;
@@ -244,7 +253,9 @@ html[data-theme="light"] .topbar { background: rgba(255,255,255,.56); }
   text-overflow: ellipsis;
 }
 
-.btn i { flex: 0 0 auto; }
+.btn i {
+  flex: 0 0 auto;
+}
 
 .btn span {
   overflow: hidden;
@@ -252,8 +263,14 @@ html[data-theme="light"] .topbar { background: rgba(255,255,255,.56); }
   white-space: nowrap;
 }
 
-.btn:active { transform: scale(.98); }
-.btn:focus-visible { outline: none; box-shadow: var(--focus); }
+.btn:active {
+  transform: scale(.98);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
 
 .btn-primary {
   background: linear-gradient(180deg, rgba(10,132,255,.92), rgba(10,132,255,.70));
@@ -261,9 +278,13 @@ html[data-theme="light"] .topbar { background: rgba(255,255,255,.56); }
   box-shadow: 0 14px 34px rgba(10,132,255,.22), var(--shadow-soft);
 }
 
-html[data-theme="light"] .btn-primary { border: 1px solid rgba(10,12,18,.10); }
+html[data-theme="light"] .btn-primary {
+  border: 1px solid rgba(10,12,18,.10);
+}
 
-.btn-primary:hover { filter: brightness(1.06) saturate(1.05); }
+.btn-primary:hover {
+  filter: brightness(1.06) saturate(1.05);
+}
 
 .btn-secondary {
   background: rgba(255,255,255,.08);
@@ -271,18 +292,22 @@ html[data-theme="light"] .btn-primary { border: 1px solid rgba(10,12,18,.10); }
   box-shadow: var(--shadow-soft);
 }
 
-html[data-theme="light"] .btn-secondary { background: rgba(255,255,255,.66); }
+html[data-theme="light"] .btn-secondary {
+  background: rgba(255,255,255,.66);
+}
 
 .btn-compact {
   height: var(--btn-h-compact);
   padding: 0 14px;
   border-radius: 14px;
   font-size: var(--fz-sm);
-  flex-shrink: 0;
-  white-space: nowrap;
+  flex-shrink: 0; /* Не даем кнопке сжиматься */
+  white-space: nowrap; /* Текст не переносится */
 }
 
-.btn-wide { width: 100%; }
+.btn-wide {
+  width: 100%;
+}
 
 /* icon button */
 .icon-btn {
@@ -315,7 +340,9 @@ html[data-theme="light"] .btn-secondary { background: rgba(255,255,255,.66); }
   overflow: hidden;
 }
 
-.form-card { padding: var(--space-4); }
+.form-card {
+  padding: var(--space-4);
+}
 
 /* -------------------- Section Header -------------------- */
 .section-head {
@@ -352,7 +379,9 @@ html[data-theme="light"] .btn-secondary { background: rgba(255,255,255,.66); }
 }
 
 @media (max-width: 720px) {
-  .form-grid { grid-template-columns: 1fr; }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .form-group {
@@ -361,7 +390,9 @@ html[data-theme="light"] .btn-secondary { background: rgba(255,255,255,.66); }
   gap: var(--space-2);
 }
 
-.form-group--full { grid-column: 1 / -1; }
+.form-group--full {
+  grid-column: 1 / -1;
+}
 
 label {
   font-size: var(--fz-sm);
@@ -412,14 +443,19 @@ html[data-theme="light"] .form-textarea {
   display: flex;
   gap: var(--space-2);
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: nowrap; /* Запрещаем перенос */
 }
 
-.input-row > input { flex: 1; min-width: 0; }
-.input-row > .btn-compact { flex-shrink: 0; }
+.input-row > input {
+  flex: 1; /* Поле ввода занимает всё доступное пространство */
+  min-width: 0; /* Но может сжиматься */
+}
 
-.form-hint,
-.helper-text {
+.input-row > .btn-compact {
+  flex-shrink: 0; /* Кнопка не сжимается */
+}
+
+.form-hint {
   font-size: var(--fz-xs);
   color: var(--muted2);
   white-space: nowrap;
@@ -442,30 +478,20 @@ html[data-theme="light"] .form-textarea {
   text-overflow: ellipsis;
 }
 
-/* -------------------- Location buttons (вертикально) -------------------- */
-/* Чтобы 3 кнопки локации были столбиком (как ты хочешь) */
-#security-section .segmented {
-  grid-template-columns: 1fr;
+/* -------------------- Segmented / Location buttons -------------------- */
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
-/* Плавное появление блока ручного адреса (мы подключим классами в index/app.js) */
-.collapsible {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transform: translateY(-6px);
-  transition: max-height var(--dur-3) var(--ease),
-              opacity var(--dur-3) var(--ease),
-              transform var(--dur-3) var(--ease);
+@media (max-width: 720px) {
+  .segmented {
+    grid-template-columns: 1fr;
+  }
 }
 
-.collapsible.is-open {
-  max-height: 240px;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* -------------------- Upload + media preview -------------------- */
+/* -------------------- Upload -------------------- */
 .upload {
   position: relative;
   border-radius: 18px;
@@ -474,7 +500,9 @@ html[data-theme="light"] .form-textarea {
   overflow: hidden;
 }
 
-html[data-theme="light"] .upload { border: 1px dashed rgba(10,12,18,.18); }
+html[data-theme="light"] .upload {
+  border: 1px dashed rgba(10,12,18,.18);
+}
 
 .upload input[type="file"] {
   position: absolute;
@@ -490,7 +518,10 @@ html[data-theme="light"] .upload { border: 1px dashed rgba(10,12,18,.18); }
   gap: var(--space-3);
 }
 
-.upload-ui i { font-size: 22px; opacity: .9; }
+.upload-ui i {
+  font-size: 22px;
+  opacity: .9;
+}
 
 .upload-text {
   display: flex;
@@ -522,27 +553,16 @@ html[data-theme="light"] .upload { border: 1px dashed rgba(10,12,18,.18); }
 }
 
 @media (max-width: 520px) {
-  .media-preview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .media-preview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-/* карточка превью: под реальные img/video из JS */
 .media-preview .media-item {
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--stroke2);
   background: rgba(255,255,255,.05);
-  box-shadow: var(--shadow-soft);
-  aspect-ratio: 1 / 1;
-  display: grid;
-  place-items: center;
-}
-
-.media-preview .media-item img,
-.media-preview .media-item video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
 }
 
 /* -------------------- Actions / Stack -------------------- */
@@ -602,7 +622,9 @@ html[data-theme="light"] .upload { border: 1px dashed rgba(10,12,18,.18); }
   padding: var(--space-4);
 }
 
-.tab-content.is-active { display: block; }
+.tab-content.is-active {
+  display: block;
+}
 
 /* -------------------- Cards grid (Wi-Fi results) -------------------- */
 .cards-grid {
@@ -612,7 +634,9 @@ html[data-theme="light"] .upload { border: 1px dashed rgba(10,12,18,.18); }
 }
 
 @media (max-width: 720px) {
-  .cards-grid { grid-template-columns: 1fr; }
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .wifi-card {
@@ -657,7 +681,9 @@ html[data-theme="light"] .upload { border: 1px dashed rgba(10,12,18,.18); }
 }
 
 /* -------------------- Content sections -------------------- */
-.content-section { display: none; }
+.content-section {
+  display: none;
+}
 
 .content-section.is-active {
   display: block;
@@ -669,7 +695,7 @@ html[data-theme="light"] .upload { border: 1px dashed rgba(10,12,18,.18); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* -------------------- Bottom Nav (меньше + идеальная центровка) -------------------- */
+/* -------------------- Bottom Nav -------------------- */
 .bottom-nav {
   position: fixed;
   left: 0;
@@ -678,8 +704,7 @@ html[data-theme="light"] .upload { border: 1px dashed rgba(10,12,18,.18); }
   z-index: 12;
 
   height: calc(var(--nav-h) + env(safe-area-inset-bottom));
-  /* ↓ было жирнее — делаем компактнее */
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));
 
   background: rgba(10, 12, 18, .36);
   backdrop-filter: blur(var(--blur));
@@ -688,17 +713,15 @@ html[data-theme="light"] .upload { border: 1px dashed rgba(10,12,18,.18); }
 
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-
-  /* Центровка «панельки» визуально: контент не липнет к краям */
-  max-width: 980px;
-  margin: 0 auto;
+  gap: var(--space-2);
 }
 
-html[data-theme="light"] .bottom-nav { background: rgba(255,255,255,.64); }
+html[data-theme="light"] .bottom-nav {
+  background: rgba(255,255,255,.64);
+}
 
 .nav-item {
-  border-radius: 16px;
+  border-radius: 18px;
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.05);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
@@ -707,14 +730,10 @@ html[data-theme="light"] .bottom-nav { background: rgba(255,255,255,.64); }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
-  /* ключ к “идеально по центру” */
-  text-align: center;
-
-  gap: 2px;
+  gap: 4px;
 
   height: 100%;
-  min-height: 48px;
+  min-height: 56px;
 
   transition: transform var(--dur-2) var(--ease),
               filter var(--dur-2) var(--ease),
@@ -722,13 +741,12 @@ html[data-theme="light"] .bottom-nav { background: rgba(255,255,255,.64); }
 }
 
 .nav-item i {
-  font-size: 15px;
+  font-size: 16px;
   opacity: .95;
-  line-height: 1;
 }
 
 .nav-item span {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: .2px;
   color: var(--muted);
@@ -737,7 +755,6 @@ html[data-theme="light"] .bottom-nav { background: rgba(255,255,255,.64); }
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  line-height: 1.05;
 }
 
 .nav-item:active { transform: scale(.985); }
@@ -748,7 +765,9 @@ html[data-theme="light"] .bottom-nav { background: rgba(255,255,255,.64); }
   box-shadow: 0 12px 28px rgba(10,132,255,.18);
 }
 
-.nav-item.is-active span { color: rgba(255,255,255,.92); }
+.nav-item.is-active span {
+  color: rgba(255,255,255,.92);
+}
 
 /* -------------------- Modals -------------------- */
 .modal {
@@ -758,7 +777,9 @@ html[data-theme="light"] .bottom-nav { background: rgba(255,255,255,.64); }
   display: none;
 }
 
-.modal[aria-hidden="false"] { display: block; }
+.modal[aria-hidden="false"] {
+  display: block;
+}
 
 .modal-backdrop {
   position: absolute;
@@ -834,9 +855,13 @@ html[data-theme="light"] .modal-sheet {
   border-top: 1px solid var(--stroke2);
 }
 
-.yandex-map { width: 100%; height: 100%; }
+/* Map container */
+.yandex-map {
+  width: 100%;
+  height: 100%;
+}
 
-/* -------------------- Placeholders -------------------- */
+/* -------------------- Placeholders (temporary) -------------------- */
 .placeholder {
   padding: var(--space-4);
   border-radius: var(--r-lg);
