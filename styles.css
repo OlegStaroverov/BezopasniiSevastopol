@@ -384,6 +384,36 @@ html[data-theme="light"] .btn-secondary {
   }
 }
 
+@media (max-width: 640px) {
+   .nav-item span {
+     display: none;
+   }
+   
+   .nav-item {
+     gap: 0;
+   }
+}
+
+@media (min-width: 641px){
+   .nav-item span {
+     display: none;
+   }
+   
+   .nav-item {
+     gap: 0;
+   }
+}
+
+@media (max-width: 1024px) {
+   .nav-item span {
+     display: none;
+   }
+   
+   .nav-item {
+     gap: 0;
+   }
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
