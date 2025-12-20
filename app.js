@@ -229,16 +229,30 @@
       const n = String(name || "").trim();
       if (!n) return;
       this.wifiTab = n;
-
+    
+      // tabs ui
       $$("#wifi-section .tab").forEach((t) => {
-        t.classList.toggle("is-active", t.dataset.tab === n);
-        t.setAttribute("aria-selected", t.dataset.tab === n ? "true" : "false");
+        const active = t.dataset.tab === n;
+        t.classList.toggle("is-active", active);
+        t.setAttribute("aria-selected", active ? "true" : "false");
       });
-
+    
+      // content ui
       $$("#wifi-section .tab-content").forEach((c) => {
         c.classList.toggle("is-active", c.dataset.tabContent === n);
       });
-      
+    
+      // subtitle under Wi-Fi (id="wifiSectionSubtitle" у тебя в index.html)
+      const subtitle = $("#wifiSectionSubtitle");
+      if (subtitle) {
+        const map = {
+          search: "Поиск точек доступа интернета по Севастополю",
+          problem: "Сообщите о проблеме с точкой доступа Wi-Fi",
+          new: "Предложите новую точку доступа"
+        };
+        subtitle.textContent = map[n] || map.search;
+      }
+    
       if (!opts.silent) this.haptic("light");
     }
 
@@ -305,11 +319,14 @@
         });
       }
 
-      // Location buttons
+      // Location buttons (актуальные id из твоего index.html)
       $("#useCurrentLocation")?.addEventListener("click", () => this._useCurrentLocation());
-      $("#useManualLocation")?.addEventListener("click", () => this._focusManualAddress());
-      $("#useMapLocation")?.addEventListener("click", () => this.openMap("security"));
-      $("#showOnMap")?.addEventListener("click", () => this.openMap("security"));
+      $("#selectOnMap")?.addEventListener("click", () => this.openMap("security"));
+      $("#showAddressInput")?.addEventListener("click", () => {
+        // класс для правильных отступов (см. CSS правку ниже)
+        const group = $("#showAddressInput")?.closest(".form-group");
+        group?.classList.add("has-address-input");
+      });
 
       // Description counter
       const desc = $("#securityDescription");
@@ -387,7 +404,6 @@
       const name = clampStr($("#securityName")?.value || "", 120);
       const phone = clampStr($("#securityPhone")?.value || "", 40);
       const email = clampStr($("#securityEmail")?.value || "", 140);
-      const category = clampStr($("#securityCategory")?.value || "", 60);
       const description = clampStr($("#securityDescription")?.value || "", 1200);
       const address = clampStr($("#manualAddress")?.value || "", 220);
 
@@ -399,14 +415,13 @@
         ? { lat: this.securityLocation.lat, lon: this.securityLocation.lon, address: this.securityLocation.address || "" }
         : null;
 
-      return { name, phone, email, category, description, address, location, media };
+      return { name, phone, email, description, address, location, media };
     }
 
     _validateSecurity(d) {
       // обязательны: все строки кроме email и медиа
       if (!d.name.trim()) return "Введите имя";
       if (!this._validatePhone(d.phone)) return "Введите корректный телефон";
-      if (!d.category.trim()) return "Выберите категорию";
       const hasLoc = !!(d.location && this._isNum(d.location.lat) && this._isNum(d.location.lon));
       const hasAddr = !!d.address.trim();
       if (!hasLoc && !hasAddr) return "Укажите местоположение (адрес или точку на карте)";
@@ -895,7 +910,6 @@
       if (p.name) lines.push(`Имя: ${p.name}`);
       if (p.phone) lines.push(`Телефон: ${p.phone}`);
       if (p.email) lines.push(`Email: ${p.email}`);
-      if (p.category) lines.push(`Категория: ${p.category}`);
       if (p.place) lines.push(`Место: ${p.place}`);
       if (p.address) lines.push(`Адрес: ${p.address}`);
       if (p.location?.lat && p.location?.lon) lines.push(`Координаты: ${p.location.lat}, ${p.location.lon}`);
