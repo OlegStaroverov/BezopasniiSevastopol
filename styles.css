@@ -130,6 +130,10 @@ html[data-theme="light"] {
 }
 
 /* -------------------- App Layout -------------------- */
+html, body {
+  background: var(--bg);
+}
+
 .app-shell {
   min-height: 100%;
   background: radial-gradient(1200px 600px at 30% -10%, rgba(10,132,255,.22), transparent 55%),
@@ -138,7 +142,7 @@ html[data-theme="light"] {
               linear-gradient(180deg, var(--bg), var(--bg2));
   color: var(--text);
 
-  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--space-4));
 }
 
 /* Keep scrolling smooth */
@@ -912,4 +916,30 @@ html[data-theme="dark"] .nav-item i {
 
 html[data-theme="light"] .nav-item i {
   color: rgba(0,0,0,.85);
+}
+
+/* Location block spacing */
+.location-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+/* когда показали ручной ввод — убираем нижний отступ у кнопок,
+   а отступ даём уже после поля */
+.form-group.has-address-input .location-actions {
+  margin-bottom: 0;
+}
+
+.address-input-wrapper {
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.form-hint {
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
 }
