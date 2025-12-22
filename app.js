@@ -93,6 +93,7 @@
 
       this.section = "security";
       this.wifiTab = "search";
+      this.graffitiLocation = null;
 
       this.map = null;
       this.mapMarker = null;
@@ -127,6 +128,7 @@
       this._bindWifiSearch();
       this._bindWifiProblemForm();
       this._bindWifiNewForm();
+      this._bindGraffitiForm();
       this._bindModalSystem();
       this._bindMapModal();
 
@@ -229,7 +231,16 @@
       const n = String(name || "").trim();
       if (!n) return;
       this.wifiTab = n;
-    
+
+      // Wi-Fi subtitle
+      const sub = $("#wifiSectionSubtitle");
+      if (sub) {
+        sub.textContent =
+          n === "search" ? "Поиск точек доступа интернета по Севастополю" :
+          n === "problem" ? "Сообщите о проблеме с точкой доступа Wi-Fi" :
+          "Предложите новую точку доступа";
+      }
+      
       // tabs ui
       $$("#wifi-section .tab").forEach((t) => {
         const active = t.dataset.tab === n;
@@ -241,17 +252,6 @@
       $$("#wifi-section .tab-content").forEach((c) => {
         c.classList.toggle("is-active", c.dataset.tabContent === n);
       });
-    
-      // subtitle under Wi-Fi (id="wifiSectionSubtitle" у тебя в index.html)
-      const subtitle = $("#wifiSectionSubtitle");
-      if (subtitle) {
-        const map = {
-          search: "Поиск точек доступа интернета по Севастополю",
-          problem: "Сообщите о проблеме с точкой доступа Wi-Fi",
-          new: "Предложите новую точку доступа"
-        };
-        subtitle.textContent = map[n] || map.search;
-      }
     
       if (!opts.silent) this.haptic("light");
     }
@@ -484,6 +484,29 @@
       }
     }
 
+    async _useCurrentLocationGraffiti() {
+      if (!navigator.geolocation) {
+        this.toast("Геолокация недоступна", "warning");
+        return;
+      }
+      this.toast("Определяем местоположение…", "success");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          this.graffitiLocation = { lat, lon, address: "" };
+          const hint = $("#graffitiLocationHint");
+          if (hint) hint.textContent = `Координаты: ${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+          this.haptic("success");
+        },
+        () => {
+          this.toast("Не удалось получить геолокацию", "danger");
+          this.haptic("error");
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      );
+    }
+    
     // ---------- Wi-Fi Search + Nearby ----------
     _bindWifiSearch() {
       const input = $("#wifiSearch");
@@ -695,6 +718,141 @@
       });
     }
 
+ // ---------- Граффити ----------
+    
+    _bindGraffitiForm() {
+      const form = $("#graffitiForm");
+      if (!form) return;
+    
+      // Location buttons (GRAFFITI)
+      $("#graffitiUseCurrentLocation")?.addEventListener("click", () => this._useCurrentLocationGraffiti());
+      $("#graffitiSelectOnMap")?.addEventListener("click", () => this.openMap("graffiti"));
+    
+      // show address
+      const btn = $("#graffitiShowAddressInput");
+      const wrap = $("#graffitiAddressWrap");
+      const input = $("#graffitiAddressInput");
+      if (btn && wrap) {
+        btn.addEventListener("click", () => {
+          if (wrap.hasAttribute("hidden")) {
+            wrap.removeAttribute("hidden");
+            wrap.animate(
+              [{ opacity: 0, transform: "translateY(-6px)" }, { opacity: 1, transform: "translateY(0)" }],
+              { duration: 200, easing: "ease-out", fill: "forwards" }
+            );
+            setTimeout(() => input?.focus(), 150);
+          }
+        });
+      }
+    
+      // Media preview (real)
+      const mediaInput = $("#graffitiMedia");
+      const mediaPreview = $("#graffitiMediaPreview");
+      if (mediaInput && mediaPreview) {
+        mediaInput.addEventListener("change", () => {
+          mediaPreview.innerHTML = "";
+          const files = Array.from(mediaInput.files || []).slice(0, 5);
+    
+          files.forEach((f) => {
+            const url = URL.createObjectURL(f);
+            const item = document.createElement("div");
+            item.className = "media-item";
+    
+            if (f.type.startsWith("image/")) {
+              const img = document.createElement("img");
+              img.src = url;
+              img.alt = f.name;
+              item.appendChild(img);
+            } else if (f.type.startsWith("video/")) {
+              const v = document.createElement("video");
+              v.src = url;
+              v.controls = true;
+              v.playsInline = true;
+              item.appendChild(v);
+            } else {
+              item.textContent = f.name;
+            }
+    
+            mediaPreview.appendChild(item);
+          });
+        });
+      }
+    
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+    
+        const d = {
+          name: clampStr($("#graffitiName")?.value || "", 120),
+          phone: clampStr($("#graffitiPhone")?.value || "", 40),
+          email: clampStr($("#graffitiEmail")?.value || "", 140),
+          address: clampStr($("#graffitiAddressInput")?.value || "", 220),
+          description: clampStr($("#graffitiDescription")?.value || "", 1200),
+          location: this.graffitiLocation || null,
+          media: Array.from($("#graffitiMedia")?.files || []).slice(0, 5).map((f) => ({ name: f.name, type: f.type, size: f.size }))
+        };
+    
+        const hasLoc = !!(d.location && this._isNum(d.location.lat) && this._isNum(d.location.lon));
+        const hasAddr = !!d.address.trim();
+    
+        const err =
+          (!d.name.trim() && "Введите имя") ||
+          (!this._validatePhone(d.phone) && "Введите корректный телефон") ||
+          (!hasLoc && !hasAddr && "Укажите местоположение (адрес или точку на карте)") ||
+          (!d.description.trim() && "Добавьте описание") ||
+          (d.email && !this._validateEmail(d.email) && "Некорректный email") ||
+          "";
+    
+        if (err) {
+          this.toast(err, "danger");
+          this.haptic("error");
+          return;
+        }
+    
+        const ok = await this.confirmModal(
+          "Подтверждение",
+          `<div style="display:flex;flex-direction:column;gap:10px;">
+             <div><b>Тип:</b> Граффити</div>
+             <div><b>Имя:</b> ${this._esc(d.name)}</div>
+             <div><b>Телефон:</b> ${this._esc(d.phone)}</div>
+             <div><b>Email:</b> ${this._esc(d.email || "—")}</div>
+             <div><b>Адрес:</b> ${this._esc(d.address || "—")}</div>
+             <div><b>Координаты:</b> ${hasLoc ? `${d.location.lat.toFixed(6)}, ${d.location.lon.toFixed(6)}` : "—"}</div>
+             <div><b>Описание:</b> ${this._esc(d.description)}</div>
+             <div><b>Медиа:</b> ${d.media?.length ? `${d.media.length} файл(ов)` : "—"}</div>
+           </div>`,
+          "Подтвердить",
+          "Отмена"
+        );
+        if (!ok) return;
+    
+        const report = {
+          id: (window.AppUtils?.generateReportId?.() || `RPT-${Date.now()}`),
+          type: "graffiti",
+          status: "new",
+          timestamp: (window.AppUtils?.getCurrentTimestamp?.() || new Date().toISOString()),
+          user: this._userSnapshot(),
+          payload: d
+        };
+    
+        const saved = await AppData.saveReport("graffiti", report);
+        if (!saved) {
+          this.toast("Не удалось сохранить обращение", "danger");
+          this.haptic("error");
+          return;
+        }
+    
+        await this._notifyAdmins("graffiti", report);
+    
+        this.toast("Обращение отправлено", "success");
+        this.haptic("success");
+        form.reset();
+        this.graffitiLocation = null;
+        $("#graffitiLocationHint") && ($("#graffitiLocationHint").textContent = "Укажите местоположение (адрес или точку на карте)");
+        $("#graffitiMediaPreview") && ($("#graffitiMediaPreview").innerHTML = "");
+        $("#graffitiAddressWrap")?.setAttribute("hidden", "true");
+      });
+    }
+    
     // ---------- Modal system (confirm modal) ----------
     _bindModalSystem() {
       const modal = $("#modal");
@@ -871,6 +1029,14 @@
         } else {
           this.renderWifiResults(all);
         }
+
+      } else if (this.mapContext === "graffiti") {
+        this.graffitiLocation = { lat, lon, address: "" };
+        const hint = $("#graffitiLocationHint");
+        if (hint) hint.textContent = `Координаты: ${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+        this.toast("Метка выбрана", "success");
+        this.haptic("success");
+        
       } else {
         // security location
         this.securityLocation = { lat, lon, address: "" };
