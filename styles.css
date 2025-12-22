@@ -632,6 +632,52 @@ html[data-theme="light"] .upload {
 }
 
 /* -------------------- Cards grid (Wi-Fi results) -------------------- */
+.wifi-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.wifi-type-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.wifi-type-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 2px;
+}
+
+.wifi-type-title {
+  font-weight: 900;
+  font-size: var(--fz-md);
+  letter-spacing: -0.2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wifi-type-title .emoji {
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.08);
+  border: 1px solid var(--stroke2);
+  box-shadow: var(--shadow-soft);
+}
+
+.wifi-type-count {
+  color: var(--muted);
+  font-size: var(--fz-sm);
+  font-weight: 800;
+}
+
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -639,9 +685,7 @@ html[data-theme="light"] .upload {
 }
 
 @media (max-width: 720px) {
-  .cards-grid {
-    grid-template-columns: 1fr;
-  }
+  .cards-grid { grid-template-columns: 1fr; }
 }
 
 .wifi-card {
@@ -651,38 +695,68 @@ html[data-theme="light"] .upload {
   background: rgba(255,255,255,.06);
   box-shadow: var(--shadow-soft);
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.wifi-card-main {
+  display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  overflow: hidden;
+  gap: 8px;
+  min-width: 0;
 }
 
 .wifi-card-title {
   font-weight: 900;
   font-size: var(--fz-lg);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.18;
+  white-space: normal; /* НЕ обрезаем текст внутри карточки */
+  word-break: break-word;
 }
 
-.wifi-card-sub {
+.wifi-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   color: var(--muted);
   font-size: var(--fz-sm);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.empty-state {
-  padding: var(--space-4);
-  border-radius: var(--r-lg);
+.wifi-card-action {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.08);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow-soft);
+  flex: 0 0 auto;
+}
+
+/* Wi-Fi details inside modal */
+.wifi-detail {
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.wifi-detail-row {
+  padding: 10px 12px;
+  border-radius: 16px;
   border: 1px solid var(--stroke2);
   background: rgba(255,255,255,.05);
+}
+
+.wifi-detail-row b {
   color: var(--muted);
-  text-align: center;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.wifi-detail-row .val {
+  display: inline;
+  word-break: break-word;
 }
 
 /* -------------------- Content sections -------------------- */
@@ -781,6 +855,13 @@ html[data-theme="light"] .bottom-nav {
 }
 
 /* -------------------- Modals -------------------- */
+
+html.is-modal-open,
+body.is-modal-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
 .modal {
   position: fixed;
   inset: 0;
