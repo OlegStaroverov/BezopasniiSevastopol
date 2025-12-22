@@ -8,7 +8,6 @@
   <meta name="format-detection" content="telephone=no" />
   <meta name="theme-color" content="#0A84FF" data-theme-color="dark" />
   <meta name="msapplication-navbutton-color" content="#0A84FF" />
-
   <title>Безопасный Севастополь</title>
 
   <!-- MAX Bridge -->
@@ -23,7 +22,7 @@
   <!-- Chart.js (admin) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <!-- Yandex Maps (on-demand; set your API key) -->
+  <!-- Yandex Maps (no key) -->
   <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
 
   <link rel="stylesheet" href="styles.css" />
@@ -48,7 +47,7 @@
         <button class="icon-btn" id="themeToggle" type="button" aria-label="Сменить тему">
           <i class="fas fa-moon" aria-hidden="true"></i>
         </button>
-        <!-- compatibility (старый id): если где-то в JS он используется -->
+        <!-- compatibility -->
         <button class="icon-btn is-hidden" id="themeToggleSmall" type="button" aria-hidden="true" tabindex="-1">
           <i class="fas fa-moon" aria-hidden="true"></i>
         </button>
@@ -57,6 +56,7 @@
 
     <!-- Main -->
     <main class="main" role="main">
+
       <!-- SECURITY -->
       <section id="security-section" class="content-section is-active" data-section="security" aria-label="Безопасность">
         <div class="section-head">
@@ -66,6 +66,7 @@
 
         <form id="securityForm" class="glass-card form-card" autocomplete="on">
           <div class="form-grid">
+
             <div class="form-group">
               <label for="securityName">Имя *</label>
               <div class="input-row">
@@ -87,35 +88,45 @@
             </div>
 
             <div class="form-group">
+              <label for="securityCategory">Категория *</label>
+              <select id="securityCategory" class="form-select" required>
+                <option value="" selected disabled>Выберите</option>
+                <option value="person">Подозрительный человек</option>
+                <option value="object">Подозрительный предмет</option>
+                <option value="incident">Происшествие</option>
+                <option value="other">Другое</option>
+              </select>
+            </div>
+
+            <div class="form-group form-group--full">
               <label>Локация *</label>
-            
+
               <div class="location-actions">
                 <button type="button" class="btn btn-primary location-btn" id="useCurrentLocation">
                   МОЕ МЕСТОПОЛОЖЕНИЕ
                 </button>
-              
-                <button type="button" class="btn btn-primary location-btn" id="selectOnMap">
+
+                <button type="button" class="btn btn-primary location-btn" id="useMapLocation">
                   ВЫБРАТЬ НА КАРТЕ
                 </button>
-              
-                <button type="button" class="btn btn-primary location-btn" id="showAddressInput">
+
+                <button type="button" class="btn btn-primary location-btn" id="useManualLocation">
                   УКАЗАТЬ АДРЕС
                 </button>
               </div>
-            
-              <!-- СКРЫТО ПО УМОЛЧАНИЮ -->
-              <div class="address-input-wrapper" hidden>
+
+              <!-- скрыто по умолчанию: app.js будет показывать/фокусить -->
+              <div class="address-input-wrapper" hidden id="securityAddressWrap">
                 <input
                   type="text"
-                  id="addressInput"
+                  id="manualAddress"
                   class="form-input"
                   autocomplete="street-address"
                   placeholder="Введите адрес или описание места"
                 />
               </div>
-            </div>
-            <div class="form-hint" id="locationHint">Укажите местоположение (адрес или точку на карте)</div>
 
+              <div class="form-hint" id="locationHint">Укажите местоположение (адрес или точку на карте)</div>
               <input id="securityCoordinates" class="form-input is-hidden" type="text" readonly />
             </div>
 
@@ -141,12 +152,16 @@
               </div>
               <div class="media-preview" id="mediaPreview"></div>
             </div>
-          </div>
 
-          <div class="actions">
-            <button class="btn btn-primary btn-wide" id="submitSecurity" type="submit">
-              <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
-            </button>
+            <!-- ВАЖНО: кнопка отправки прямо под Медиа -->
+            <div class="form-group form-group--full">
+              <div class="actions" style="margin-bottom:0;">
+                <button class="btn btn-primary btn-wide" id="submitSecurity" type="submit">
+                  <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
+                </button>
+              </div>
+            </div>
+
           </div>
         </form>
       </section>
@@ -156,34 +171,32 @@
         <div class="section-head">
           <div class="section-title" title="Wi-Fi">Wi-Fi</div>
           <div class="section-note" id="wifiSectionSubtitle" title="Поиск / Проблема / Новая точка">
-  Поиск точек доступа интернета по Севастополю
+            Поиск точек доступа интернета по Севастополю
           </div>
         </div>
 
-        <!-- (4) Вкладки Wi-Fi -->
         <div class="glass-card">
           <div class="tabs" role="tablist" aria-label="Wi-Fi вкладки">
             <button class="tab is-active" data-tab="search" type="button" role="tab" aria-selected="true">ПОИСК</button>
-            <button class="tab" id="tab-problem" data-tab="problem" type="button" role="tab" aria-selected="false">ПРОБЛЕМА</button>
+            <button class="tab" data-tab="problem" type="button" role="tab" aria-selected="false">ПРОБЛЕМА</button>
             <button class="tab" data-tab="new" type="button" role="tab" aria-selected="false">НОВАЯ ТОЧКА</button>
           </div>
 
-          <!-- ПОИСК -->
+          <!-- ПОИСК (без кнопки отправить) -->
           <div class="tab-content is-active" data-tab-content="search">
             <div class="stack">
-              <!-- (2) Нет карты точек. Сначала поиск по ключевому слову -->
               <div class="form-group">
                 <label for="wifiSearch">Поиск по адресу/месту</label>
                 <input id="wifiSearch" class="form-input" type="text" placeholder="" />
                 <div class="form-hint">Например: Нахимова, парк, МФЦ, АЗС, остановка</div>
+
                 <div class="meta-row">
                   <div class="meta" title="Найдено"><span id="wifiCount">0</span> найдено</div>
                   <div class="meta" id="wifiLoading" aria-live="polite" style="display:none">Поиск…</div>
                 </div>
               </div>
 
-              <!-- (2) Кнопка «НАЙТИ БЛИЖАЙШИЕ» → карта → метка → ближайшие из списка -->
-              <div class="actions">
+              <div class="actions" style="margin-bottom:0;">
                 <button class="btn btn-primary btn-wide" id="findNearby" type="button">
                   <i class="fas fa-crosshairs"></i><span>НАЙТИ БЛИЖАЙШИЕ</span>
                 </button>
@@ -197,7 +210,7 @@
             </div>
           </div>
 
-          <!-- ПРОБЛЕМА -->
+          <!-- ПРОБЛЕМА (тут submit нужен) -->
           <div class="tab-content" data-tab-content="problem">
             <form id="wifiProblemForm" class="form-card" autocomplete="on">
               <div class="form-grid">
@@ -221,16 +234,19 @@
                   <label for="wifiProblemDescription">Описание *</label>
                   <textarea id="wifiProblemDescription" class="form-textarea" rows="4" placeholder="Что именно не работает" required></textarea>
                 </div>
-              </div>
-              <div class="actions">
-                <button class="btn btn-primary btn-wide" id="submitWifiProblem" type="submit">
-                  <i class="fas fa-bug"></i><span>ОТПРАВИТЬ</span>
-                </button>
+
+                <div class="form-group form-group--full">
+                  <div class="actions" style="margin-bottom:0;">
+                    <button class="btn btn-primary btn-wide" id="submitWifiProblem" type="submit">
+                      <i class="fas fa-bug"></i><span>ОТПРАВИТЬ</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </form>
           </div>
 
-          <!-- НОВАЯ ТОЧКА -->
+          <!-- НОВАЯ ТОЧКА (тут submit нужен) -->
           <div class="tab-content" data-tab-content="new">
             <form id="wifiNewForm" class="form-card" autocomplete="on">
               <div class="form-grid">
@@ -254,84 +270,104 @@
                   <label for="wifiNewDescription">Описание *</label>
                   <textarea id="wifiNewDescription" class="form-textarea" rows="4" placeholder="Доп. детали (название места, ориентир)" required></textarea>
                 </div>
-              </div>
-              <div class="actions">
-                <button class="btn btn-primary btn-wide" id="submitWifiNew" type="submit">
-                  <i class="fas fa-plus-circle"></i><span>ОТПРАВИТЬ</span>
-                </button>
+
+                <div class="form-group form-group--full">
+                  <div class="actions" style="margin-bottom:0;">
+                    <button class="btn btn-primary btn-wide" id="submitWifiNew" type="submit">
+                      <i class="fas fa-plus-circle"></i><span>ОТПРАВИТЬ</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </form>
           </div>
-        </div>
 
+        </div>
       </section>
 
       <!-- GRAFFITI -->
       <section id="graffiti-section" class="content-section" data-section="graffiti" aria-label="Граффити">
         <div class="section-head">
-          <div class="section-title" title="Граффити">Граффити</div>
-          <div class="section-note" title="Сообщить о граффити">Сообщение</div>
+          <div class="section-title" title="Сообщить о граффити">Сообщить о граффити</div>
+          <div class="section-note" title="Заполните форму">Заполните форму</div>
         </div>
 
         <form id="graffitiForm" class="glass-card form-card" autocomplete="on">
           <div class="form-grid">
+
             <div class="form-group">
               <label for="graffitiName">Имя *</label>
-              <input id="graffitiName" class="form-input" type="text" placeholder="Ваше имя" required />
+              <div class="input-row">
+                <input id="graffitiName" class="form-input" type="text" placeholder="Ваше имя" required />
+                <button class="btn btn-primary btn-compact" id="useMaxNameGraffiti" type="button">
+                  <i class="fas fa-user-check"></i><span>Из MAX</span>
+                </button>
+              </div>
             </div>
-          
+
             <div class="form-group">
               <label for="graffitiPhone">Телефон *</label>
               <input id="graffitiPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
             </div>
-        
+
             <div class="form-group">
               <label for="graffitiEmail">Email</label>
               <input id="graffitiEmail" class="form-input" type="email" inputmode="email" placeholder="name@mail.ru" />
             </div>
-          
+
             <div class="form-group">
+              <label for="graffitiCategory">Тип граффити *</label>
+              <select id="graffitiCategory" class="form-select" required>
+                <option value="" selected disabled>Выберите</option>
+                <option value="illegal">Незаконные надписи</option>
+                <option value="vandal">Вандализм</option>
+                <option value="other">Другое</option>
+              </select>
+            </div>
+
+            <div class="form-group form-group--full">
               <label>Местоположение *</label>
-          
+
               <div class="location-actions">
                 <button type="button" class="btn btn-primary location-btn" id="graffitiUseCurrentLocation">
-                    МОЕ МЕСТОПОЛОЖЕНИЕ
+                  МОЕ МЕСТОПОЛОЖЕНИЕ
                 </button>
-          
-                <button type="button" class="btn btn-primary location-btn" id="graffitiSelectOnMap">
+
+                <button type="button" class="btn btn-primary location-btn" id="graffitiUseMapLocation">
                   ВЫБРАТЬ НА КАРТЕ
                 </button>
-          
-                <button type="button" class="btn btn-primary location-btn" id="graffitiShowAddressInput">
-                    УКАЗАТЬ АДРЕС
+
+                <button type="button" class="btn btn-primary location-btn" id="graffitiUseManualLocation">
+                  УКАЗАТЬ АДРЕС
                 </button>
               </div>
-          
-              <div class="address-input-wrapper" id="graffitiAddressWrap" hidden>
+
+              <div class="address-input-wrapper" hidden id="graffitiAddressWrap">
                 <input
                   type="text"
-                  id="graffitiAddressInput"
+                  id="graffitiManualAddress"
                   class="form-input"
-                   autocomplete="street-address"
+                  autocomplete="street-address"
                   placeholder="Введите адрес или описание места"
                 />
               </div>
-          
+
               <div class="form-hint" id="graffitiLocationHint">Укажите местоположение (адрес или точку на карте)</div>
+              <input id="graffitiCoordinates" class="form-input is-hidden" type="text" readonly />
             </div>
-          
+
             <div class="form-group form-group--full">
               <label for="graffitiDescription">Описание *</label>
               <textarea id="graffitiDescription" class="form-textarea" rows="5" placeholder="Опишите граффити и где оно находится" required></textarea>
             </div>
-          
+
             <div class="form-group form-group--full">
-               <label>Фото/Видео</label>
+              <label>Медиа</label>
               <div class="upload">
                 <input id="graffitiMedia" type="file" accept="image/*,video/*" multiple />
                 <div class="upload-ui">
                   <i class="fas fa-cloud-upload-alt"></i>
-                   <div class="upload-text">
+                  <div class="upload-text">
                     <div class="upload-title">Добавить фото/видео</div>
                     <div class="upload-sub">Перетащите или выберите</div>
                   </div>
@@ -339,17 +375,21 @@
               </div>
               <div class="media-preview" id="graffitiMediaPreview"></div>
             </div>
-          </div>
-          
-          <div class="actions">
-             <button class="btn btn-primary btn-wide" id="submitGraffiti" type="submit">
-              <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
-            </button>
+
+            <!-- submit прямо под медиа -->
+            <div class="form-group form-group--full">
+              <div class="actions" style="margin-bottom:0;">
+                <button class="btn btn-primary btn-wide" id="submitGraffiti" type="submit">
+                  <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
+                </button>
+              </div>
+            </div>
+
           </div>
         </form>
       </section>
 
-      <!-- CONTACTS -->
+      <!-- CONTACTS (без submit вообще) -->
       <section id="contacts-section" class="content-section" data-section="contacts" aria-label="Контакты">
         <div class="section-head">
           <div class="section-title" title="Контакты">Контакты</div>
@@ -365,13 +405,13 @@
               <a href="tel:102">102 — полиция</a><br/>
               <a href="tel:103">103 — скорая</a><br/>
             </div>
-        
+
             <div class="placeholder" style="white-space:normal">
               <b>Правительство Севастополя</b><br/>
               Приёмная: <a href="tel:+7XXXXXXXXXX">+7 (XXX) XXX-XX-XX</a><br/>
               Адрес: (почтовый адрес)<br/>
             </div>
-        
+
             <div class="placeholder" style="white-space:normal">
               <b>Департамент цифрового развития</b><br/>
               Приёмная: <a href="tel:+7XXXXXXXXXX">+7 (XXX) XXX-XX-XX</a><br/>
@@ -394,9 +434,10 @@
           </div>
         </div>
       </section>
+
     </main>
 
-    <!-- Bottom navigation (это не «подвал», это основной навбар приложения) -->
+    <!-- Bottom navigation -->
     <nav class="bottom-nav" role="navigation" aria-label="Навигация">
       <button class="nav-item is-active" data-section="security" type="button">
         <i class="fas fa-shield-alt"></i><span>Безопасность</span>
