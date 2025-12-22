@@ -87,17 +87,6 @@
             </div>
 
             <div class="form-group">
-              <label for="securityCategory">Категория *</label>
-              <select id="securityCategory" class="form-select" required>
-                <option value="" selected disabled>Выберите</option>
-                <option value="person">Подозрительный человек</option>
-                <option value="object">Подозрительный предмет</option>
-                <option value="incident">Происшествие</option>
-                <option value="other">Другое</option>
-              </select>
-            </div>
-
-            <div class="form-group">
               <label>Локация *</label>
             
               <div class="location-actions">
@@ -185,7 +174,8 @@
               <!-- (2) Нет карты точек. Сначала поиск по ключевому слову -->
               <div class="form-group">
                 <label for="wifiSearch">Поиск по адресу/месту</label>
-                <input id="wifiSearch" class="form-input" type="text" placeholder="Напр.: Нахимова, парк, площадь" />
+                <input id="wifiSearch" class="form-input" type="text" placeholder="" />
+                <div class="form-hint">Например: Нахимова, парк, МФЦ, АЗС, остановка</div>
                 <div class="meta-row">
                   <div class="meta" title="Найдено"><span id="wifiCount">0</span> найдено</div>
                   <div class="meta" id="wifiLoading" aria-live="polite" style="display:none">Поиск…</div>
@@ -274,7 +264,6 @@
           </div>
         </div>
 
-        <!-- (3) НИКАКОЙ формы «сообщить о подозрительном» в Wi-Fi больше нет -->
       </section>
 
       <!-- GRAFFITI -->
@@ -285,9 +274,80 @@
         </div>
 
         <div class="glass-card form-card">
-          <div class="placeholder" id="graffitiPlaceholder">
-            Раздел граффити открыт. Логику формы фиксируем в app.js следующим файлом.
-          </div>
+          <form id="graffitiForm" class="glass-card form-card" autocomplete="on">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="graffitiName">Имя *</label>
+                <input id="graffitiName" class="form-input" type="text" placeholder="Ваше имя" required />
+              </div>
+          
+              <div class="form-group">
+                <label for="graffitiPhone">Телефон *</label>
+                <input id="graffitiPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
+              </div>
+          
+              <div class="form-group">
+                <label for="graffitiEmail">Email</label>
+                <input id="graffitiEmail" class="form-input" type="email" inputmode="email" placeholder="name@mail.ru" />
+              </div>
+          
+              <div class="form-group">
+                <label>Местоположение *</label>
+          
+                <div class="location-actions">
+                  <button type="button" class="btn btn-primary location-btn" id="graffitiUseCurrentLocation">
+                    МОЕ МЕСТОПОЛОЖЕНИЕ
+                  </button>
+          
+                  <button type="button" class="btn btn-primary location-btn" id="graffitiSelectOnMap">
+                    ВЫБРАТЬ НА КАРТЕ
+                  </button>
+          
+                  <button type="button" class="btn btn-primary location-btn" id="graffitiShowAddressInput">
+                    УКАЗАТЬ АДРЕС
+                  </button>
+                </div>
+          
+                <div class="address-input-wrapper" id="graffitiAddressWrap" hidden>
+                  <input
+                    type="text"
+                    id="graffitiAddressInput"
+                    class="form-input"
+                    autocomplete="street-address"
+                    placeholder="Введите адрес или описание места"
+                  />
+                </div>
+          
+                <div class="form-hint" id="graffitiLocationHint">Укажите местоположение (адрес или точку на карте)</div>
+              </div>
+          
+              <div class="form-group form-group--full">
+                <label for="graffitiDescription">Описание *</label>
+                <textarea id="graffitiDescription" class="form-textarea" rows="5" placeholder="Опишите граффити и где оно находится" required></textarea>
+              </div>
+          
+              <div class="form-group form-group--full">
+                <label>Фото/Видео</label>
+                <div class="upload">
+                  <input id="graffitiMedia" type="file" accept="image/*,video/*" multiple />
+                  <div class="upload-ui">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <div class="upload-text">
+                      <div class="upload-title">Добавить фото/видео</div>
+                      <div class="upload-sub">Перетащите или выберите</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="media-preview" id="graffitiMediaPreview"></div>
+              </div>
+            </div>
+          
+            <div class="actions">
+              <button class="btn btn-primary btn-wide" id="submitGraffiti" type="submit">
+                <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
+              </button>
+            </div>
+          </form>
         </div>
       </section>
 
@@ -299,8 +359,26 @@
         </div>
 
         <div class="glass-card form-card">
-          <div class="placeholder" id="contactsPlaceholder">
-            Раздел контактов открыт. Логику рендера/контента фиксируем в app.js следующим файлом.
+          <div class="stack" style="padding:0;">
+            <div class="placeholder" style="white-space:normal">
+              <b>Экстренные службы</b><br/>
+              <a href="tel:112">112 — единый номер</a><br/>
+              <a href="tel:101">101 — пожарные/спасатели</a><br/>
+              <a href="tel:102">102 — полиция</a><br/>
+              <a href="tel:103">103 — скорая</a><br/>
+            </div>
+        
+            <div class="placeholder" style="white-space:normal">
+              <b>Правительство Севастополя</b><br/>
+              Приёмная: <a href="tel:+7XXXXXXXXXX">+7 (XXX) XXX-XX-XX</a><br/>
+              Адрес: (почтовый адрес)<br/>
+            </div>
+        
+            <div class="placeholder" style="white-space:normal">
+              <b>Департамент цифрового развития</b><br/>
+              Приёмная: <a href="tel:+7XXXXXXXXXX">+7 (XXX) XXX-XX-XX</a><br/>
+              Адрес: (почтовый адрес)<br/>
+            </div>
           </div>
         </div>
       </section>
