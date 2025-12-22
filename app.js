@@ -248,40 +248,42 @@
       });
     }
 
-   openModal({ title = "Подтверждение", bodyHTML = "", actions = [] } = {}) {
-  const modal = $("#modal");
-  if (!modal) return;
+    openModal({ title = "Подтверждение", bodyHTML = "", actions = [] } = {}) {
+      const modal = $("#modal");
+      if (!modal) return;
 
-  $("#modalTitle").textContent = title;
-  $("#modalBody").innerHTML = bodyHTML;
+      const titleEl = $("#modalTitle");
+      const bodyEl = $("#modalBody");
+      const actionsRoot = $("#modalActions");
 
-  const actionsRoot = $("#modalActions");
-  actionsRoot.innerHTML = "";
-  actions.forEach((a) => actionsRoot.appendChild(a));
+      if (titleEl) titleEl.textContent = String(title || "");
+      if (bodyEl) bodyEl.innerHTML = bodyHTML || "";
 
-  modal.setAttribute("aria-hidden", "false");
-  modal.classList.add("is-open");
+      if (actionsRoot) {
+        actionsRoot.innerHTML = "";
+        (Array.isArray(actions) ? actions : []).forEach((a) => a && actionsRoot.appendChild(a));
+      }
 
-  this._syncModalLock();
-}
+      modal.setAttribute("aria-hidden", "false");
+      modal.classList.add("is-open");
+      this._syncModalLock();
+    }
 
-closeModal() {
-  const modal = $("#modal");
-  if (!modal) return;
-  modal.setAttribute("aria-hidden", "true");
-  modal.classList.remove("is-open");
+    closeModal() {
+      const modal = $("#modal");
+      if (!modal) return;
+      modal.setAttribute("aria-hidden", "true");
+      modal.classList.remove("is-open");
+      this._syncModalLock();
+    }
 
-  this._syncModalLock();
-}
-
-_syncModalLock() {
-  const anyOpen =
-    $("#modal")?.getAttribute("aria-hidden") === "false" ||
-    $("#mapModal")?.getAttribute("aria-hidden") === "false";
-
-  document.documentElement.classList.toggle("is-modal-open", !!anyOpen);
-  document.body.classList.toggle("is-modal-open", !!anyOpen);
-}
+    _syncModalLock() {
+      const anyOpen =
+        $("#modal")?.getAttribute("aria-hidden") === "false" ||
+        $("#mapModal")?.getAttribute("aria-hidden") === "false";
+      document.documentElement.classList.toggle("is-modal-open", !!anyOpen);
+      document.body.classList.toggle("is-modal-open", !!anyOpen);
+    }
 
     confirmModal(title, bodyHTML, okText = "ОК", cancelText = "Отмена") {
       return new Promise((resolve) => {
