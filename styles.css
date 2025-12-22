@@ -99,7 +99,8 @@ img, video {
   --muted2: rgba(255,255,255,.42);
 
   --glass: rgba(255,255,255,.08);
-  --glass2: rgba(255,255,255,.06);
+  --glass2: rgba(255,255,255,.06);  
+  --card-bg: rgba(255,255,255,.06);
   --stroke: rgba(255,255,255,.14);
   --stroke2: rgba(255,255,255,.10);
 
@@ -123,6 +124,7 @@ html[data-theme="light"] {
 
   --glass: rgba(255,255,255,.72);
   --glass2: rgba(255,255,255,.62);
+  --card-bg: rgba(255,255,255,.92);
   --stroke: rgba(10,12,18,.12);
   --stroke2: rgba(10,12,18,.08);
 
@@ -692,7 +694,7 @@ html[data-theme="light"] .upload {
   padding: var(--space-4);
   border-radius: var(--r-lg);
   border: 1px solid var(--stroke2);
-  background: rgba(255,255,255,.06);
+  background: var(--card-bg);
   box-shadow: var(--shadow-soft);
   display: flex;
   align-items: flex-start;
@@ -860,6 +862,7 @@ html.is-modal-open,
 body.is-modal-open {
   overflow: hidden;
   touch-action: none;
+  overscroll-behavior: none;
 }
 
 .modal {
@@ -880,19 +883,23 @@ body.is-modal-open {
 }
 
 .modal-sheet {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom) + var(--space-3));
-  transform: translateX(-50%);
-  width: min(720px, calc(100% - 2 * var(--space-3)));
+  top: 50%;
+  transform: translate3d(-50%, -50%, 0);
+  will-change: transform;
+
+  width: min(720px, calc(100vw - 24px));
+  max-height: min(78vh, 680px);
+  overflow: auto;
+
   border-radius: 26px;
-  background: rgba(18, 20, 28, .72);
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow: var(--shadow);
+  background: var(--card-bg);
+  border: 1px solid var(--stroke2);
+  box-shadow: var(--shadow-soft);
+
   backdrop-filter: blur(var(--blur));
   -webkit-backdrop-filter: blur(var(--blur));
-  overflow: hidden;
-  animation: sheetIn var(--dur-3) var(--ease) both;
 }
 
 html[data-theme="light"] .modal-sheet {
