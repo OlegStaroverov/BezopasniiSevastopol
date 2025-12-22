@@ -1,10 +1,4 @@
-// app.js — MAX Mini App (stable rewrite)
-// Требования:
-// - чистая DOM-логика, без пустых зон при переключении вкладок
-// - кнопки "ОТПРАВИТЬ" только: Security, Wi-Fi->Problem, Wi-Fi->New, Graffiti
-// - поддержка тёмной/светлой темы через CSS-переменные
-// - сохранение обращений (security / wifi / graffiti) и просмотр в админке
-// - если введены и координаты и ручной адрес — сохраняем и показываем оба
+// app.js — MAX Mini App
 
 (() => {
   "use strict";
@@ -248,27 +242,40 @@
       });
     }
 
-    openModal({ title = "Подтверждение", bodyHTML = "", actions = [] } = {}) {
-      const modal = $("#modal");
-      if (!modal) return;
+   openModal({ title = "Подтверждение", bodyHTML = "", actions = [] } = {}) {
+  const modal = $("#modal");
+  if (!modal) return;
 
-      $("#modalTitle").textContent = title;
-      $("#modalBody").innerHTML = bodyHTML;
+  $("#modalTitle").textContent = title;
+  $("#modalBody").innerHTML = bodyHTML;
 
-      const actionsRoot = $("#modalActions");
-      actionsRoot.innerHTML = "";
-      actions.forEach((a) => actionsRoot.appendChild(a));
+  const actionsRoot = $("#modalActions");
+  actionsRoot.innerHTML = "";
+  actions.forEach((a) => actionsRoot.appendChild(a));
 
-      modal.setAttribute("aria-hidden", "false");
-      modal.classList.add("is-open");
-    }
+  modal.setAttribute("aria-hidden", "false");
+  modal.classList.add("is-open");
 
-    closeModal() {
-      const modal = $("#modal");
-      if (!modal) return;
-      modal.setAttribute("aria-hidden", "true");
-      modal.classList.remove("is-open");
-    }
+  this._syncModalLock();
+}
+
+closeModal() {
+  const modal = $("#modal");
+  if (!modal) return;
+  modal.setAttribute("aria-hidden", "true");
+  modal.classList.remove("is-open");
+
+  this._syncModalLock();
+}
+
+_syncModalLock() {
+  const anyOpen =
+    $("#modal")?.getAttribute("aria-hidden") === "false" ||
+    $("#mapModal")?.getAttribute("aria-hidden") === "false";
+
+  document.documentElement.classList.toggle("is-modal-open", !!anyOpen);
+  document.body.classList.toggle("is-modal-open", !!anyOpen);
+}
 
     confirmModal(title, bodyHTML, okText = "ОК", cancelText = "Отмена") {
       return new Promise((resolve) => {
@@ -325,6 +332,7 @@
       if (!modal) return;
       modal.setAttribute("aria-hidden", "false");
       modal.classList.add("is-open");
+      this._syncModalLock();
 
       // init map once
       const init = async () => {
@@ -377,6 +385,7 @@
       if (!modal) return;
       modal.setAttribute("aria-hidden", "true");
       modal.classList.remove("is-open");
+      this._syncModalLock();
     }
 
     _applyMapSelection(context, coords) {
