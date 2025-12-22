@@ -296,7 +296,7 @@ _syncModalLock() {
 
         const cancelBtn = document.createElement("button");
         cancelBtn.type = "button";
-        cancelBtn.className = "btn btn-secondary btn-wide";
+        cancelBtn.className = "btn btn-primary btn-wide";
         cancelBtn.innerHTML = `<i class="fas fa-times"></i><span>${esc(cancelText)}</span>`;
         cancelBtn.addEventListener("click", () => {
           this.closeModal();
@@ -330,56 +330,78 @@ _syncModalLock() {
       });
     }
 
-    openMap(context) {
+    openMap(context, initialCoords = null) {
       this.mapContext = context;
-      this.mapSelected = null;
-
+    
+      // если пришли стартовые координаты (Wi-Fi Nearby) — ставим selected сразу
+      const hasInitial =
+        initialCoords &&
+        Number.isFinite(initialCoords.lat) &&
+        Number.isFinite(initialCoords.lon);
+    
+      this.mapSelected = hasInitial ? { lat: initialCoords.lat, lon: initialCoords.lon } : null;
+    
       const modal = $("#mapModal");
       if (!modal) return;
       modal.setAttribute("aria-hidden", "false");
       modal.classList.add("is-open");
       this._syncModalLock();
-
+    
+      const ensureMarker = (lat, lon, doCenter = true) => {
+        this.mapSelected = { lat, lon };
+    
+        if (!this.mapMarker) {
+          this.mapMarker = new window.ymaps.Placemark([lat, lon], {}, { draggable: true });
+          this.map.geoObjects.add(this.mapMarker);
+    
+          this.mapMarker.events.add("dragend", () => {
+            const c = this.mapMarker.geometry.getCoordinates();
+            this.mapSelected = { lat: c[0], lon: c[1] };
+          });
+        } else {
+          this.mapMarker.geometry.setCoordinates([lat, lon]);
+        }
+    
+        if (doCenter) {
+          try {
+            this.map.setCenter([lat, lon], Math.max(this.map.getZoom?.() || 14, 16));
+          } catch (_) {}
+        }
+      };
+    
       // init map once
       const init = async () => {
         if (!window.ymaps?.ready) throw new Error("YM_NOT_READY");
         await new Promise((res) => window.ymaps.ready(res));
-
+    
         const cfg = window.AppConfig?.maps || {};
         const center = cfg.defaultCenter || { lat: 55.751244, lon: 37.618423 };
         const zoom = cfg.zoom || 14;
-
+    
         if (!this.map) {
           this.map = new window.ymaps.Map("yandexMap", {
             center: [center.lat, center.lon],
             zoom
           });
-
+    
           this.map.events.add("click", (e) => {
             const coords = e.get("coords");
             const lat = coords?.[0];
             const lon = coords?.[1];
             if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-
-            this.mapSelected = { lat, lon };
-
-            if (!this.mapMarker) {
-              this.mapMarker = new window.ymaps.Placemark([lat, lon], {}, { draggable: true });
-              this.map.geoObjects.add(this.mapMarker);
-              this.mapMarker.events.add("dragend", () => {
-                const c = this.mapMarker.geometry.getCoordinates();
-                this.mapSelected = { lat: c[0], lon: c[1] };
-              });
-            } else {
-              this.mapMarker.geometry.setCoordinates([lat, lon]);
-            }
+    
+            ensureMarker(lat, lon, false);
           });
         } else {
-          // resize fix when reopening modal
           try { this.map.container.fitToViewport(); } catch (_) {}
         }
+    
+        // ВАЖНО: если это Wi-Fi Nearby и мы знаем координаты пользователя — сразу ставим метку
+        if (hasInitial) {
+          ensureMarker(initialCoords.lat, initialCoords.lon, true);
+        }
       };
-
+    
       init().catch(() => {
         this.toast("Карта недоступна (проверьте подключение/ключ)", "warning");
         this.haptic("warning");
@@ -829,16 +851,20 @@ _syncModalLock() {
           (pos) => {
             const lat = pos?.coords?.latitude;
             const lon = pos?.coords?.longitude;
+        
+            // Открываем карту В ЛЮБОМ СЛУЧАЕ, но если гео есть — ставим метку сразу на пользователя
             if (Number.isFinite(lat) && Number.isFinite(lon)) {
-              this._renderWifiNearestFromCoords({ lat, lon });
+              this.openMap("wifi_nearby", { lat, lon });
             } else {
               this.openMap("wifi_nearby");
             }
           },
-          () => this.openMap("wifi_nearby"),
+          () => {
+            // если не дали гео — откроем карту по дефолтному центру (Севастополь)
+            this.openMap("wifi_nearby");
+          },
           { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
         );
-      });
       
       this.wifiBaseList = (window.wifiPoints || []);
       this.wifiWithDistance = false;
