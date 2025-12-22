@@ -943,3 +943,18 @@ html[data-theme="light"] .nav-item i {
   font-size: 12px;
   font-weight: 600;
 }
+
+/* чтобы контент и кнопки не залезали под нижний навбар */
+.main {
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--space-6));
+}
+
+/* “ОТПРАВИТЬ” и любые actions — всегда с запасом снизу */
+.actions {
+  margin-bottom: var(--space-5);
+}
+
+/* на всякий случай фикс белого низа */
+html, body {
+  background: var(--bg);
+}
