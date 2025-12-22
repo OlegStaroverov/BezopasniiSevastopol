@@ -950,8 +950,9 @@ html[data-theme="light"] .modal-sheet {
 }
 
 .modal-actions {
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--stroke2);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* Map container */
