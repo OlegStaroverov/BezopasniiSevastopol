@@ -569,10 +569,10 @@ html[data-theme="light"] .upload {
 }
 
 /* -------------------- Actions / Stack -------------------- */
-.actions {
-  margin-top: var(--space-3);     /* меньше, чтобы кнопка была "сразу под блоком" */
-  margin-bottom: var(--space-5);  /* запас до нижней панели */
-  display: flex;
+.actions{
+  margin-top: var(--space-2);  
+  margin-bottom: var(--space-5);
+  display:flex;
   gap: var(--space-2);
 }
 
@@ -945,4 +945,10 @@ html[data-theme="light"] .nav-item i {
   font-weight: 600;
 }
 
+.main{
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + var(--space-6));
+}
 
+html, body{
+  background: var(--bg);
+}
