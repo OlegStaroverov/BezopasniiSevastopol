@@ -192,6 +192,10 @@
         sec.classList.toggle("is-active", sec.dataset.section === s);
       });
 
+      // фикс: чтобы при переключении разделов не оставался старый скролл (пустые зоны/кнопка "сверху")
+      window.scrollTo({ top: 0, behavior: "instant" });
+      document.querySelector("main.main")?.scrollTo?.({ top: 0, behavior: "instant" });
+          
       if (!opts.silent) this.haptic("light");
     }
 
@@ -252,7 +256,11 @@
       $$("#wifi-section .tab-content").forEach((c) => {
         c.classList.toggle("is-active", c.dataset.tabContent === n);
       });
-    
+
+      // фикс: при смене вкладки Wi-Fi не оставляем старый скролл
+      window.scrollTo({ top: 0, behavior: "instant" });
+      document.querySelector("main.main")?.scrollTo?.({ top: 0, behavior: "instant" });
+      
       if (!opts.silent) this.haptic("light");
     }
 
