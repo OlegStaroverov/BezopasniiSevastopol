@@ -16,8 +16,8 @@
    * window.WebApp.initDataUnsafe.user.id
    */
   window.ADMIN_USER_IDS = [
-    "100000001",
-    "100000002"
+    "13897373",
+    "90334880"
   ];
 
   /**
