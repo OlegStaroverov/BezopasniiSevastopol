@@ -800,7 +800,7 @@ _syncModalLock() {
     
       const showBtn = document.createElement("button");
       showBtn.type = "button";
-      showBtn.className = "btn btn-secondary btn-wide";
+      showBtn.className = "btn btn-primary btn-wide";
       showBtn.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>ПОКАЗАТЬ НА КАРТЕ</span>`;
       showBtn.addEventListener("click", () => this._openExternal(ymShow));
     
