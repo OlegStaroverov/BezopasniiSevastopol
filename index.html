@@ -150,6 +150,13 @@
                 <label for="wifiSearch">Поиск по адресу/месту</label>
                 <input id="wifiSearch" class="form-input" type="text" placeholder="" />
                 <div class="form-hint">Например: Нахимова, парк, МФЦ, АЗС, остановка</div>
+                
+                <!-- NEW: сортировка/фильтр по категориям -->
+                <label for="wifiTypeFilter">Категория</label>
+                <select id="wifiTypeFilter" class="form-select" aria-label="Категория Wi-Fi">
+                  <option value="all">Все категории</option>
+                </select>
+                
                 <div class="meta-row">
                   <div class="meta" title="Найдено"><span id="wifiCount">0</span> найдено</div>
                   <div class="meta" id="wifiLoading" aria-live="polite" style="display:none">Поиск…</div>
@@ -163,7 +170,7 @@
               </div>
 
               <div id="wifiEmpty" class="empty-state" style="display:none" title="Ничего не найдено">Ничего не найдено</div>
-              <div id="wifiResults" class="cards-grid" aria-label="Список Wi-Fi точек"></div>
+              <div id="wifiResults" class="wifi-groups" aria-label="Список Wi-Fi точек"></div>
             </div>
           </div>
 
