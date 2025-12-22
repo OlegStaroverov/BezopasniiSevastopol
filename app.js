@@ -1,10 +1,4 @@
-// app.js — MAX Mini App (stable rewrite)
-// Требования:
-// - чистая DOM-логика, без пустых зон при переключении вкладок
-// - кнопки "ОТПРАВИТЬ" только: Security, Wi-Fi->Problem, Wi-Fi->New, Graffiti
-// - поддержка тёмной/светлой темы через CSS-переменные
-// - сохранение обращений (security / wifi / graffiti) и просмотр в админке
-// - если введены и координаты и ручной адрес — сохраняем и показываем оба
+// app.js — MAX Mini App
 
 (() => {
   "use strict";
@@ -47,6 +41,9 @@
 
       this.section = "security";
       this.wifiTab = "search";
+      this.wifiBaseList = (window.wifiPoints || []);
+      this.wifiWithDistance = false;
+      this.wifiFilterType = "all";
 
       this.map = null;
       this.mapMarker = null;
@@ -80,6 +77,7 @@
 
       this._bindSecurityForm();
       this._bindWifiTabs();
+      this._initWifiTypeFilter();
       this._bindWifiSearch();
       this._bindWifiProblemForm();
       this._bindWifiNewForm();
@@ -88,7 +86,9 @@
       // initial render
       this.switchSection("security", { silent: true });
       this.switchWifiTab("search", { silent: true });
-      this.renderWifiResults(window.wifiPoints || []);
+      this.wifiBaseList = (window.wifiPoints || []);
+      this.wifiWithDistance = false;
+      this._applyWifiFilters();
 
       // start admin panel if exists
       // admin-panel.js сам инициализируется, если доступен.
@@ -248,31 +248,40 @@
       });
     }
 
-    openModal({ title = "Подтверждение", bodyHTML = "", actions = [] } = {}) {
-      const modal = $("#modal");
-      if (!modal) return;
+   openModal({ title = "Подтверждение", bodyHTML = "", actions = [] } = {}) {
+  const modal = $("#modal");
+  if (!modal) return;
 
-      $("#modalTitle").textContent = title;
-      $("#modalBody").innerHTML = bodyHTML;
+  $("#modalTitle").textContent = title;
+  $("#modalBody").innerHTML = bodyHTML;
 
-      const actionsRoot = $("#modalActions");
-      actionsRoot.innerHTML = "";
-      actions.forEach((a) => actionsRoot.appendChild(a));
+  const actionsRoot = $("#modalActions");
+  actionsRoot.innerHTML = "";
+  actions.forEach((a) => actionsRoot.appendChild(a));
 
-      modal.setAttribute("aria-hidden", "false");
-      modal.classList.add("is-open");
-      this._syncModalLock();
-      this._syncModalLock();
-    }
+  modal.setAttribute("aria-hidden", "false");
+  modal.classList.add("is-open");
 
-    closeModal() {
-      const modal = $("#modal");
-      if (!modal) return;
-      modal.setAttribute("aria-hidden", "true");
-      modal.classList.remove("is-open");
-      this._syncModalLock();
-      this._syncModalLock();
-    }
+  this._syncModalLock();
+}
+
+closeModal() {
+  const modal = $("#modal");
+  if (!modal) return;
+  modal.setAttribute("aria-hidden", "true");
+  modal.classList.remove("is-open");
+
+  this._syncModalLock();
+}
+
+_syncModalLock() {
+  const anyOpen =
+    $("#modal")?.getAttribute("aria-hidden") === "false" ||
+    $("#mapModal")?.getAttribute("aria-hidden") === "false";
+
+  document.documentElement.classList.toggle("is-modal-open", !!anyOpen);
+  document.body.classList.toggle("is-modal-open", !!anyOpen);
+}
 
     confirmModal(title, bodyHTML, okText = "ОК", cancelText = "Отмена") {
       return new Promise((resolve) => {
@@ -287,7 +296,7 @@
 
         const cancelBtn = document.createElement("button");
         cancelBtn.type = "button";
-        cancelBtn.className = "btn btn-primary btn-wide";
+        cancelBtn.className = "btn btn-secondary btn-wide";
         cancelBtn.innerHTML = `<i class="fas fa-times"></i><span>${esc(cancelText)}</span>`;
         cancelBtn.addEventListener("click", () => {
           this.closeModal();
@@ -320,7 +329,8 @@
         this._applyMapSelection(ctx, sel);
       });
     }
-    openMap(context, initialCoords = null) {
+
+    openMap(context) {
       this.mapContext = context;
       this.mapSelected = null;
 
@@ -330,6 +340,7 @@
       modal.classList.add("is-open");
       this._syncModalLock();
 
+      // init map once
       const init = async () => {
         if (!window.ymaps?.ready) throw new Error("YM_NOT_READY");
         await new Promise((res) => window.ymaps.ready(res));
@@ -361,35 +372,11 @@
               });
             } else {
               this.mapMarker.geometry.setCoordinates([lat, lon]);
-              this.mapMarker.options.set("draggable", true);
             }
           });
         } else {
           // resize fix when reopening modal
           try { this.map.container.fitToViewport(); } catch (_) {}
-        }
-
-        // apply initial coords even if map already exists (used by Wi‑Fi Nearby)
-        if (initialCoords && Number.isFinite(initialCoords.lat) && Number.isFinite(initialCoords.lon)) {
-          const lat0 = initialCoords.lat;
-          const lon0 = initialCoords.lon;
-
-          this.mapSelected = { lat: lat0, lon: lon0 };
-          try { this.map.setCenter([lat0, lon0], zoom, { duration: 120 }); } catch (_) {}
-
-          if (!this.mapMarker) {
-            this.mapMarker = new window.ymaps.Placemark([lat0, lon0], {}, { draggable: true });
-            this.map.geoObjects.add(this.mapMarker);
-            this.mapMarker.events.add("dragend", () => {
-              const c = this.mapMarker.geometry.getCoordinates();
-              const lat = c?.[0];
-              const lon = c?.[1];
-              if (Number.isFinite(lat) && Number.isFinite(lon)) this.mapSelected = { lat, lon };
-            });
-          } else {
-            this.mapMarker.geometry.setCoordinates([lat0, lon0]);
-            this.mapMarker.options.set("draggable", true);
-          }
         }
       };
 
@@ -398,7 +385,6 @@
         this.haptic("warning");
       });
     }
-
 
     closeMap() {
       const modal = $("#mapModal");
@@ -665,7 +651,6 @@
       if (!opts.silent) this.haptic("light");
     }
 
-    // ---------- Wi-Fi Search + Nearby ----------
     getTypeEmoji(type) {
       const emojis = {
         "здрав": "🏥",
@@ -686,7 +671,7 @@
       };
       return emojis[type] || "📍";
     }
-
+    
     getTypeName(type) {
       const names = {
         "здрав": "Медицинские организации",
@@ -707,227 +692,157 @@
       };
       return names[type] || "Другое";
     }
-
+    
     _normalizeWifiType(rawType) {
       const t = String(rawType || "").trim();
       if (!t) return "другое";
-      if (t.toLowerCase() === "парки и скверы") return "отдых";
+      if (t === "парки и скверы") return "отдых";
       if (t.toLowerCase() === "мфц") return "МФЦ";
       if (t.toLowerCase() === "азс") return "АЗС";
-
+    
       const low = t.toLowerCase();
       const known = [
-        "здрав", "образование", "тц", "транспорт", "отдых", "спорт",
-        "гостиница", "пляж", "турбаза", "дома", "кафе", "торговля", "другое"
+        "здрав","образование","тц","транспорт","отдых","спорт",
+        "гостиница","пляж","турбаза","дома","кафе","торговля","другое"
       ];
       return known.includes(low) ? low : "другое";
     }
-
+    
     _wifiTypesOrder() {
       return [
-        "здрав", "образование", "тц", "транспорт", "отдых", "спорт",
-        "МФЦ", "АЗС", "гостиница", "пляж", "турбаза", "дома", "кафе", "торговля", "другое"
+        "здрав","образование","тц","транспорт","отдых","спорт",
+        "МФЦ","АЗС","гостиница","пляж","турбаза","дома","кафе","торговля","другое"
       ];
     }
-
+    
     _initWifiTypeFilter() {
       const sel = $("#wifiTypeFilter");
       if (!sel) return;
-
+    
       const set = new Set();
       (Array.isArray(window.wifiPoints) ? window.wifiPoints : []).forEach((p) => {
         set.add(this._normalizeWifiType(p?.type));
       });
-
+    
       const order = this._wifiTypesOrder().filter((t) => set.has(t));
       sel.innerHTML = '<option value="all">Все категории</option>';
-
+    
       order.forEach((t) => {
         const o = document.createElement("option");
         o.value = t;
         o.textContent = `${this.getTypeEmoji(t)} ${this.getTypeName(t)}`;
         sel.appendChild(o);
       });
-
+    
       sel.value = this.wifiFilterType || "all";
     }
-
+    
     _applyWifiFilters() {
       const input = $("#wifiSearch");
       const sel = $("#wifiTypeFilter");
       const q = String(input?.value || "").trim().toLowerCase();
-
-      // если сейчас режим "ближайшие" — категории не применяем
-      const type = this.wifiNearbyMode ? "all" : String(sel?.value || this.wifiFilterType || "all");
+      const type = String(sel?.value || this.wifiFilterType || "all");
       this.wifiFilterType = type;
-
+    
       const base = Array.isArray(this.wifiBaseList) ? this.wifiBaseList : [];
       const filtered = base.filter((p) => {
         const pt = this._normalizeWifiType(p?.type);
-
-        if (!this.wifiNearbyMode) {
-          const byType = type === "all" ? true : pt === type;
-          if (!byType) return false;
-        }
-
+        const byType = type === "all" ? true : pt === type;
+        if (!byType) return false;
         if (!q) return true;
         const hay = `${p?.name || ""} ${p?.address || ""} ${p?.description || ""} ${p?.type || ""}`.toLowerCase();
         return hay.includes(q);
       });
-
-      this.renderWifiResults(filtered, { withDistance: !!this.wifiWithDistance, mode: this.wifiNearbyMode ? "nearby" : "search" });
+    
+      this.renderWifiResults(filtered, { withDistance: !!this.wifiWithDistance });
     }
-
+    
+    openWifiPointDetails(point) {
+      const p = point || null;
+      if (!p) return;
+    
+      const t = this._normalizeWifiType(p.type);
+      const hasCoords = p.coordinates && Number.isFinite(p.coordinates.lat) && Number.isFinite(p.coordinates.lon);
+      const coordsText = hasCoords ? fmtCoords(p.coordinates) : "—";
+    
+      const addr = p.address ? esc(p.address) : "—";
+      const desc = p.description ? esc(p.description) : "—";
+    
+      const ymShow = hasCoords
+        ? `https://yandex.ru/maps/?ll=${encodeURIComponent(p.coordinates.lon)},${encodeURIComponent(p.coordinates.lat)}&z=17&pt=${encodeURIComponent(p.coordinates.lon)},${encodeURIComponent(p.coordinates.lat)},pm2rdm`
+        : `https://yandex.ru/maps/?text=${encodeURIComponent(p.name || "")}`;
+    
+      const ymRoute = hasCoords
+        ? `https://yandex.ru/maps/?rtext=~${encodeURIComponent(p.coordinates.lat)},${encodeURIComponent(p.coordinates.lon)}&rtt=auto`
+        : `https://yandex.ru/maps/?text=${encodeURIComponent(p.address || p.name || "")}`;
+    
+      const showBtn = document.createElement("button");
+      showBtn.type = "button";
+      showBtn.className = "btn btn-secondary btn-wide";
+      showBtn.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>ПОКАЗАТЬ НА КАРТЕ</span>`;
+      showBtn.addEventListener("click", () => this._openExternal(ymShow));
+    
+      const routeBtn = document.createElement("button");
+      routeBtn.type = "button";
+      routeBtn.className = "btn btn-primary btn-wide";
+      routeBtn.innerHTML = `<i class="fas fa-route"></i><span>ПОСТРОИТЬ МАРШРУТ</span>`;
+      routeBtn.addEventListener("click", () => this._openExternal(ymRoute));
+    
+      this.openModal({
+        title: p.name || "Точка Wi-Fi",
+        bodyHTML: `
+          <div class="wifi-detail">
+            <div class="wifi-detail-row"><b>Категория:</b> <span class="val">${esc(this.getTypeEmoji(t))} ${esc(this.getTypeName(t))}</span></div>
+            <div class="wifi-detail-row"><b>Адрес:</b> <span class="val">${addr}</span></div>
+            <div class="wifi-detail-row"><b>Координаты:</b> <span class="val">${esc(coordsText)}</span></div>
+            <div class="wifi-detail-row"><b>Описание:</b> <span class="val">${desc}</span></div>
+          </div>
+        `,
+        actions: [showBtn, routeBtn]
+      });
+    }
+    
+    _openExternal(url) {
+      const u = String(url || "");
+      if (!u) return;
+      try { if (this.WebApp?.openLink) return this.WebApp.openLink(u); } catch (_) {}
+      window.open(u, "_blank", "noopener,noreferrer");
+    }
+    
     _bindWifiSearch() {
       const input = $("#wifiSearch");
       const typeSelect = $("#wifiTypeFilter");
       const btn = $("#findNearby");
-
-      // базовый список — все точки (для поиска)
-      this.wifiBaseList = Array.isArray(window.wifiPoints) ? window.wifiPoints : [];
-      this.wifiWithDistance = false;
-      this.wifiNearbyMode = false;
-
-      // заполнить фильтр (если есть в разметке)
-      this._initWifiTypeFilter();
-
+    
       if (input) input.addEventListener("input", () => this._applyWifiFilters());
       if (typeSelect) typeSelect.addEventListener("change", () => this._applyWifiFilters());
-
+    
       btn?.addEventListener("click", () => {
         if (!navigator.geolocation) {
           this.toast("Геолокация недоступна", "warning");
           this.haptic("warning");
           return;
         }
-
-        this.toast("Определяем местоположение…", "success");
+        this.toast("Выберите точку на карте или разрешите геолокацию", "info");
+    
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             const lat = pos?.coords?.latitude;
             const lon = pos?.coords?.longitude;
             if (Number.isFinite(lat) && Number.isFinite(lon)) {
-              // открываем карту с уже установленной меткой пользователя
-              this.openMap("wifi_nearby", { lat, lon });
+              this._renderWifiNearestFromCoords({ lat, lon });
             } else {
-              // если гео не пришло — откроем карту по центру города
               this.openMap("wifi_nearby");
             }
           },
           () => this.openMap("wifi_nearby"),
-          { enableHighAccuracy: true, timeout: 9000, maximumAge: 0 }
+          { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
         );
       });
-
-      // первичный рендер
-      this._applyWifiFilters();
+      
+      this.wifiBaseList = (window.wifiPoints || []);
+      this.wifiWithDistance = false;
     }
-
-    // -------------------- Wi-Fi forms (Problem / New point) --------------------
-    _bindWifiProblemForm() {
-      const form = $("#wifiProblemForm");
-      if (!form) return;
-
-      this._bindPhoneMask("#wifiProblemPhone");
-
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const payload = {
-          kind: "problem",
-          name: $("#wifiProblemName")?.value?.trim() || "",
-          phone: $("#wifiProblemPhone")?.value?.trim() || "",
-          email: $("#wifiProblemEmail")?.value?.trim() || "",
-          place: $("#wifiProblemPlace")?.value?.trim() || "",
-          description: $("#wifiProblemDescription")?.value?.trim() || ""
-        };
-
-        if (!payload.name || !payload.phone || !payload.place || !payload.description) {
-          this.toast("Заполните обязательные поля", "warning");
-          this.haptic("warning");
-          return;
-        }
-
-        const ok = window.AppConfig?.ui?.confirmBeforeSend
-          ? await this.confirmModal(
-              "Подтвердить отправку",
-              "<div class=\"confirm-text\">Отправить обращение по Wi‑Fi (Проблема)?</div>",
-              "Отправить",
-              "Отмена"
-            )
-          : true;
-
-        if (!ok) return;
-
-        const report = AppData.makeReport("wifi", payload, { user: this._userSnapshot() });
-        const saved = await AppData.saveReport("wifi", report);
-
-        if (!saved) {
-          this.toast("Не удалось сохранить обращение", "danger");
-          this.haptic("error");
-          return;
-        }
-
-        await this._notifyAdmins("wifi", report);
-
-        this.toast("Обращение отправлено", "success");
-        this.haptic("success");
-        form.reset();
-      });
-    }
-
-    _bindWifiNewForm() {
-      const form = $("#wifiNewForm");
-      if (!form) return;
-
-      this._bindPhoneMask("#wifiNewPhone");
-
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const payload = {
-          kind: "new_point",
-          name: $("#wifiNewName")?.value?.trim() || "",
-          phone: $("#wifiNewPhone")?.value?.trim() || "",
-          email: $("#wifiNewEmail")?.value?.trim() || "",
-          place: $("#wifiNewPlace")?.value?.trim() || "",
-          description: $("#wifiNewDescription")?.value?.trim() || ""
-        };
-
-        if (!payload.name || !payload.phone || !payload.place || !payload.description) {
-          this.toast("Заполните обязательные поля", "warning");
-          this.haptic("warning");
-          return;
-        }
-
-        const ok = window.AppConfig?.ui?.confirmBeforeSend
-          ? await this.confirmModal(
-              "Подтвердить отправку",
-              "<div class=\"confirm-text\">Отправить обращение по Wi‑Fi (Новая точка)?</div>",
-              "Отправить",
-              "Отмена"
-            )
-          : true;
-
-        if (!ok) return;
-
-        const report = AppData.makeReport("wifi", payload, { user: this._userSnapshot() });
-        const saved = await AppData.saveReport("wifi", report);
-
-        if (!saved) {
-          this.toast("Не удалось сохранить обращение", "danger");
-          this.haptic("error");
-          return;
-        }
-
-        await this._notifyAdmins("wifi", report);
-
-        this.toast("Обращение отправлено", "success");
-        this.haptic("success");
-        form.reset();
-      });
-    }
-
 
     _renderWifiNearestFromCoords(origin) {
       const radius = Number(window.AppConfig?.wifi?.nearestRadius || 1500);
@@ -946,288 +861,198 @@
         return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
       };
 
-      const list = (Array.isArray(window.wifiPoints) ? window.wifiPoints : [])
-        .map((p) => ({ ...p, _dist: (p?.coordinates ? distM(origin, p.coordinates) : Infinity) }))
-        .filter((p) => Number.isFinite(p._dist))
+      const list = (window.wifiPoints || [])
+        .map((p) => ({ ...p, _dist: distM(origin, p.coordinates) }))
+        .filter((p) => Number.isFinite(p._dist) && p._dist <= radius)
         .sort((a, b) => a._dist - b._dist)
-        .filter((p) => p._dist <= radius)
         .slice(0, maxResults);
 
-      // режим "ближайшие" — список без группировок/категорий
       this.wifiBaseList = list;
       this.wifiWithDistance = true;
-      this.wifiNearbyMode = true;
-
-      // сбрасываем селект категории, чтобы не фиксировался
-      const sel = $("#wifiTypeFilter");
-      if (sel) sel.value = "all";
-
       this._applyWifiFilters();
       this.toast(list.length ? "Показаны ближайшие точки" : "Рядом точек не найдено", list.length ? "success" : "warning");
       this.haptic(list.length ? "success" : "warning");
     }
 
-    openWifiPointDetails(point) {
-      const p = point || null;
-      if (!p) return;
+renderWifiResults(points, opts = {}) {
+  const arr = Array.isArray(points) ? points : [];
+  const box = $("#wifiResults");
+  const cnt = $("#wifiCount");
+  const empty = $("#wifiEmpty");
+  if (cnt) cnt.textContent = String(arr.length);
+  if (!box) return;
 
-      const t = this._normalizeWifiType(p.type);
-      const hasCoords = p.coordinates && this._isNum(p.coordinates.lat) && this._isNum(p.coordinates.lon);
-      const coordsText = hasCoords ? fmtCoords(p.coordinates) : "—";
+  box.innerHTML = "";
+  if (!arr.length) {
+    if (empty) empty.style.display = "";
+    return;
+  }
+  if (empty) empty.style.display = "none";
 
-      const addr = p.address ? esc(p.address) : "—";
-      const desc = p.description ? esc(p.description) : "—";
+  const groups = new Map();
+  arr.forEach((p) => {
+    const t = this._normalizeWifiType(p?.type);
+    if (!groups.has(t)) groups.set(t, []);
+    groups.get(t).push(p);
+  });
 
-      const ymShow = hasCoords
-        ? `https://yandex.ru/maps/?ll=${encodeURIComponent(p.coordinates.lon)},${encodeURIComponent(p.coordinates.lat)}&z=17&pt=${encodeURIComponent(p.coordinates.lon)},${encodeURIComponent(p.coordinates.lat)},pm2rdm`
-        : `https://yandex.ru/maps/?text=${encodeURIComponent(p.name || "")}`;
+  const order = this._wifiTypesOrder();
+  const keys =
+    (this.wifiFilterType && this.wifiFilterType !== "all")
+      ? [this.wifiFilterType]
+      : order.filter((t) => groups.has(t)).concat(Array.from(groups.keys()).filter((t) => !order.includes(t)));
 
-      const ymRoute = hasCoords
-        ? `https://yandex.ru/maps/?rtext=~${encodeURIComponent(p.coordinates.lat)},${encodeURIComponent(p.coordinates.lon)}&rtt=auto`
-        : `https://yandex.ru/maps/?text=${encodeURIComponent(p.address || p.name || "")}`;
+  const frag = document.createDocumentFragment();
 
-      this.showModal(
-        p.name || "Точка Wi-Fi",
-        `
-          <div class="wifi-detail">
-            <div class="wifi-detail-row"><b>Категория:</b> <span class="val">${esc(this.getTypeEmoji(t))} ${esc(this.getTypeName(t))}</span></div>
-            <div class="wifi-detail-row"><b>Адрес:</b> <span class="val">${addr}</span></div>
-            <div class="wifi-detail-row"><b>Координаты:</b> <span class="val">${esc(coordsText)}</span></div>
-            <div class="wifi-detail-row"><b>Описание:</b> <span class="val">${desc}</span></div>
-          </div>
-        `,
-        `
-          <div class="wifi-detail-actions">
-            <button class="btn btn-primary btn-wide" id="wifiShowOnMap" type="button"><i class="fas fa-map-marker-alt"></i><span>ПОКАЗАТЬ НА КАРТЕ</span></button>
-            <button class="btn btn-primary btn-wide" id="wifiBuildRoute" type="button"><i class="fas fa-route"></i><span>ПОСТРОИТЬ МАРШРУТ</span></button>
-          </div>
-        `
-      );
+  keys.forEach((t) => {
+    const list = groups.get(t);
+    if (!list || !list.length) return;
 
-      $("#wifiShowOnMap")?.addEventListener("click", () => this._openExternal(ymShow));
-      $("#wifiBuildRoute")?.addEventListener("click", () => this._openExternal(ymRoute));
-    }
+    const group = document.createElement("div");
+    group.className = "wifi-type-group";
 
-    _openExternal(url) {
-      const u = String(url || "");
-      if (!u) return;
-      try { if (this.WebApp?.openLink) return this.WebApp.openLink(u); } catch (_) {}
-      window.open(u, "_blank", "noopener,noreferrer");
-    }
+    const head = document.createElement("div");
+    head.className = "wifi-type-head";
+    head.innerHTML = `
+      <div class="wifi-type-title"><span class="emoji">${esc(this.getTypeEmoji(t))}</span><span>${esc(this.getTypeName(t))}</span></div>
+      <div class="wifi-type-count">${list.length}</div>
+    `;
 
-    renderWifiResults(points, opts = {}) {
-      const arr = Array.isArray(points) ? points : [];
-      const box = $("#wifiResults");
-      const cnt = $("#wifiCount");
-      const empty = $("#wifiEmpty");
-      if (cnt) cnt.textContent = String(arr.length);
-      if (!box) return;
+    const grid = document.createElement("div");
+    grid.className = "cards-grid";
 
-      box.innerHTML = "";
-      if (!arr.length) {
-        if (empty) empty.style.display = "";
-        return;
-      }
-      if (empty) empty.style.display = "none";
+    list.forEach((p) => {
+      const card = document.createElement("div");
+      card.className = "wifi-card";
 
-      // Nearby mode: render plain list (no categories)
-      if (this.wifiNearbyMode) {
-        const grid = document.createElement("div");
-        grid.className = "cards-grid";
+      const main = document.createElement("div");
+      main.className = "wifi-card-main";
 
-        arr.forEach((p) => {
-          const card = document.createElement("div");
-          card.className = "wifi-card";
+      const title = document.createElement("div");
+      title.className = "wifi-card-title";
+      title.textContent = p?.name || "Точка Wi-Fi";
 
-          const main = document.createElement("div");
-          main.className = "wifi-card-main";
+      const meta = document.createElement("div");
+      meta.className = "wifi-card-meta";
 
-          const title = document.createElement("div");
-          title.className = "wifi-card-title";
-          title.textContent = p?.name || "Точка Wi-Fi";
-
-          const meta = document.createElement("div");
-          meta.className = "wifi-card-meta";
-
-          if (opts.withDistance && p?._dist != null && Number.isFinite(p._dist)) {
-            const m = document.createElement("span");
-            m.textContent = `${Math.round(p._dist)} м`;
-            meta.appendChild(m);
-          }
-
-          main.appendChild(title);
-          if (meta.childNodes.length) main.appendChild(meta);
-
-          const action = document.createElement("button");
-          action.className = "wifi-card-action";
-          action.type = "button";
-          action.setAttribute("aria-label", "Подробнее");
-          action.innerHTML = '<i class="fas fa-chevron-right"></i>';
-
-          const open = () => {
-            this.haptic("light");
-            this.openWifiPointDetails(p);
-          };
-
-          action.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            open();
-          });
-
-          card.addEventListener("click", open);
-
-          card.appendChild(main);
-          card.appendChild(action);
-          grid.appendChild(card);
-        });
-
-        box.appendChild(grid);
-        return;
+      if (opts.withDistance && p?._dist != null && Number.isFinite(p._dist)) {
+        const m = document.createElement("span");
+        m.textContent = `${Math.round(p._dist)} м`;
+        meta.appendChild(m);
       }
 
-      // nearby: просто список (без группировки)
-      if (opts.mode === "nearby") {
-        const frag = document.createDocumentFragment();
+      main.appendChild(title);
+      if (meta.childNodes.length) main.appendChild(meta);
 
-        arr.forEach((p) => {
-          const card = document.createElement("div");
-          card.className = "wifi-card";
+      const action = document.createElement("button");
+      action.className = "wifi-card-action";
+      action.type = "button";
+      action.setAttribute("aria-label", "Подробнее");
+      action.innerHTML = '<i class="fas fa-chevron-right"></i>';
 
-          const main = document.createElement("div");
-          main.className = "wifi-card-main";
+      const open = () => {
+        this.haptic("light");
+        this.openWifiPointDetails(p);
+      };
 
-          const title = document.createElement("div");
-          title.className = "wifi-card-title";
-          title.textContent = p?.name || "Точка Wi-Fi";
-
-          const meta = document.createElement("div");
-          meta.className = "wifi-card-meta";
-
-          if (opts.withDistance && p?._dist != null && Number.isFinite(p._dist)) {
-            const m = document.createElement("span");
-            m.textContent = `${Math.round(p._dist)} м`;
-            meta.appendChild(m);
-          }
-
-          if (p?.address) {
-            const m2 = document.createElement("span");
-            m2.textContent = p.address;
-            meta.appendChild(m2);
-          }
-
-          main.appendChild(title);
-          if (meta.childNodes.length) main.appendChild(meta);
-
-          const action = document.createElement("button");
-          action.className = "wifi-card-action";
-          action.type = "button";
-          action.setAttribute("aria-label", "Подробнее");
-          action.innerHTML = '<i class="fas fa-chevron-right"></i>';
-
-          const open = () => {
-            this.haptic("light");
-            this.openWifiPointDetails(p);
-          };
-
-          action.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            open();
-          });
-          card.addEventListener("click", open);
-
-          card.appendChild(main);
-          card.appendChild(action);
-          frag.appendChild(card);
-        });
-
-        box.appendChild(frag);
-        return;
-      }
-
-      // search: группируем по категориям
-      const groups = new Map();
-      arr.forEach((p) => {
-        const t = this._normalizeWifiType(p?.type);
-        if (!groups.has(t)) groups.set(t, []);
-        groups.get(t).push(p);
+      action.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        open();
       });
 
-      const order = this._wifiTypesOrder();
-      const keys = order.filter((t) => groups.has(t)).concat(Array.from(groups.keys()).filter((t) => !order.includes(t)));
+      card.addEventListener("click", open);
 
-      const frag = document.createDocumentFragment();
+      card.appendChild(main);
+      card.appendChild(action);
+      grid.appendChild(card);
+    });
 
-      keys.forEach((t) => {
-        const list = groups.get(t);
-        if (!list || !list.length) return;
+    group.appendChild(head);
+    group.appendChild(grid);
+    frag.appendChild(group);
+  });
 
-        const group = document.createElement("div");
-        group.className = "wifi-type-group";
+  box.appendChild(frag);
+}
 
-        const head = document.createElement("div");
-        head.className = "wifi-type-head";
-        head.innerHTML = `
-          <div class="wifi-type-title"><span class="emoji">${esc(this.getTypeEmoji(t))}</span><span>${esc(this.getTypeName(t))}</span></div>
-          <div class="wifi-type-count">${list.length}</div>
-        `;
+    _bindWifiProblemForm() {
+      const form = $("#wifiProblemForm");
+      if (!form) return;
+      this._bindPhoneMask("#wifiProblemPhone");
 
-        const grid = document.createElement("div");
-        grid.className = "cards-grid";
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-        list.forEach((p) => {
-          const card = document.createElement("div");
-          card.className = "wifi-card";
+        const payload = {
+          requestType: "wifi_problem",
+          name: clampStr($("#wifiProblemName")?.value, 140).trim(),
+          phone: clampStr($("#wifiProblemPhone")?.value, 40).trim(),
+          email: clampStr($("#wifiProblemEmail")?.value, 180).trim(),
+          place: clampStr($("#wifiProblemPlace")?.value, 260).trim(),
+          description: clampStr($("#wifiProblemDescription")?.value, 1000).trim()
+        };
 
-          const main = document.createElement("div");
-          main.className = "wifi-card-main";
+        const err = this._validateWifiSimple(payload);
+        if (err) { this.toast(err, "danger"); this.haptic("error"); return; }
 
-          const title = document.createElement("div");
-          title.className = "wifi-card-title";
-          title.textContent = p?.name || "Точка Wi-Fi";
+        const ok = await this.confirmModal("Подтверждение", this._renderWifiConfirm(payload), "Подтвердить", "Отмена");
+        if (!ok) return;
 
-          const meta = document.createElement("div");
-          meta.className = "wifi-card-meta";
+        const report = AppData.makeReport("wifi_problem", payload, { user: this._userSnapshot() });
+        const saved = await AppData.saveReport("wifi_problem", report);
+        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
 
-          if (p?.address) {
-            const m2 = document.createElement("span");
-            m2.textContent = p.address;
-            meta.appendChild(m2);
-          }
+        await this._notifyAdmins("wifi", report);
 
-          main.appendChild(title);
-          if (meta.childNodes.length) main.appendChild(meta);
-
-          const action = document.createElement("button");
-          action.className = "wifi-card-action";
-          action.type = "button";
-          action.setAttribute("aria-label", "Подробнее");
-          action.innerHTML = '<i class="fas fa-chevron-right"></i>';
-
-          const open = () => {
-            this.haptic("light");
-            this.openWifiPointDetails(p);
-          };
-
-          action.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            open();
-          });
-          card.addEventListener("click", open);
-
-          card.appendChild(main);
-          card.appendChild(action);
-          grid.appendChild(card);
-        });
-
-        group.appendChild(head);
-        group.appendChild(grid);
-        frag.appendChild(group);
+        this.toast("Обращение отправлено", "success");
+        this.haptic("success");
+        form.reset();
       });
+    }
 
-      box.appendChild(frag);
+    _bindWifiNewForm() {
+      const form = $("#wifiNewForm");
+      if (!form) return;
+      this._bindPhoneMask("#wifiNewPhone");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const payload = {
+          requestType: "wifi_suggestion",
+          name: clampStr($("#wifiNewName")?.value, 140).trim(),
+          phone: clampStr($("#wifiNewPhone")?.value, 40).trim(),
+          email: clampStr($("#wifiNewEmail")?.value, 180).trim(),
+          place: clampStr($("#wifiNewPlace")?.value, 260).trim(),
+          description: clampStr($("#wifiNewDescription")?.value, 1000).trim()
+        };
+
+        const err = this._validateWifiSimple(payload);
+        if (err) { this.toast(err, "danger"); this.haptic("error"); return; }
+
+        const ok = await this.confirmModal("Подтверждение", this._renderWifiConfirm(payload), "Подтвердить", "Отмена");
+        if (!ok) return;
+
+        const report = AppData.makeReport("wifi_suggestion", payload, { user: this._userSnapshot() });
+        const saved = await AppData.saveReport("wifi_suggestion", report);
+        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
+
+        await this._notifyAdmins("wifi", report);
+
+        this.toast("Обращение отправлено", "success");
+        this.haptic("success");
+        form.reset();
+      });
+    }
+
+    _validateWifiSimple(payload) {
+      if (!payload.name) return "Укажите имя";
+      if (!payload.phone || payload.phone.replace(/\D/g, "").length < 6) return "Укажите телефон";
+      if (!payload.place) return "Укажите место/адрес";
+      if (!payload.description) return "Укажите описание";
+      if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return "Некорректный email";
+      return "";
     }
 
     // -------------------- Common form utilities --------------------
