@@ -15,10 +15,10 @@
    * Пример можно посмотреть через:
    * window.WebApp.initDataUnsafe.user.id
    */
-  window.ADMIN_USER_IDS = [
-    "100000001",
-    "100000002"
-  ];
+   window.ADMIN_USER_IDS = [
+     "13897373",
+     "90334880"
+   ];
 
   /**
    * Основной конфиг приложения
