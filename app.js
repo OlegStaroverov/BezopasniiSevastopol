@@ -460,40 +460,21 @@
       this._syncModalLock();
     
       const cfg = window.AppConfig?.maps || {};
-      const centerDefault = cfg.defaultCenter || { lat: 44.61665, lon: 33.52536 }; // Севастополь
+      const centerDefault = cfg.defaultCenter || { lat: 44.61665, lon: 33.52536 };
       const zoom = cfg.zoom || 14;
     
       const ensureYMaps = () => {
-        // 1) если уже есть готовый ymaps — ок
+        // ВАЖНО: никаких ключей. Либо ymaps уже есть (как у тебя в index.html),
+        // либо подгружаем бесплатный скрипт без apikey.
         if (window.ymaps?.ready) return Promise.resolve();
     
-        // 2) грузим скрипт с apikey из конфига
-        const apiKey = String(cfg.apiKey || "").trim();
-        const existing = Array.from(document.scripts || []).find(s => (s.src || "").includes("api-maps.yandex.ru/2.1/"));
-    
-        // если уже есть скрипт, но ymaps не появился — пробуем догрузить корректный
-        const src =
-          "https://api-maps.yandex.ru/2.1/?" +
-          "lang=ru_RU" +
-          (apiKey ? `&apikey=${encodeURIComponent(apiKey)}` : "");
-    
         return new Promise((resolve, reject) => {
-          // если скрипт уже есть и такой же — ждём чуть-чуть
-          if (existing && (existing.src || "").includes("api-maps.yandex.ru/2.1/")) {
-            const existingSrc = String(existing.src || "");
-          
-            // если отличается — пробуем догрузить нужный (ничего не удаляем)
-            if (existingSrc !== src) {
-              const s = document.createElement("script");
-              s.src = src;
-              s.async = true;
-              s.onload = () => (window.ymaps?.ready ? resolve() : reject(new Error("YM_NOT_READY")));
-              s.onerror = () => reject(new Error("YM_LOAD_FAILED"));
-              document.head.appendChild(s);
-              return;
-            }
-          
-            // если совпадает — просто ждём дольше
+          const existing = Array.from(document.scripts || []).find(s =>
+            String(s.src || "").includes("api-maps.yandex.ru/2.1/")
+          );
+    
+          // если скрипт уже есть — просто ждём появления ymaps
+          if (existing) {
             const t0 = Date.now();
             const tick = () => {
               if (window.ymaps?.ready) return resolve();
@@ -503,9 +484,10 @@
             tick();
             return;
           }
-          
+    
+          // если скрипта нет — грузим без ключа
           const s = document.createElement("script");
-          s.src = src;
+          s.src = "https://api-maps.yandex.ru/2.1/?lang=ru_RU";
           s.async = true;
           s.onload = () => (window.ymaps?.ready ? resolve() : reject(new Error("YM_NOT_READY")));
           s.onerror = () => reject(new Error("YM_LOAD_FAILED"));
@@ -519,6 +501,7 @@
         if (!this.mapMarker) {
           this.mapMarker = new window.ymaps.Placemark([lat, lon], {}, { draggable: true });
           this.map.geoObjects.add(this.mapMarker);
+    
           this.mapMarker.events.add("dragend", () => {
             const c = this.mapMarker.geometry.getCoordinates();
             this.mapSelected = { lat: c[0], lon: c[1] };
@@ -532,21 +515,18 @@
         await ensureYMaps();
         await new Promise((res) => window.ymaps.ready(res));
     
-        // Вычисляем стартовый центр:
-        // - security/graffiti: если уже есть координаты — центрируемся на них
-        // - wifi_nearby: сначала Севастополь, потом (если дали гео) — на пользователя
+        // стартовый центр
         let center = centerDefault;
-    
         if (context === "security" && this.securityLocation?.coords) center = this.securityLocation.coords;
         if (context === "graffiti" && this.graffitiLocation?.coords) center = this.graffitiLocation.coords;
     
         if (!this.map) {
           this.map = new window.ymaps.Map("yandexMap", {
             center: [center.lat, center.lon],
-            zoom
+            zoom,
+            controls: ["zoomControl"]
           });
     
-          // клик по карте — выбрать точку (и метка)
           this.map.events.add("click", (e) => {
             const coords = e.get("coords");
             const lat = coords?.[0];
@@ -555,18 +535,16 @@
             placeOrMoveMarker(lat, lon);
           });
         } else {
-          // при переоткрытии — центр и resize
           try { this.map.setCenter([center.lat, center.lon], zoom, { duration: 0 }); } catch (_) {}
-          try { this.map.container.fitToViewport(); } catch (_) {}
         }
     
-        // Wi-Fi nearby: ставим метку на координаты пользователя (если доступно) и центрируемся на неё
-        if (context === "wifi_nearby") {
-          if (!navigator.geolocation) {
-            // остаёмся на дефолт-центре (Севастополь)
-            return;
-          }
+        // КЛЮЧЕВО: после показа модалки принудительно пересчитать размер (иначе часто “пусто” в WebView)
+        setTimeout(() => {
+          try { this.map.container.fitToViewport(); } catch (_) {}
+        }, 120);
     
+        // wifi_nearby: можно сразу поставить метку на гео (если разрешено)
+        if (context === "wifi_nearby" && navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
               const lat = pos?.coords?.latitude;
@@ -575,38 +553,24 @@
     
               placeOrMoveMarker(lat, lon);
               try { this.map.setCenter([lat, lon], zoom, { duration: 0 }); } catch (_) {}
+    
+              // ещё раз на всякий случай
+              setTimeout(() => {
+                try { this.map.container.fitToViewport(); } catch (_) {}
+              }, 120);
             },
-            () => {
-              // если отказ — просто оставляем Севастополь
-            },
+            () => {},
             { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
           );
         }
       };
     
-      init().catch(() => {
-        // Fallback без ключа: открываем Яндекс.Карты обычной ссылкой (работает в WebView через openLink)
-        const prev =
-          context === "security" ? this.securityLocation?.coords :
-          context === "graffiti" ? this.graffitiLocation?.coords :
-          null;
-      
-        const lat = (prev && Number.isFinite(prev.lat)) ? prev.lat : centerDefault.lat;
-        const lon = (prev && Number.isFinite(prev.lon)) ? prev.lon : centerDefault.lon;
-      
-        const ymUrl =
-          `https://yandex.ru/maps/?ll=${encodeURIComponent(lon)},${encodeURIComponent(lat)}` +
-          `&z=${encodeURIComponent(zoom)}` +
-          `&pt=${encodeURIComponent(lon)},${encodeURIComponent(lat)},pm2rdm`;
-      
-        this.toast("Карта недоступна внутри приложения — открыл Яндекс.Карты", "warning");
+      init().catch((e) => {
+        console.error("[YMAPS] init failed:", e);
+        this.toast("Не удалось загрузить карту внутри приложения", "warning");
         this.haptic("warning");
-      
-        // чтобы не зависала модалка карты
-        this.closeMap();
-      
-        // открываем снаружи (MAX WebApp.openLink / window.open)
-        this._openExternal(ymUrl);
+        // ВАЖНО: НЕ открываем внешнюю ссылку и НЕ закрываем модалку автоматически.
+        // Пусть юзер закроет сам, а ты увидишь ошибку в консоли.
       });
     }
     
@@ -711,7 +675,10 @@
       this._bindUseMaxName("#useMaxName", "#securityName");
 
       $("#useCurrentLocation")?.addEventListener("click", () => this._useCurrentLocation("security"));
-      $("#selectOnMap")?.addEventListener("click", () => this.openMap("security"));
+      $("#selectOnMap")?.addEventListener("click", () => {
+        this.mapContext = "security";
+        this.openMap();
+      });
       $("#showAddressInput")?.addEventListener("click", () => this._setAddressInputVisible("security", true));
 
       $("#addressInput")?.addEventListener("input", (e) => {
