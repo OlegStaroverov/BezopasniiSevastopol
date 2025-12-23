@@ -523,10 +523,10 @@
         if (!this.map) {
           this.map = new window.ymaps.Map("yandexMap", {
             center: [center.lat, center.lon],
-            zoom,
-            controls: ["zoomControl"]
+            zoom
           });
-    
+        
+          // клик по карте — выбрать точку (и метка)
           this.map.events.add("click", (e) => {
             const coords = e.get("coords");
             const lat = coords?.[0];
@@ -534,8 +534,16 @@
             if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
             placeOrMoveMarker(lat, lon);
           });
+        
+          // важно: после открытия модалки заставляем карту пересчитать размер контейнера
+          setTimeout(() => {
+            try { this.map.container.fitToViewport(); } catch (_) {}
+          }, 50);
+        
         } else {
+          // при переоткрытии — центр и resize
           try { this.map.setCenter([center.lat, center.lon], zoom, { duration: 0 }); } catch (_) {}
+          try { this.map.container.fitToViewport(); } catch (_) {}
         }
     
         // КЛЮЧЕВО: после показа модалки принудительно пересчитать размер (иначе часто “пусто” в WebView)
