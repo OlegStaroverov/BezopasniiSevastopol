@@ -618,6 +618,12 @@ html[data-theme="light"] .upload {
   .tab { font-size: 12px; }
 }
 
+@media (max-width: 520px) {
+  #wifi-section .tab[data-tab="new"] {
+    font-size: 11px;
+    letter-spacing: .2px;
+  }
+}
 
 .tab:active { transform: scale(.98); }
 
