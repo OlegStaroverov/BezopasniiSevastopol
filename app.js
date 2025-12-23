@@ -1382,15 +1382,22 @@ renderWifiResults(points, opts = {}) {
     }
   }
 
-  // boot
-  document.addEventListener("DOMContentLoaded", () => {
-    try {
-      if (!window.AppData) throw new Error("AppData missing");
-      window.__MAX_APP__ = new MaxMiniApp();
-    } catch (e) {
-      // fallback hard error message
-      console.error(e);
-      alert("Ошибка инициализации приложения. Проверьте файлы data.js/app.js.");
-    }
-  });
+// boot (MAX-safe)
+const __boot = () => {
+  try {
+    if (!window.AppData) throw new Error("AppData missing");
+    if (window.__MAX_APP__) return; // защита от двойного запуска
+    window.__MAX_APP__ = new MaxMiniApp();
+  } catch (e) {
+    console.error(e);
+    alert("Ошибка инициализации приложения. Проверьте файлы data.js/app.js.");
+  }
+};
+
+// Если DOM уже готов (часто так в WebView) — стартуем сразу
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", __boot, { once: true });
+} else {
+  __boot();
+}
 })();
