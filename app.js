@@ -480,16 +480,30 @@
         return new Promise((resolve, reject) => {
           // если скрипт уже есть и такой же — ждём чуть-чуть
           if (existing && (existing.src || "").includes("api-maps.yandex.ru/2.1/")) {
+            const existingSrc = String(existing.src || "");
+          
+            // если отличается — пробуем догрузить нужный (ничего не удаляем)
+            if (existingSrc !== src) {
+              const s = document.createElement("script");
+              s.src = src;
+              s.async = true;
+              s.onload = () => (window.ymaps?.ready ? resolve() : reject(new Error("YM_NOT_READY")));
+              s.onerror = () => reject(new Error("YM_LOAD_FAILED"));
+              document.head.appendChild(s);
+              return;
+            }
+          
+            // если совпадает — просто ждём дольше
             const t0 = Date.now();
             const tick = () => {
               if (window.ymaps?.ready) return resolve();
-              if (Date.now() - t0 > 2500) return reject(new Error("YM_NOT_READY"));
+              if (Date.now() - t0 > 8000) return reject(new Error("YM_NOT_READY"));
               setTimeout(tick, 50);
             };
             tick();
             return;
           }
-    
+          
           const s = document.createElement("script");
           s.src = src;
           s.async = true;
