@@ -81,6 +81,7 @@
         safe(() => this._syncAdminNav(), "admin.nav");
     
         // binds
+        safe(() => this._enableTapClickBridge(), "tap.bridge");
         safe(() => this._bindTheme(), "bind.theme");
         safe(() => this._bindNavigation(), "bind.navigation");
         safe(() => this._bindModalSystem(), "bind.modal");
@@ -118,6 +119,60 @@
     _syncAdminNav() {
       const adminBtn = $(`.bottom-nav .nav-item[data-section="admin"]`);
       if (adminBtn) adminBtn.style.display = this.isAdmin ? "" : "none";
+    }
+
+        // -------------------- Tap/Click bridge (MAX WebView compatibility) --------------------
+    _enableTapClickBridge() {
+      // Если WebView перестал генерировать "click" по тапу на кнопках,
+      // мы мягко мапим touchend -> click, не трогая инпуты.
+      if (this.__tapBridgeEnabled) return;
+      this.__tapBridgeEnabled = true;
+
+      // Только для тач-устройств
+      if (!("ontouchstart" in window)) return;
+
+      let sx = 0, sy = 0, moved = false;
+
+      document.addEventListener("touchstart", (e) => {
+        const t = e.touches && e.touches[0];
+        if (!t) return;
+        sx = t.clientX;
+        sy = t.clientY;
+        moved = false;
+      }, { passive: true });
+
+      document.addEventListener("touchmove", (e) => {
+        const t = e.touches && e.touches[0];
+        if (!t) return;
+        // если это скролл/жест — не считаем тапом
+        if (Math.abs(t.clientX - sx) > 8 || Math.abs(t.clientY - sy) > 8) moved = true;
+      }, { passive: true });
+
+      document.addEventListener("touchend", (e) => {
+        if (moved) return;
+
+        const target = e.target;
+        if (!target) return;
+
+        // Инпуты/селекты/текстарии не трогаем — они и так работают
+        const tag = (target.tagName || "").toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select" || tag === "label") return;
+
+        // Ищем ближайший "кликабельный" элемент
+        const clickable = target.closest?.(
+          'button, a, [role="button"], .btn, .nav-item, [data-section], [data-tab], [data-close]'
+        );
+        if (!clickable) return;
+
+        // Если click уже должен был сработать — мы не мешаем, но в проблемных WebView он не приходит.
+        // Важно: preventDefault, чтобы не было двойной активации (особенно у <a>).
+        e.preventDefault();
+
+        // Генерируем синтетический click
+        try {
+          clickable.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+        } catch (_) {}
+      }, { passive: false });
     }
 
     // -------------------- Navigation --------------------
