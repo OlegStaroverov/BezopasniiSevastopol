@@ -1126,3 +1126,9 @@ html, body{
   display: inline-block;
   margin-bottom: 6px;
 }
+
+/* Модалки должны наследовать цвет темы, т.к. они не внутри .app-shell */
+.modal,
+.modal-sheet {
+  color: var(--text);
+}
