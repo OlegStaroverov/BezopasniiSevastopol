@@ -234,79 +234,137 @@
     }
 
     // -------------------- Modal system --------------------
+    
     _bindModalSystem() {
       const modal = $("#modal");
       if (!modal) return;
-
+    
+      // Закрытие по клику на фон / data-close
       modal.addEventListener("click", (e) => {
         const close = e.target?.closest?.("[data-close]");
-        if (close && close.getAttribute("data-close") === "modal") this.closeModal();
+        if (close && close.getAttribute("data-close") === "modal") {
+          this.closeModal();
+        }
       });
-
+    
+      // Esc
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") this.closeModal();
+        if (e.key !== "Escape") return;
+    
+        if ($("#modal")?.getAttribute("aria-hidden") === "false") {
+          this.closeModal();
+        }
+        if ($("#mapModal")?.getAttribute("aria-hidden") === "false") {
+          this.closeMap();
+        }
       });
     }
-
-   openModal({ title = "Подтверждение", bodyHTML = "", actions = [] } = {}) {
-  const modal = $("#modal");
-  if (!modal) return;
-
-  $("#modalTitle").textContent = title;
-  $("#modalBody").innerHTML = bodyHTML;
-
-  const actionsRoot = $("#modalActions");
-  actionsRoot.innerHTML = "";
-  actions.forEach((a) => actionsRoot.appendChild(a));
-
-  modal.setAttribute("aria-hidden", "false");
-  modal.classList.add("is-open");
-
-  this._syncModalLock();
-}
-
-closeModal() {
-  const modal = $("#modal");
-  if (!modal) return;
-  modal.setAttribute("aria-hidden", "true");
-  modal.classList.remove("is-open");
-
-  this._syncModalLock();
-}
-
-_syncModalLock() {
-  const anyOpen =
-    $("#modal")?.getAttribute("aria-hidden") === "false" ||
-    $("#mapModal")?.getAttribute("aria-hidden") === "false";
-
-  document.documentElement.classList.toggle("is-modal-open", !!anyOpen);
-  document.body.classList.toggle("is-modal-open", !!anyOpen);
-}
-
+    
+    openModal({ title = "Подтверждение", bodyHTML = "", actions = [] } = {}) {
+      const modal = $("#modal");
+      if (!modal) return;
+    
+      $("#modalTitle").textContent = title;
+      $("#modalBody").innerHTML = bodyHTML;
+    
+      const actionsRoot = $("#modalActions");
+      actionsRoot.innerHTML = "";
+    
+      // аккуратно добавляем кнопки, gap управляется CSS
+      actions.forEach((btn) => actionsRoot.appendChild(btn));
+    
+      modal.setAttribute("aria-hidden", "false");
+      modal.classList.add("is-open");
+    
+      this._syncModalLock();
+    }
+    
+    closeModal() {
+      const modal = $("#modal");
+      if (!modal) return;
+    
+      modal.setAttribute("aria-hidden", "true");
+      modal.classList.remove("is-open");
+    
+      // Если это был confirmModal и его закрыли не кнопкой
+      if (typeof this._confirmResolve === "function") {
+        const r = this._confirmResolve;
+        this._confirmResolve = null;
+        try { r(false); } catch (_) {}
+      }
+    
+      this._syncModalLock();
+    }
+    
+    _syncModalLock() {
+      const anyOpen =
+        $("#modal")?.getAttribute("aria-hidden") === "false" ||
+        $("#mapModal")?.getAttribute("aria-hidden") === "false";
+    
+      document.documentElement.classList.toggle("is-modal-open", !!anyOpen);
+      document.body.classList.toggle("is-modal-open", !!anyOpen);
+    
+      // Жёсткая блокировка скролла для mobile webview (iOS/Android)
+      if (anyOpen) {
+        if (this._scrollLockY == null) {
+          this._scrollLockY = window.scrollY || window.pageYOffset || 0;
+          document.body.style.position = "fixed";
+          document.body.style.top = `-${this._scrollLockY}px`;
+          document.body.style.left = "0";
+          document.body.style.right = "0";
+          document.body.style.width = "100%";
+        }
+      } else {
+        if (this._scrollLockY != null) {
+          const y = this._scrollLockY;
+          this._scrollLockY = null;
+          document.body.style.position = "";
+          document.body.style.top = "";
+          document.body.style.left = "";
+          document.body.style.right = "";
+          document.body.style.width = "";
+          window.scrollTo(0, y);
+        }
+      }
+    }
+    
     confirmModal(title, bodyHTML, okText = "ОК", cancelText = "Отмена") {
       return new Promise((resolve) => {
+        // если вдруг confirm уже открыт — считаем его отменённым
+        if (typeof this._confirmResolve === "function") {
+          try { this._confirmResolve(false); } catch (_) {}
+        }
+        this._confirmResolve = resolve;
+    
         const okBtn = document.createElement("button");
         okBtn.type = "button";
         okBtn.className = "btn btn-primary btn-wide";
         okBtn.innerHTML = `<i class="fas fa-check"></i><span>${esc(okText)}</span>`;
         okBtn.addEventListener("click", () => {
+          const r = this._confirmResolve;
+          this._confirmResolve = null;
           this.closeModal();
-          resolve(true);
+          try { r(true); } catch (_) {}
         });
-
+    
         const cancelBtn = document.createElement("button");
         cancelBtn.type = "button";
         cancelBtn.className = "btn btn-secondary btn-wide";
         cancelBtn.innerHTML = `<i class="fas fa-times"></i><span>${esc(cancelText)}</span>`;
         cancelBtn.addEventListener("click", () => {
+          const r = this._confirmResolve;
+          this._confirmResolve = null;
           this.closeModal();
-          resolve(false);
+          try { r(false); } catch (_) {}
         });
-
-        this.openModal({ title, bodyHTML, actions: [okBtn, cancelBtn] });
+    
+        this.openModal({
+          title,
+          bodyHTML,
+          actions: [okBtn, cancelBtn]
+        });
       });
     }
-
     // -------------------- Map modal (Yandex) --------------------
     _bindMapModal() {
       const modal = $("#mapModal");
