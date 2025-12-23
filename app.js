@@ -58,42 +58,54 @@
     }
 
     async _init() {
-      try { this.WebApp?.ready?.(); } catch (_) {}
-
-      // theme
-      try { AppData?.setTheme?.(AppData.getTheme()); } catch (_) {}
-      this._syncThemeIcon();
-
-      // user/admin
-      this.user = this.WebApp?.initDataUnsafe?.user || null;
-      this.isAdmin = this._isAdminUser(this.user);
-      this._syncAdminNav();
-
-      // binds
-      this._bindTheme();
-      this._bindNavigation();
-      this._bindModalSystem();
-      this._bindMapModal();
-
-      this._bindSecurityForm();
-      this._bindWifiTabs();
-      this._initWifiTypeFilter();
-      this._bindWifiSearch();
-      this._bindWifiProblemForm();
-      this._bindWifiNewForm();
-      this._bindGraffitiForm();
-
-      // initial render
-      this.switchSection("security", { silent: true });
-      this.switchWifiTab("search", { silent: true });
-      this.wifiBaseList = (window.wifiPoints || []);
-      this.wifiWithDistance = false;
-      this._applyWifiFilters();
-
-      // start admin panel if exists
-      // admin-panel.js сам инициализируется, если доступен.
-
-      this.toast("Готово к работе", "success");
+      const safe = (fn, label) => {
+        try {
+          return fn();
+        } catch (e) {
+          console.error(`[INIT] ${label} failed:`, e);
+          return undefined;
+        }
+      };
+    
+      // ВАЖНО: чтобы один упавший бинд НЕ убивал всю инициализацию
+      try {
+        safe(() => { try { this.WebApp?.ready?.(); } catch (_) {} }, "WebApp.ready");
+    
+        // theme
+        safe(() => { try { AppData?.setTheme?.(AppData.getTheme()); } catch (_) {} }, "theme.init");
+        safe(() => this._syncThemeIcon(), "theme.icon");
+    
+        // user/admin
+        safe(() => { this.user = this.WebApp?.initDataUnsafe?.user || null; }, "user.read");
+        safe(() => { this.isAdmin = this._isAdminUser(this.user); }, "admin.check");
+        safe(() => this._syncAdminNav(), "admin.nav");
+    
+        // binds
+        safe(() => this._bindTheme(), "bind.theme");
+        safe(() => this._bindNavigation(), "bind.navigation");
+        safe(() => this._bindModalSystem(), "bind.modal");
+        safe(() => this._bindMapModal(), "bind.mapModal");
+    
+        safe(() => this._bindSecurityForm(), "bind.securityForm");
+        safe(() => this._bindWifiTabs(), "bind.wifiTabs");
+        safe(() => this._initWifiTypeFilter(), "init.wifiTypeFilter");
+        safe(() => this._bindWifiSearch(), "bind.wifiSearch");
+        safe(() => this._bindWifiProblemForm(), "bind.wifiProblemForm");
+        safe(() => this._bindWifiNewForm(), "bind.wifiNewForm");
+        safe(() => this._bindGraffitiForm(), "bind.graffitiForm");
+    
+        // initial render
+        safe(() => this.switchSection("security", { silent: true }), "render.section");
+        safe(() => this.switchWifiTab("search", { silent: true }), "render.wifiTab");
+        safe(() => { this.wifiBaseList = (window.wifiPoints || []); }, "wifi.baseList");
+        safe(() => { this.wifiWithDistance = false; }, "wifi.distanceFlag");
+        safe(() => this._applyWifiFilters(), "wifi.applyFilters");
+    
+        safe(() => this.toast("Готово к работе", "success"), "toast.ready");
+      } catch (fatal) {
+        console.error("[INIT] fatal error:", fatal);
+        try { this.toast("Ошибка инициализации приложения", "danger"); } catch (_) {}
+      }
     }
 
     // -------------------- Admin --------------------
