@@ -246,11 +246,10 @@
     }
 
     // -------------------- Modal system --------------------
-    
     _bindModalSystem() {
       const modal = $("#modal");
       if (!modal) return;
-    
+
       // Закрытие по клику на фон / data-close
       modal.addEventListener("click", (e) => {
         const close = e.target?.closest?.("[data-close]");
@@ -258,11 +257,11 @@
           this.closeModal();
         }
       });
-    
-      // Esc
+
+      // Esc (закрываем и обычную, и карту)
       document.addEventListener("keydown", (e) => {
         if (e.key !== "Escape") return;
-    
+
         if ($("#modal")?.getAttribute("aria-hidden") === "false") {
           this.closeModal();
         }
@@ -271,51 +270,49 @@
         }
       });
     }
-    
+
     openModal({ title = "Подтверждение", bodyHTML = "", actions = [] } = {}) {
       const modal = $("#modal");
       if (!modal) return;
-    
+
       $("#modalTitle").textContent = title;
       $("#modalBody").innerHTML = bodyHTML;
-    
+
       const actionsRoot = $("#modalActions");
       actionsRoot.innerHTML = "";
-    
-      // аккуратно добавляем кнопки, gap управляется CSS
       actions.forEach((btn) => actionsRoot.appendChild(btn));
-    
+
       modal.setAttribute("aria-hidden", "false");
       modal.classList.add("is-open");
-    
+
       this._syncModalLock();
     }
-    
+
     closeModal() {
       const modal = $("#modal");
       if (!modal) return;
-    
+
       modal.setAttribute("aria-hidden", "true");
       modal.classList.remove("is-open");
-    
-      // Если это был confirmModal и его закрыли не кнопкой
+
+      // если confirm был закрыт кликом на фон/крестик — считаем "Отмена"
       if (typeof this._confirmResolve === "function") {
         const r = this._confirmResolve;
         this._confirmResolve = null;
         try { r(false); } catch (_) {}
       }
-    
+
       this._syncModalLock();
     }
-    
+
     _syncModalLock() {
       const anyOpen =
         $("#modal")?.getAttribute("aria-hidden") === "false" ||
         $("#mapModal")?.getAttribute("aria-hidden") === "false";
-    
+
       document.documentElement.classList.toggle("is-modal-open", !!anyOpen);
       document.body.classList.toggle("is-modal-open", !!anyOpen);
-    
+
       // Жёсткая блокировка скролла для mobile webview (iOS/Android)
       if (anyOpen) {
         if (this._scrollLockY == null) {
@@ -339,7 +336,7 @@
         }
       }
     }
-    
+
     confirmModal(title, bodyHTML, okText = "ОК", cancelText = "Отмена") {
       return new Promise((resolve) => {
         // если вдруг confirm уже открыт — считаем его отменённым
@@ -347,7 +344,7 @@
           try { this._confirmResolve(false); } catch (_) {}
         }
         this._confirmResolve = resolve;
-    
+
         const okBtn = document.createElement("button");
         okBtn.type = "button";
         okBtn.className = "btn btn-primary btn-wide";
@@ -358,7 +355,7 @@
           this.closeModal();
           try { r(true); } catch (_) {}
         });
-    
+
         const cancelBtn = document.createElement("button");
         cancelBtn.type = "button";
         cancelBtn.className = "btn btn-secondary btn-wide";
@@ -369,14 +366,11 @@
           this.closeModal();
           try { r(false); } catch (_) {}
         });
-    
-        this.openModal({
-          title,
-          bodyHTML,
-          actions: [okBtn, cancelBtn]
-        });
+
+        this.openModal({ title, bodyHTML, actions: [okBtn, cancelBtn] });
       });
     }
+    
     // -------------------- Map modal (Yandex) --------------------
     _bindMapModal() {
       const modal = $("#mapModal");
@@ -1382,22 +1376,22 @@ renderWifiResults(points, opts = {}) {
     }
   }
 
-// boot (MAX-safe)
-const __boot = () => {
-  try {
-    if (!window.AppData) throw new Error("AppData missing");
-    if (window.__MAX_APP__) return; // защита от двойного запуска
-    window.__MAX_APP__ = new MaxMiniApp();
-  } catch (e) {
-    console.error(e);
-    alert("Ошибка инициализации приложения. Проверьте файлы data.js/app.js.");
-  }
-};
+  // boot (MAX-safe: DOMContentLoaded может уже пройти в WebView)
+  const __boot = () => {
+    try {
+      if (!window.AppData) throw new Error("AppData missing");
+      if (window.__MAX_APP__) return; // защита от двойного запуска
+      window.__MAX_APP__ = new MaxMiniApp();
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка инициализации приложения. Проверьте файлы data.js/app.js.");
+    }
+  };
 
-// Если DOM уже готов (часто так в WebView) — стартуем сразу
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", __boot, { once: true });
-} else {
-  __boot();
-}
+  // Если DOM ещё грузится — ждём, иначе стартуем сразу
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", __boot, { once: true });
+  } else {
+    __boot();
+  }
 })();
