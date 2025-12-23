@@ -333,59 +333,129 @@ _syncModalLock() {
     openMap(context) {
       this.mapContext = context;
       this.mapSelected = null;
-
+    
       const modal = $("#mapModal");
       if (!modal) return;
       modal.setAttribute("aria-hidden", "false");
       modal.classList.add("is-open");
       this._syncModalLock();
-
-      // init map once
+    
+      const cfg = window.AppConfig?.maps || {};
+      const centerDefault = cfg.defaultCenter || { lat: 44.61665, lon: 33.52536 }; // Севастополь
+      const zoom = cfg.zoom || 14;
+    
+      const ensureYMaps = () => {
+        // 1) если уже есть готовый ymaps — ок
+        if (window.ymaps?.ready) return Promise.resolve();
+    
+        // 2) грузим скрипт с apikey из конфига
+        const apiKey = String(cfg.apiKey || "").trim();
+        const existing = Array.from(document.scripts || []).find(s => (s.src || "").includes("api-maps.yandex.ru/2.1/"));
+    
+        // если уже есть скрипт, но ymaps не появился — пробуем догрузить корректный
+        const src =
+          "https://api-maps.yandex.ru/2.1/?" +
+          "lang=ru_RU" +
+          (apiKey ? `&apikey=${encodeURIComponent(apiKey)}` : "");
+    
+        return new Promise((resolve, reject) => {
+          // если скрипт уже есть и такой же — ждём чуть-чуть
+          if (existing && (existing.src || "").includes("api-maps.yandex.ru/2.1/")) {
+            const t0 = Date.now();
+            const tick = () => {
+              if (window.ymaps?.ready) return resolve();
+              if (Date.now() - t0 > 2500) return reject(new Error("YM_NOT_READY"));
+              setTimeout(tick, 50);
+            };
+            tick();
+            return;
+          }
+    
+          const s = document.createElement("script");
+          s.src = src;
+          s.async = true;
+          s.onload = () => (window.ymaps?.ready ? resolve() : reject(new Error("YM_NOT_READY")));
+          s.onerror = () => reject(new Error("YM_LOAD_FAILED"));
+          document.head.appendChild(s);
+        });
+      };
+    
+      const placeOrMoveMarker = (lat, lon) => {
+        this.mapSelected = { lat, lon };
+    
+        if (!this.mapMarker) {
+          this.mapMarker = new window.ymaps.Placemark([lat, lon], {}, { draggable: true });
+          this.map.geoObjects.add(this.mapMarker);
+          this.mapMarker.events.add("dragend", () => {
+            const c = this.mapMarker.geometry.getCoordinates();
+            this.mapSelected = { lat: c[0], lon: c[1] };
+          });
+        } else {
+          this.mapMarker.geometry.setCoordinates([lat, lon]);
+        }
+      };
+    
       const init = async () => {
-        if (!window.ymaps?.ready) throw new Error("YM_NOT_READY");
+        await ensureYMaps();
         await new Promise((res) => window.ymaps.ready(res));
-
-        const cfg = window.AppConfig?.maps || {};
-        const center = cfg.defaultCenter || { lat: 55.751244, lon: 37.618423 };
-        const zoom = cfg.zoom || 14;
-
+    
+        // Вычисляем стартовый центр:
+        // - security/graffiti: если уже есть координаты — центрируемся на них
+        // - wifi_nearby: сначала Севастополь, потом (если дали гео) — на пользователя
+        let center = centerDefault;
+    
+        if (context === "security" && this.securityLocation?.coords) center = this.securityLocation.coords;
+        if (context === "graffiti" && this.graffitiLocation?.coords) center = this.graffitiLocation.coords;
+    
         if (!this.map) {
           this.map = new window.ymaps.Map("yandexMap", {
             center: [center.lat, center.lon],
             zoom
           });
-
+    
+          // клик по карте — выбрать точку (и метка)
           this.map.events.add("click", (e) => {
             const coords = e.get("coords");
             const lat = coords?.[0];
             const lon = coords?.[1];
             if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-
-            this.mapSelected = { lat, lon };
-
-            if (!this.mapMarker) {
-              this.mapMarker = new window.ymaps.Placemark([lat, lon], {}, { draggable: true });
-              this.map.geoObjects.add(this.mapMarker);
-              this.mapMarker.events.add("dragend", () => {
-                const c = this.mapMarker.geometry.getCoordinates();
-                this.mapSelected = { lat: c[0], lon: c[1] };
-              });
-            } else {
-              this.mapMarker.geometry.setCoordinates([lat, lon]);
-            }
+            placeOrMoveMarker(lat, lon);
           });
         } else {
-          // resize fix when reopening modal
+          // при переоткрытии — центр и resize
+          try { this.map.setCenter([center.lat, center.lon], zoom, { duration: 0 }); } catch (_) {}
           try { this.map.container.fitToViewport(); } catch (_) {}
         }
+    
+        // Wi-Fi nearby: ставим метку на координаты пользователя (если доступно) и центрируемся на неё
+        if (context === "wifi_nearby") {
+          if (!navigator.geolocation) {
+            // остаёмся на дефолт-центре (Севастополь)
+            return;
+          }
+    
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const lat = pos?.coords?.latitude;
+              const lon = pos?.coords?.longitude;
+              if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    
+              placeOrMoveMarker(lat, lon);
+              try { this.map.setCenter([lat, lon], zoom, { duration: 0 }); } catch (_) {}
+            },
+            () => {
+              // если отказ — просто оставляем Севастополь
+            },
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+          );
+        }
       };
-
+    
       init().catch(() => {
         this.toast("Карта недоступна (проверьте подключение/ключ)", "warning");
         this.haptic("warning");
       });
     }
-
     closeMap() {
       const modal = $("#mapModal");
       if (!modal) return;
@@ -1077,28 +1147,40 @@ renderWifiResults(points, opts = {}) {
       });
     }
 
-    _bindPhoneMask(sel) {
       const input = $(sel);
       if (!input) return;
-
+    
+      const normalize = () => {
+        let digits = String(input.value || "").replace(/\D/g, "");
+        if (!digits) return "";
+    
+        // если начинается с 8 или 7 — считаем что это РФ
+        if (digits.startsWith("8") || digits.startsWith("7")) digits = digits.slice(1);
+    
+        // оставляем максимум 10 цифр после +7
+        digits = digits.slice(0, 10);
+        return "+7" + digits;
+      };
+    
       input.addEventListener("focus", () => {
-        if (!input.value.trim()) input.value = "+7";
+        if (!String(input.value || "").trim()) input.value = "+7";
+        if (!String(input.value || "").startsWith("+7")) input.value = normalize() || "+7";
       });
-
+    
       input.addEventListener("input", () => {
-        const v = input.value;
+        const v = String(input.value || "");
         if (!v.startsWith("+7")) {
-          const digits = v.replace(/\D/g, "");
-          if (digits.startsWith("8") || digits.startsWith("7")) input.value = "+7" + digits.slice(1);
-          else input.value = "+7" + digits;
+          input.value = normalize() || "+7";
+        } else {
+          // чистим любые нецифровые кроме + в начале
+          input.value = "+7" + v.slice(2).replace(/\D/g, "").slice(0, 10);
         }
       });
-
+    
       input.addEventListener("blur", () => {
-        const digits = input.value.replace(/\D/g, "");
-        if (!digits) return;
-        if (digits.startsWith("7") || digits.startsWith("8")) input.value = "+7" + digits.slice(1);
-        else input.value = "+7" + digits;
+        const v = normalize();
+        if (!v) return;
+        input.value = v;
       });
     }
 
