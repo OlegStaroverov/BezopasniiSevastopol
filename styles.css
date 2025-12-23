@@ -904,7 +904,7 @@ body.is-modal-open {
   width: min(720px, calc(100% - 2 * var(--space-3)));
   max-height: calc(100vh - (env(safe-area-inset-top) + env(safe-area-inset-bottom) + 2 * var(--space-4)));
   border-radius: 26px;
-  background: rgba(255,255,255,.82);
+  background: var(--glass);
   border: 1px solid var(--stroke2);
   box-shadow: var(--shadow);
   backdrop-filter: blur(var(--blur));
@@ -1108,4 +1108,19 @@ html, body{
 
 #contacts-section .placeholder a:active{
   transform: scale(.99);
+}
+
+/* Contacts: лёгкая подтяжка читабельности, без изменения структуры */
+#contacts-section .placeholder {
+  line-height: 1.35;
+}
+
+#contacts-section .placeholder a {
+  color: var(--blue);
+  font-weight: 800;
+}
+
+#contacts-section .placeholder b {
+  display: inline-block;
+  margin-bottom: 6px;
 }
