@@ -413,7 +413,7 @@
 
         const cancelBtn = document.createElement("button");
         cancelBtn.type = "button";
-        cancelBtn.className = "btn btn-secondary btn-wide";
+        cancelBtn.className = "btn btn-primary btn-wide";
         cancelBtn.innerHTML = `<i class="fas fa-times"></i><span>${esc(cancelText)}</span>`;
         cancelBtn.addEventListener("click", () => {
           const r = this._confirmResolve;
@@ -571,10 +571,31 @@
       };
     
       init().catch(() => {
-        this.toast("Карта недоступна (проверьте подключение/ключ)", "warning");
+        // Fallback без ключа: открываем Яндекс.Карты обычной ссылкой (работает в WebView через openLink)
+        const prev =
+          context === "security" ? this.securityLocation?.coords :
+          context === "graffiti" ? this.graffitiLocation?.coords :
+          null;
+      
+        const lat = (prev && Number.isFinite(prev.lat)) ? prev.lat : centerDefault.lat;
+        const lon = (prev && Number.isFinite(prev.lon)) ? prev.lon : centerDefault.lon;
+      
+        const ymUrl =
+          `https://yandex.ru/maps/?ll=${encodeURIComponent(lon)},${encodeURIComponent(lat)}` +
+          `&z=${encodeURIComponent(zoom)}` +
+          `&pt=${encodeURIComponent(lon)},${encodeURIComponent(lat)},pm2rdm`;
+      
+        this.toast("Карта недоступна внутри приложения — открыл Яндекс.Карты", "warning");
         this.haptic("warning");
+      
+        // чтобы не зависала модалка карты
+        this.closeMap();
+      
+        // открываем снаружи (MAX WebApp.openLink / window.open)
+        this._openExternal(ymUrl);
       });
     }
+    
     closeMap() {
       const modal = $("#mapModal");
       if (!modal) return;
