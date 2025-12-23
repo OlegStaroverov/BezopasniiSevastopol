@@ -848,7 +848,7 @@ _syncModalLock() {
     
       const showBtn = document.createElement("button");
       showBtn.type = "button";
-      showBtn.className = "btn btn-secondary btn-wide";
+      showBtn.className = "btn btn-primary btn-wide";
       showBtn.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>ПОКАЗАТЬ НА КАРТЕ</span>`;
       showBtn.addEventListener("click", () => this._openExternal(ymShow));
     
@@ -1050,6 +1050,7 @@ renderWifiResults(points, opts = {}) {
       const form = $("#wifiProblemForm");
       if (!form) return;
       this._bindPhoneMask("#wifiProblemPhone");
+      this._bindUseMaxName("#useMaxNameWifiProblem", "#wifiProblemName");
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -1085,6 +1086,7 @@ renderWifiResults(points, opts = {}) {
       const form = $("#wifiNewForm");
       if (!form) return;
       this._bindPhoneMask("#wifiNewPhone");
+      this._bindUseMaxName("#useMaxNameWifiNew", "#wifiNewName");
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
