@@ -1213,6 +1213,7 @@ renderWifiResults(points, opts = {}) {
       });
     }
 
+    _bindPhoneMask(sel) {
       const input = $(sel);
       if (!input) return;
     
