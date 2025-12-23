@@ -550,27 +550,6 @@
         setTimeout(() => {
           try { this.map.container.fitToViewport(); } catch (_) {}
         }, 120);
-    
-        // wifi_nearby: можно сразу поставить метку на гео (если разрешено)
-        if (context === "wifi_nearby" && navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              const lat = pos?.coords?.latitude;
-              const lon = pos?.coords?.longitude;
-              if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-    
-              placeOrMoveMarker(lat, lon);
-              try { this.map.setCenter([lat, lon], zoom, { duration: 0 }); } catch (_) {}
-    
-              // ещё раз на всякий случай
-              setTimeout(() => {
-                try { this.map.container.fitToViewport(); } catch (_) {}
-              }, 120);
-            },
-            () => {},
-            { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-          );
-        }
       };
     
       init().catch((e) => {
@@ -1016,28 +995,11 @@
       if (input) input.addEventListener("input", () => this._applyWifiFilters());
       if (typeSelect) typeSelect.addEventListener("change", () => this._applyWifiFilters());
     
-      btn?.addEventListener("click", () => {
-        if (!navigator.geolocation) {
-          this.toast("Геолокация недоступна", "warning");
-          this.haptic("warning");
-          return;
-        }
-        this.toast("Выберите точку на карте или разрешите геолокацию", "info");
-    
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const lat = pos?.coords?.latitude;
-            const lon = pos?.coords?.longitude;
-            if (Number.isFinite(lat) && Number.isFinite(lon)) {
-              this._renderWifiNearestFromCoords({ lat, lon });
-            } else {
-              this.openMap("wifi_nearby");
-            }
-          },
-          () => this.openMap("wifi_nearby"),
-          { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
-        );
-      });
+        btn?.addEventListener("click", () => {
+          this.toast("Выберите точку на карте для поиска ближайших Wi-Fi", "info");
+          this.haptic("light");
+          this.openMap("wifi_nearby");
+        });
       
       this.wifiBaseList = (window.wifiPoints || []);
       this.wifiWithDistance = false;
