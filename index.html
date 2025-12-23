@@ -55,7 +55,7 @@
       <!-- SECURITY -->
       <section id="security-section" class="content-section is-active" data-section="security" aria-label="Безопасность">
         <div class="section-head">
-          <div class="section-title" title="Сообщить о подозрительном">Сообщить о подозрительном</div>
+          <div class="section-title" title="Сообщить о чем-либо подозрительном">Сообщить о подозрительном</div>
           <div class="section-note" title="Заполните форму">Заполните форму</div>
         </div>
 
@@ -332,36 +332,90 @@
       </section>
 
       <!-- CONTACTS -->
-      <section id="contacts-section" class="content-section" data-section="contacts" aria-label="Контакты">
-        <div class="section-head">
-          <div class="section-title" title="Контакты">Контакты</div>
-          <div class="section-note" title="Телефоны служб">Службы</div>
-        </div>
+<section class="content-section" data-section="contacts" aria-label="Контакты">
+  <div class="section-head">
+    <div class="section-title">Контакты</div>
+    <div class="section-note">Экстренные и городские службы</div>
+  </div>
 
-        <div class="glass-card form-card">
-          <div class="stack" style="padding:0;">
-            <div class="placeholder" style="white-space:normal">
-              <b>Экстренные службы</b><br/>
-              <a href="tel:112">112 — единый номер</a><br/>
-              <a href="tel:101">101 — пожарные/спасатели</a><br/>
-              <a href="tel:102">102 — полиция</a><br/>
-              <a href="tel:103">103 — скорая</a><br/>
-            </div>
+  <div class="glass-card stack">
 
-            <div class="placeholder" style="white-space:normal">
-              <b>Правительство Севастополя</b><br/>
-              Приёмная: <a href="tel:+7XXXXXXXXXX">+7 (XXX) XXX-XX-XX</a><br/>
-              Адрес: (почтовый адрес)<br/>
-            </div>
+    <!-- МЧС -->
+    <div class="contact-item">
+      <div class="contact-title">МЧС России</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:112">112</a>
+      </div>
+    </div>
 
-            <div class="placeholder" style="white-space:normal">
-              <b>Департамент цифрового развития</b><br/>
-              Приёмная: <a href="tel:+7XXXXXXXXXX">+7 (XXX) XXX-XX-XX</a><br/>
-              Адрес: (почтовый адрес)<br/>
-            </div>
-          </div>
-        </div>
-      </section>
+    <!-- Полиция -->
+    <div class="contact-item">
+      <div class="contact-title">Полиция</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:102">102</a>
+      </div>
+    </div>
+
+    <!-- Скорая -->
+    <div class="contact-item">
+      <div class="contact-title">Скорая медицинская помощь</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:103">103</a>
+      </div>
+    </div>
+
+    <!-- Правительство -->
+    <div class="contact-item">
+      <div class="contact-title">Правительство Севастополя</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:+78692531032">+7 (8692) 53-10-32</a>
+      </div>
+      <div class="contact-row">
+        <i class="fas fa-envelope"></i>
+        <a href="mailto:pravitelstvo@sevastopol.gov.ru">
+          pravitelstvo@sevastopol.gov.ru
+        </a>
+      </div>
+    </div>
+
+    <!-- ДЦР -->
+    <div class="contact-item">
+      <div class="contact-title">Департамент цифрового развития</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:+78692417676">(8692) 41-76-76</a>
+      </div>
+      <div class="contact-row">
+        <i class="fas fa-envelope"></i>
+        <a href="mailto:dcr@sev.gov.ru">dcr@sev.gov.ru</a>
+      </div>
+    </div>
+
+    <!-- Соцсети -->
+    <div class="contact-item">
+      <div class="contact-title">Социальные сети</div>
+
+      <div class="contact-row">
+        <i class="fab fa-vk"></i>
+        <a href="https://vk.com/club192631244" target="_blank" rel="noopener">
+          Департамент цифрового развития (ВКонтакте)
+        </a>
+      </div>
+
+      <div class="contact-row">
+        <i class="fab fa-telegram-plane"></i>
+        <a href="https://t.me/digital_sevastopol" target="_blank" rel="noopener">
+          Цифровой Севастополь (Telegram)
+        </a>
+      </div>
+    </div>
+
+  </div>
+</section>
 
       <!-- ADMIN -->
       <section id="admin-section" class="content-section" data-section="admin" aria-label="Админ">
