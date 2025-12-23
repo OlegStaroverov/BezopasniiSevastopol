@@ -1132,3 +1132,31 @@ html, body{
 .modal-sheet {
   color: var(--text);
 }
+
+.contact-item {
+  padding: 16px;
+  border-bottom: 1px solid var(--stroke2);
+}
+
+.contact-item:last-child {
+  border-bottom: none;
+}
+
+.contact-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.contact-row i {
+  width: 18px;
+  text-align: center;
+  color: var(--blue);
+}
