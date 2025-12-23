@@ -971,9 +971,11 @@ html[data-theme="light"] .modal-sheet {
 /* Map container */
 .yandex-map {
   width: 100%;
-  height: 100%;
-}
 
+  /* важно: у карты должна быть реальная высота, а не 100% от "auto" */
+  height: min(62vh, 520px);
+  min-height: 320px;
+}
 /* -------------------- Placeholders (temporary) -------------------- */
 .placeholder {
   padding: var(--space-4);
