@@ -980,6 +980,7 @@ html[data-theme="light"] .modal-sheet {
   border-radius: var(--r-lg);
   border: 1px solid var(--stroke2);
   background: var(--glass2);
+  box-shadow: var(--shadow-soft);
   color: var(--muted);
   font-weight: 700;
   white-space: nowrap;
