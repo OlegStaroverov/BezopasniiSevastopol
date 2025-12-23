@@ -1073,3 +1073,39 @@ html, body{
 }
 
 .theme-dark { --card-bg-soft: rgba(255,255,255,.08); }
+
+/* -------------------- Contacts (scoped) -------------------- */
+#contacts-section .placeholder{
+  white-space: normal;        /* на случай если где-то переопределится */
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.35;
+}
+
+#contacts-section .placeholder + .placeholder{
+  margin-top: 12px;           /* лёгкий разделитель между группами */
+}
+
+#contacts-section .placeholder b{
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+#contacts-section .placeholder a{
+  display: block;             /* превращаем в “строки списка” */
+  margin: 6px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+
+  background: var(--glass2);
+  border: 1px solid var(--stroke2);
+
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+#contacts-section .placeholder a:active{
+  transform: scale(.99);
+}
