@@ -360,9 +360,9 @@ html[data-theme="light"] .btn-secondary {
 .section-note {
   color: var(--muted);
   font-size: var(--fz-sm);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 /* -------------------- Forms -------------------- */
@@ -1411,4 +1411,61 @@ label[for="graffitiEmail"]::after,
 label[for="argusEmail"]::after,
 label[for="appointmentEmail"]::after {
   content: " *";
+}
+
+/* --------------------
+   Date picker (modal)
+   -------------------- */
+.dp {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dp__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dp__title {
+  font-weight: 900;
+  text-align: center;
+  flex: 1;
+}
+
+.dp__dow {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  font-size: 12px;
+  opacity: .75;
+  text-align: center;
+}
+
+.dp__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.dp__cell {
+  border-radius: 14px;
+  border: 1px solid var(--stroke2);
+  background: var(--glass2);
+  padding: 10px 0;
+  font-weight: 800;
+}
+
+.dp__cell:active { transform: scale(.99); }
+
+.dp__cell.is-selected {
+  border-color: rgba(10,132,255,.55);
+  box-shadow: var(--focus);
+}
+
+.dp__cell--empty {
+  opacity: 0;
+  pointer-events: none;
 }
