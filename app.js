@@ -53,6 +53,7 @@
       // locations
       this.securityLocation = { coords: null, manualAddress: "" };
       this.graffitiLocation = { coords: null, manualAddress: "" };
+      this.argusLocation = { coords: null, manualAddress: "" };
 
       this._init();
     }
@@ -83,6 +84,7 @@
         // binds
         safe(() => this._enableTapClickBridge(), "tap.bridge");
         safe(() => this._bindTheme(), "bind.theme");
+        safe(() => this._applyRenamesAndInjectNewSections(), "inject.sections");
         safe(() => this._bindNavigation(), "bind.navigation");
         safe(() => this._bindModalSystem(), "bind.modal");
         safe(() => this._bindMapModal(), "bind.mapModal");
@@ -94,6 +96,8 @@
         safe(() => this._bindWifiProblemForm(), "bind.wifiProblemForm");
         safe(() => this._bindWifiNewForm(), "bind.wifiNewForm");
         safe(() => this._bindGraffitiForm(), "bind.graffitiForm");
+        safe(() => this._bindArgusForm(), "bind.argusForm");
+        safe(() => this._bindAppointmentForm(), "bind.appointmentForm");
     
         // initial render
         safe(() => this.switchSection("security", { silent: true }), "render.section");
@@ -178,6 +182,9 @@
     // -------------------- Navigation --------------------
     _bindNavigation() {
       $$(".bottom-nav .nav-item").forEach((btn) => {
+        if (btn.dataset.navBound === "1") return;
+        btn.dataset.navBound = "1";
+    
         btn.addEventListener("click", () => {
           const sec = btn.dataset.section;
           if (!sec) return;
@@ -211,6 +218,331 @@
       if (!opts.silent) this.haptic("light");
     }
 
+    // -------------------- Dynamic sections: rename + ARGUS + Appointment --------------------
+    _applyRenamesAndInjectNewSections() {
+      // 1) rename bottom-nav label: "Безопасность" -> "Оборона"
+      try {
+        const secBtn = document.querySelector('.bottom-nav .nav-item[data-section="security"] span');
+        if (secBtn) secBtn.textContent = "Оборона";
+      } catch (_) {}
+    
+      // 2) make existing email inputs required (no HTML edits)
+      try {
+        ["#securityEmail", "#wifiProblemEmail", "#wifiNewEmail", "#graffitiEmail"].forEach((sel) => {
+          const el = document.querySelector(sel);
+          if (el) el.required = true;
+        });
+      } catch (_) {}
+    
+      // 3) inject new nav buttons + sections (only if not present)
+      const main = document.querySelector("main.main");
+      const nav = document.querySelector("nav.bottom-nav");
+      if (!main || !nav) return;
+    
+      if (!document.querySelector('#argus-section')) {
+        // nav button: ARGUS
+        nav.insertBefore(
+          this._createNavItem("argus", "fas fa-eye", "АРГУС"),
+          nav.querySelector('.nav-item[data-section="contacts"]') || null
+        );
+        // section
+        main.insertBefore(this._createArgusSection(), document.querySelector("#contacts-section") || null);
+      }
+    
+      if (!document.querySelector('#appointment-section')) {
+        // nav button: Appointment
+        nav.insertBefore(
+          this._createNavItem("appointment", "fas fa-calendar-alt", "Запись"),
+          nav.querySelector('.nav-item[data-section="contacts"]') || null
+        );
+        // section
+        main.insertBefore(this._createAppointmentSection(), document.querySelector("#contacts-section") || null);
+      }
+    
+      // IMPORTANT: re-bind navigation for newly inserted buttons
+      this._bindNavigation();
+    },
+    
+    _createNavItem(section, iconClass, labelText) {
+      const btn = document.createElement("button");
+      btn.className = "nav-item";
+      btn.type = "button";
+      btn.dataset.section = section;
+      btn.innerHTML = `<i class="${iconClass}"></i><span>${labelText}</span>`;
+      return btn;
+    },
+    
+    _createArgusSection() {
+      const sec = document.createElement("section");
+      sec.id = "argus-section";
+      sec.className = "content-section";
+      sec.dataset.section = "argus";
+      sec.setAttribute("aria-label", "АРГУС");
+    
+      // форма максимально копирует Security по UX/верстке (те же классы), но с argus-идентификаторами
+      sec.innerHTML = `
+        <div class="section-head">
+          <div class="section-title" title="АРГУС">АРГУС</div>
+          <div class="section-note" title="Заполните форму">Заполните форму</div>
+        </div>
+    
+        <form id="argusForm" class="glass-card form-card" autocomplete="on">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="argusName">Имя *</label>
+              <div class="input-row">
+                <input id="argusName" class="form-input" type="text" placeholder="Ваше имя" required />
+                <button class="btn btn-primary btn-compact" id="useMaxNameArgus" type="button">
+                  <i class="fas fa-user-check"></i><span>Из MAX</span>
+                </button>
+              </div>
+            </div>
+    
+            <div class="form-group">
+              <label for="argusPhone">Телефон *</label>
+              <input id="argusPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
+            </div>
+    
+            <div class="form-group">
+              <label for="argusEmail">Email</label>
+              <input id="argusEmail" class="form-input" type="email" inputmode="email" placeholder="name@mail.ru" required />
+            </div>
+    
+            <div class="form-group">
+              <label>Локация *</label>
+              <div class="location-actions">
+                <button type="button" class="btn btn-primary location-btn" id="argusUseCurrentLocation">МОЕ МЕСТОПОЛОЖЕНИЕ</button>
+                <button type="button" class="btn btn-primary location-btn" id="argusSelectOnMap">ВЫБРАТЬ НА КАРТЕ</button>
+                <button type="button" class="btn btn-primary location-btn" id="argusShowAddressInput">УКАЗАТЬ АДРЕС</button>
+              </div>
+    
+              <div class="address-input-wrapper" id="argusAddressWrap" hidden>
+                <input type="text" id="argusAddressInput" class="form-input" autocomplete="street-address" placeholder="Введите адрес или описание места" />
+              </div>
+    
+              <div class="form-hint" id="argusLocationHint">Укажите местоположение (адрес или точку на карте)</div>
+              <input id="argusCoordinates" class="form-input is-hidden" type="text" readonly />
+            </div>
+    
+            <div class="form-group form-group--full">
+              <label for="argusDescription">Описание *</label>
+              <textarea id="argusDescription" class="form-textarea" rows="5" placeholder="Опишите ситуацию максимально подробно" required></textarea>
+              <div class="meta-row">
+                <div class="meta" aria-live="polite"><span id="argusCharCount">0</span>/500</div>
+              </div>
+            </div>
+    
+            <div class="form-group form-group--full">
+              <label>Медиа</label>
+              <div class="upload" id="argusUploadArea">
+                <input id="argusMedia" type="file" accept="image/*,video/*" multiple />
+                <div class="upload-ui">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                  <div class="upload-text">
+                    <div class="upload-title" title="Добавить фото/видео">Добавить фото/видео</div>
+                    <div class="upload-sub" title="Перетащите или выберите файлы">Перетащите или выберите</div>
+                  </div>
+                </div>
+              </div>
+              <div class="media-preview" id="argusMediaPreview"></div>
+            </div>
+          </div>
+    
+          <div class="actions">
+            <button class="btn btn-primary btn-wide" id="submitArgus" type="submit">
+              <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
+            </button>
+          </div>
+        </form>
+      `;
+    
+      return sec;
+    },
+    
+    _createAppointmentSection() {
+      const sec = document.createElement("section");
+      sec.id = "appointment-section";
+      sec.className = "content-section";
+      sec.dataset.section = "appointment";
+      sec.setAttribute("aria-label", "Запись на приём");
+    
+      sec.innerHTML = `
+        <div class="section-head">
+          <div class="section-title" title="Запись на приём">Запись на приём</div>
+          <div class="section-note" title="Заполните форму">Заполните форму</div>
+        </div>
+    
+        <form id="appointmentForm" class="glass-card form-card" autocomplete="on">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="appointmentName">ФИО *</label>
+              <input id="appointmentName" class="form-input" type="text" placeholder="ФИО" required />
+            </div>
+    
+            <div class="form-group">
+              <label for="appointmentPhone">Телефон *</label>
+              <input id="appointmentPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
+            </div>
+    
+            <div class="form-group">
+              <label for="appointmentEmail">Email</label>
+              <input id="appointmentEmail" class="form-input" type="email" inputmode="email" placeholder="name@mail.ru" required />
+            </div>
+    
+            <div class="form-group">
+              <label for="appointmentDate">Дата приёма *</label>
+              <input id="appointmentDate" class="form-input" type="date" required />
+            </div>
+    
+            <div class="form-group form-group--full">
+              <label for="appointmentDescription">Описание вопроса *</label>
+              <textarea id="appointmentDescription" class="form-textarea" rows="5" placeholder="Опишите вопрос" required></textarea>
+            </div>
+          </div>
+    
+          <div class="actions">
+            <button class="btn btn-primary btn-wide" id="submitAppointment" type="submit">
+              <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
+            </button>
+          </div>
+        </form>
+      `;
+    
+      return sec;
+    },
+    
+    // -------------------- ARGUS form bind (копия Security по логике) --------------------
+    _bindArgusForm() {
+      const form = document.querySelector("#argusForm");
+      if (!form) return;
+    
+      this._bindPhoneMask("#argusPhone");
+      this._bindUseMaxName("#useMaxNameArgus", "#argusName");
+    
+      document.querySelector("#argusUseCurrentLocation")?.addEventListener("click", () => this._useCurrentLocation("argus"));
+      document.querySelector("#argusSelectOnMap")?.addEventListener("click", () => this.openMap("argus"));
+      document.querySelector("#argusShowAddressInput")?.addEventListener("click", () => this._setAddressInputVisible("argus", true));
+    
+      document.querySelector("#argusAddressInput")?.addEventListener("input", (e) => {
+        this.argusLocation.manualAddress = String(e.target.value || "").slice(0, 260);
+        this._syncLocationUI("argus");
+      });
+    
+      const desc = document.querySelector("#argusDescription");
+      const counter = document.querySelector("#argusCharCount");
+      const maxLen = 500;
+      if (desc && counter) {
+        const sync = () => {
+          if (desc.value.length > maxLen) desc.value = desc.value.slice(0, maxLen);
+          counter.textContent = String(desc.value.length || 0);
+        };
+        desc.addEventListener("input", sync);
+        sync();
+      }
+    
+      this._bindMediaPreview("#argusMedia", "#argusMediaPreview");
+    
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+    
+        const payload = this._collectCommonPayload({
+          nameSel: "#argusName",
+          phoneSel: "#argusPhone",
+          emailSel: "#argusEmail",
+          descriptionSel: "#argusDescription",
+          location: this.argusLocation,
+          mediaSel: "#argusMedia"
+        });
+    
+        payload.requestType = "argus";
+    
+        const err = this._validateCommon(payload, { requireLocation: true });
+        if (err) { this.toast(err, "danger"); this.haptic("error"); return; }
+    
+        const ok = await this.confirmModal("Подтверждение", this._renderConfirm(payload, "argus"), "Подтвердить", "Отмена");
+        if (!ok) return;
+    
+        const report = AppData.makeReport("argus", payload, { user: this._userSnapshot() });
+        const saved = await AppData.saveReport("argus", report);
+        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
+    
+        // пока без сервера: оставляем текущий механизм уведомлений (как у других)
+        await this._notifyAdmins("argus", report);
+    
+        this.toast("Заявка отправлена. Администрация ответит вам в течение 5 рабочих дней по указанной почте.", "success");
+        this.haptic("success");
+        form.reset();
+        this.argusLocation = { coords: null, manualAddress: "" };
+        this._setAddressInputVisible("argus", false);
+        this._syncLocationUI("argus");
+        document.querySelector("#argusMediaPreview") && (document.querySelector("#argusMediaPreview").innerHTML = "");
+        document.querySelector("#argusCharCount") && (document.querySelector("#argusCharCount").textContent = "0");
+      });
+    },
+    
+    // -------------------- Appointment form bind --------------------
+    _bindAppointmentForm() {
+      const form = document.querySelector("#appointmentForm");
+      if (!form) return;
+    
+      this._bindPhoneMask("#appointmentPhone");
+    
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+    
+        const payload = {
+          requestType: "appointment",
+          name: String(document.querySelector("#appointmentName")?.value || "").slice(0, 140).trim(),
+          phone: String(document.querySelector("#appointmentPhone")?.value || "").slice(0, 40).trim(),
+          email: String(document.querySelector("#appointmentEmail")?.value || "").slice(0, 180).trim(),
+          date: String(document.querySelector("#appointmentDate")?.value || "").trim(),
+          description: String(document.querySelector("#appointmentDescription")?.value || "").slice(0, 1000).trim()
+        };
+    
+        if (!payload.name) { this.toast("Укажите ФИО", "danger"); this.haptic("error"); return; }
+        if (!payload.phone || payload.phone.replace(/\D/g, "").length < 6) { this.toast("Укажите телефон", "danger"); this.haptic("error"); return; }
+        if (!payload.email) { this.toast("Укажите email", "danger"); this.haptic("error"); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) { this.toast("Некорректный email", "danger"); this.haptic("error"); return; }
+        if (!payload.date) { this.toast("Укажите дату приёма", "danger"); this.haptic("error"); return; }
+        if (!payload.description) { this.toast("Укажите описание вопроса", "danger"); this.haptic("error"); return; }
+    
+        const ok = await this.confirmModal(
+          "Подтверждение",
+          `<div class="placeholder" style="white-space:normal">
+            <b>Запись на приём</b><br/>
+            ФИО: ${this._escInline(payload.name)}<br/>
+            Телефон: ${this._escInline(payload.phone)}<br/>
+            Email: ${this._escInline(payload.email)}<br/>
+            Дата: ${this._escInline(payload.date)}<br/><br/>
+            ${this._escInline(payload.description).replaceAll("\n","<br/>")}
+          </div>`,
+          "Подтвердить",
+          "Отмена"
+        );
+        if (!ok) return;
+    
+        const report = AppData.makeReport("appointment", payload, { user: this._userSnapshot() });
+        const saved = await AppData.saveReport("appointment", report);
+        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
+    
+        await this._notifyAdmins("appointment", report);
+    
+        this.toast(`Заявка оставлена. Ждём вас в (${payload.date}). Если потребуется перенос, мы уведомим вас по почте или по указанному номеру телефона.`, "success");
+        this.haptic("success");
+        form.reset();
+      });
+    },
+    
+    // маленький helper, чтобы не трогать существующий esc() снаружи
+    _escInline(s) {
+      return String(s ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    },
+    
     _resetScroll() {
       try {
         window.scrollTo({ top: 0, behavior: "instant" });
@@ -1214,7 +1546,8 @@ renderWifiResults(points, opts = {}) {
       if (!payload.phone || payload.phone.replace(/\D/g, "").length < 6) return "Укажите телефон";
       if (!payload.place) return "Укажите место/адрес";
       if (!payload.description) return "Укажите описание";
-      if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return "Некорректный email";
+      if (!payload.email) return "Укажите email";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return "Некорректный email";
       return "";
     }
 
@@ -1319,7 +1652,8 @@ renderWifiResults(points, opts = {}) {
     _validateCommon(payload, { requireLocation }) {
       if (!payload.name) return "Укажите имя";
       if (!payload.phone || payload.phone.replace(/\D/g, "").length < 6) return "Укажите телефон";
-      if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return "Некорректный email";
+      if (!payload.email) return "Укажите email";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return "Некорректный email";
       if (requireLocation) {
         const hasCoords = !!payload.location?.coordinates;
         const hasAddr = !!payload.location?.manualAddress?.trim();
@@ -1335,7 +1669,11 @@ renderWifiResults(points, opts = {}) {
       const addr = loc.manualAddress ? loc.manualAddress : "";
       return `
         <div class="placeholder" style="white-space:normal">
-          <b>${type === "graffiti" ? "Граффити" : "Безопасность"}</b><br/>
+          <b>${
+            type === "graffiti" ? "Граффити" :
+            type === "argus" ? "АРГУС" :
+            "Оборона Севастополя"
+          }</b><br/>
           Имя: ${esc(payload.name)}<br/>
           Телефон: ${esc(payload.phone)}<br/>
           ${payload.email ? `Email: ${esc(payload.email)}<br/>` : ""}
