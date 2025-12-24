@@ -1477,3 +1477,105 @@ label[for="appointmentEmail"]::after {
   text-overflow: clip !important;
   word-break: break-word !important;  /* long words wrap */
 }
+
+/* calendar: days from other months */
+.dp__cell.is-outside {
+  opacity: .55;
+}
+
+/* today ring (iOS-ish) */
+.dp__cell.is-today:not(.is-selected) {
+  border-color: rgba(10,132,255,.45);
+}
+
+/* --------------------
+   Date picker (iOS-ish, fixed size)
+   -------------------- */
+
+.dp {
+  width: min(360px, 92vw);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dp__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dp__title {
+  font-weight: 900;
+  text-align: center;
+  flex: 1;
+  letter-spacing: -0.2px;
+}
+
+.dp__dow {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  font-size: 12px;
+  opacity: .75;
+  text-align: center;
+  user-select: none;
+}
+
+.dp__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+
+  /* фиксируем высоту сетки: 6 рядов */
+  min-height: 312px; /* 6 rows * ~44-48px + gaps */
+}
+
+.dp__cell {
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke2);
+  background: var(--glass2);
+  display: grid;
+  place-items: center;
+
+  font-weight: 800;
+  letter-spacing: -0.1px;
+
+  box-shadow: 0 10px 20px rgba(0,0,0,.12);
+  transition: transform 140ms var(--ease), filter 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+
+.dp__cell:active { transform: scale(.98); }
+
+.dp__cell.is-selected {
+  border-color: rgba(10,132,255,.65);
+  background: linear-gradient(180deg, rgba(10,132,255,.35), rgba(10,132,255,.18));
+  box-shadow: 0 14px 26px rgba(10,132,255,.22), 0 10px 20px rgba(0,0,0,.12);
+}
+
+.dp__cell.is-disabled,
+.dp__cell:disabled {
+  opacity: .35;
+  filter: grayscale(.2);
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.dp__cell--empty {
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: none;
+  border-color: transparent;
+  background: transparent;
+}
+
+/* Prev button disabled look (same iOS vibe) */
+#dpPrev.is-disabled,
+#dpPrev:disabled {
+  opacity: .35;
+  filter: grayscale(.25);
+  pointer-events: none;
+}
