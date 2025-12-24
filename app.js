@@ -780,8 +780,9 @@
     
       // view month = selected date month OR current month
       const selected = parseISO(input.value);
-      let view = selected ? new Date(selected.getFullYear(), selected.getMonth(), 1)
-                          : new Date(today.getFullYear(), today.getMonth(), 1);
+      let view = selected
+        ? new Date(selected.getFullYear(), selected.getMonth(), 1)
+        : new Date(today.getFullYear(), today.getMonth(), 1);
     
       const render = () => {
         const y = view.getFullYear();
@@ -800,7 +801,7 @@
         const daysInMonth = new Date(y, m + 1, 0).getDate();
         const daysPrevMonth = new Date(y, m, 0).getDate();
     
-        // 42 клетки (6 недель)
+        // 42 клетки (6 недель) — фикс размер
         const totalCells = 42;
         let cells = "";
     
@@ -847,7 +848,7 @@
           dt.setHours(0, 0, 0, 0);
     
           const iso = toISO(dt);
-          const isPast = dt < today; // почти всегда false, но пусть будет
+          const isPast = dt < today;
           const isSel = iso === selectedISO;
     
           cells += `<button type="button"
@@ -858,16 +859,16 @@
         }
     
         const bodyHTML = `
-          <div class="dp">
+          <div class="dp" id="dpRoot">
             <div class="dp__head">
-              <button type="button" class="btn btn-primary btn-compact" id="dpPrev" ${prevDisabled ? "disabled" : ""}>
-                <i class="fas fa-chevron-left"></i><span></span>
+              <button type="button" class="btn btn-primary btn-compact dp__nav" id="dpPrev" ${prevDisabled ? "disabled" : ""} aria-label="Предыдущий месяц">
+                <i class="fas fa-chevron-left"></i>
               </button>
     
               <div class="dp__title">${monthNames[m]} ${y}</div>
     
-              <button type="button" class="btn btn-primary btn-compact" id="dpNext">
-                <i class="fas fa-chevron-right"></i><span></span>
+              <button type="button" class="btn btn-primary btn-compact dp__nav" id="dpNext" aria-label="Следующий месяц">
+                <i class="fas fa-chevron-right"></i>
               </button>
             </div>
     
@@ -875,16 +876,30 @@
               <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
             </div>
     
-            <div class="dp__grid">${cells}</div>
+            <div class="dp__grid" id="dpGrid">${cells}</div>
           </div>
         `;
     
-        // ВАЖНО: actions пустые — кнопки "ОТМЕНА" нет (закрытие только крестиком)
+        // без кнопки "ОТМЕНА" — закрытие крестиком в модалке
         this.openModal({
           title: "Выбор даты",
           bodyHTML,
           actions: []
         });
+    
+        // --- FIX: убрать "дергание" на мобиле (скролл/overscroll внутри модалки) ---
+        const root = $("#dpRoot");
+        const grid = $("#dpGrid");
+        const stopTouch = (e) => {
+          // на iOS/Android иногда пытается скроллить фон -> дергается
+          e.preventDefault();
+        };
+        if (root) {
+          root.addEventListener("touchmove", stopTouch, { passive: false });
+        }
+        if (grid) {
+          grid.addEventListener("touchmove", stopTouch, { passive: false });
+        }
     
         // Prev / Next
         const prevBtn = $("#dpPrev");
