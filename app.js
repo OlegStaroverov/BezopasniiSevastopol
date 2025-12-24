@@ -424,21 +424,13 @@
             </div>
     
             <div class="form-group">
-              <label for="appointmentDateDisplay">Дата приёма *</label>
-            
-              <div class="input-row">
-                <input id="appointmentDateDisplay" class="form-input" type="text" placeholder="Выберите дату" readonly required />
-                <button class="btn btn-primary btn-compact" id="appointmentPickDate" type="button">
-                  <i class="fas fa-calendar-alt"></i><span>Выбрать дату</span>
-                </button>
-              </div>
-            
-              <input id="appointmentDate" class="form-input is-hidden" type="date" />
+              <label for="appointmentDate">Дата приёма *</label>
+              <input id="appointmentDate" class="form-input" type="text" placeholder="Выберите дату" readonly required />
             </div>
     
             <div class="form-group form-group--full">
-              <label for="appointmentDescription">Описание вопроса *</label>
-              <textarea id="appointmentDescription" class="form-textarea" rows="5" placeholder="Опишите вопрос" required></textarea>
+              <label for="appointmentDescription">Что Вас интересует? *</label>
+              <textarea id="appointmentDescription" class="form-textarea" rows="5" placeholder="Опишите вопрос, с которым Вы хотите обратиться в департамент." required></textarea>
             </div>
           </div>
     
@@ -527,6 +519,16 @@
     _bindAppointmentForm() {
       const form = document.querySelector("#appointmentForm");
       if (!form) return;
+
+      document.querySelector("#appointmentDate")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        this._openAppointmentDatePicker();
+      });
+      
+      document.querySelector("#appointmentDate")?.addEventListener("focus", (e) => {
+        e.preventDefault();
+        this._openAppointmentDatePicker();
+      });
     
       this._bindPhoneMask("#appointmentPhone");
 
@@ -748,6 +750,111 @@
       this._syncModalLock();
     }
 
+    _openAppointmentDatePicker() {
+    const input = $("#appointmentDate");
+    if (!input) return;
+  
+    // текущая дата из инпута или сегодня
+    const parseISO = (s) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
+      if (!m) return null;
+      const y = Number(m[1]);
+      const mo = Number(m[2]) - 1;
+      const d = Number(m[3]);
+      const dt = new Date(y, mo, d);
+      if (Number.isNaN(dt.getTime())) return null;
+      return dt;
+    };
+  
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const toISO = (dt) => `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+  
+    let view = parseISO(input.value) || new Date();
+  
+    const monthNames = [
+      "Январь","Февраль","Март","Апрель","Май","Июнь",
+      "Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"
+    ];
+  
+    const render = () => {
+      const y = view.getFullYear();
+      const m = view.getMonth();
+  
+      const first = new Date(y, m, 1);
+      const startDay = (first.getDay() + 6) % 7; // понедельник=0
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+  
+      const selectedISO = String(input.value || "");
+  
+      let cells = "";
+      for (let i = 0; i < startDay; i++) {
+        cells += `<button type="button" class="dp__cell dp__cell--empty" tabindex="-1"></button>`;
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dt = new Date(y, m, d);
+        const iso = toISO(dt);
+        const isSel = iso === selectedISO;
+        cells += `<button type="button" class="dp__cell ${isSel ? "is-selected" : ""}" data-iso="${iso}">${d}</button>`;
+      }
+  
+      const bodyHTML = `
+        <div class="dp">
+          <div class="dp__head">
+            <button type="button" class="btn btn-primary btn-compact" id="dpPrev"><i class="fas fa-chevron-left"></i><span></span></button>
+            <div class="dp__title">${monthNames[m]} ${y}</div>
+            <button type="button" class="btn btn-primary btn-compact" id="dpNext"><i class="fas fa-chevron-right"></i><span></span></button>
+          </div>
+  
+          <div class="dp__dow">
+            <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+          </div>
+  
+          <div class="dp__grid">${cells}</div>
+        </div>
+      `;
+  
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "btn btn-secondary btn-wide";
+      cancelBtn.type = "button";
+      cancelBtn.innerHTML = `<i class="fas fa-times"></i><span>ОТМЕНА</span>`;
+      cancelBtn.addEventListener("click", () => this.closeModal());
+  
+      this.openModal({
+        title: "Выбор даты",
+        bodyHTML,
+        actions: [cancelBtn]
+      });
+  
+      // биндим кнопки после вставки HTML
+      $("#dpPrev")?.addEventListener("click", () => {
+        view = new Date(view.getFullYear(), view.getMonth() - 1, 1);
+        render();
+      });
+  
+      $("#dpNext")?.addEventListener("click", () => {
+        view = new Date(view.getFullYear(), view.getMonth() + 1, 1);
+        render();
+      });
+  
+      $$(".dp__cell[data-iso]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const iso = btn.getAttribute("data-iso");
+          if (!iso) return;
+          input.value = iso;
+  
+          // чтобы required/валидация и логика формы сработали
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+  
+          this.closeModal();
+          this.haptic("success");
+        });
+      });
+    };
+  
+    render();
+  }
+    
     _syncModalLock() {
       const anyOpen =
         $("#modal")?.getAttribute("aria-hidden") === "false" ||
@@ -907,6 +1014,7 @@
         let center = centerDefault;
         if (context === "security" && this.securityLocation?.coords) center = this.securityLocation.coords;
         if (context === "graffiti" && this.graffitiLocation?.coords) center = this.graffitiLocation.coords;
+        if (context === "argus" && this.argusLocation?.coords) center = this.argusLocation.coords;
     
         if (!this.map) {
           this.map = new window.ymaps.Map("yandexMap", {
@@ -959,13 +1067,19 @@
 
     _applyMapSelection(context, coords) {
       const location = { coords: { lat: coords.lat, lon: coords.lon }, manualAddress: "" };
-
+    
       if (context === "security") {
         this.securityLocation.coords = location.coords;
+        this._setAddressInputVisible("security", false);
         this._syncLocationUI("security");
       } else if (context === "graffiti") {
         this.graffitiLocation.coords = location.coords;
+        this._setAddressInputVisible("graffiti", false);
         this._syncLocationUI("graffiti");
+      } else if (context === "argus") {
+        this.argusLocation.coords = location.coords;
+        this._setAddressInputVisible("argus", false);
+        this._syncLocationUI("argus");
       } else if (context === "wifi_nearby") {
         this._renderWifiNearestFromCoords(location.coords);
       }
@@ -1017,30 +1131,45 @@
     }
 
     async _useCurrentLocation(prefix = "security") {
-      const state = prefix === "security" ? this.securityLocation : this.graffitiLocation;
-
+      const state =
+        prefix === "security" ? this.securityLocation :
+        prefix === "graffiti" ? this.graffitiLocation :
+        prefix === "argus" ? this.argusLocation :
+        null;
+    
+      if (!state) {
+        this.toast("Не удалось определить форму для геолокации", "warning");
+        this.haptic("warning");
+        return;
+      }
+    
       if (!navigator.geolocation) {
         this.toast("Геолокация недоступна", "warning");
         this.haptic("warning");
         return;
       }
-
+    
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const lat = pos?.coords?.latitude;
           const lon = pos?.coords?.longitude;
-          if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    
+          if (typeof lat !== "number" || typeof lon !== "number") {
             this.toast("Не удалось получить координаты", "warning");
             this.haptic("warning");
             return;
           }
+    
           state.coords = { lat, lon };
+          state.manualAddress = "";
+          this._setAddressInputVisible(prefix, false);
           this._syncLocationUI(prefix);
-          this.toast("Координаты добавлены", "success");
+    
+          this.toast("Местоположение определено", "success");
           this.haptic("success");
         },
         () => {
-          this.toast("Нет доступа к геолокации", "warning");
+          this.toast("Не удалось получить геолокацию", "warning");
           this.haptic("warning");
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
