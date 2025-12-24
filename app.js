@@ -218,6 +218,17 @@
       if (!opts.silent) this.haptic("light");
     }
 
+    _resetScroll() {
+      try {
+        window.scrollTo({ top: 0, behavior: "instant" });
+      } catch (_) {
+        window.scrollTo(0, 0);
+      }
+      try {
+        document.querySelector("main.main")?.scrollTo?.({ top: 0, behavior: "instant" });
+      } catch (_) {}
+    }
+
     // -------------------- Dynamic sections: rename + ARGUS + Appointment --------------------
     _applyRenamesAndInjectNewSections() {
       // 1) rename bottom-nav label: "Безопасность" -> "Оборона"
@@ -226,7 +237,7 @@
         if (secBtn) secBtn.textContent = "Оборона";
       } catch (_) {}
     
-      // 2) make existing email inputs required (no HTML edits)
+      // 2) mark known emails as required (без правки HTML)
       try {
         ["#securityEmail", "#wifiProblemEmail", "#wifiNewEmail", "#graffitiEmail"].forEach((sel) => {
           const el = document.querySelector(sel);
@@ -234,32 +245,29 @@
         });
       } catch (_) {}
     
-      // 3) inject new nav buttons + sections (only if not present)
       const main = document.querySelector("main.main");
       const nav = document.querySelector("nav.bottom-nav");
       if (!main || !nav) return;
     
-      if (!document.querySelector('#argus-section')) {
-        // nav button: ARGUS
+      // 3) inject ARGUS
+      if (!document.querySelector("#argus-section")) {
         nav.insertBefore(
           this._createNavItem("argus", "fas fa-eye", "АРГУС"),
           nav.querySelector('.nav-item[data-section="contacts"]') || null
         );
-        // section
         main.insertBefore(this._createArgusSection(), document.querySelector("#contacts-section") || null);
       }
     
-      if (!document.querySelector('#appointment-section')) {
-        // nav button: Appointment
+      // 4) inject Appointment
+      if (!document.querySelector("#appointment-section")) {
         nav.insertBefore(
           this._createNavItem("appointment", "fas fa-calendar-alt", "Запись"),
           nav.querySelector('.nav-item[data-section="contacts"]') || null
         );
-        // section
         main.insertBefore(this._createAppointmentSection(), document.querySelector("#contacts-section") || null);
       }
     
-      // IMPORTANT: re-bind navigation for newly inserted buttons
+      // 5) rebind for new nav buttons
       this._bindNavigation();
     }
     
@@ -270,7 +278,7 @@
       btn.dataset.section = section;
       btn.innerHTML = `<i class="${iconClass}"></i><span>${labelText}</span>`;
       return btn;
-    },
+    }
     
     _createArgusSection() {
       const sec = document.createElement("section");
@@ -279,7 +287,6 @@
       sec.dataset.section = "argus";
       sec.setAttribute("aria-label", "АРГУС");
     
-      // форма максимально копирует Security по UX/верстке (те же классы), но с argus-идентификаторами
       sec.innerHTML = `
         <div class="section-head">
           <div class="section-title" title="АРГУС">АРГУС</div>
@@ -357,7 +364,7 @@
       `;
     
       return sec;
-    },
+    }
     
     _createAppointmentSection() {
       const sec = document.createElement("section");
@@ -409,9 +416,9 @@
       `;
     
       return sec;
-    },
+    }
     
-    // -------------------- ARGUS form bind (копия Security по логике) --------------------
+    // -------------------- ARGUS form bind --------------------
     _bindArgusForm() {
       const form = document.querySelector("#argusForm");
       if (!form) return;
@@ -466,7 +473,6 @@
         const saved = await AppData.saveReport("argus", report);
         if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
     
-        // пока без сервера: оставляем текущий механизм уведомлений (как у других)
         await this._notifyAdmins("argus", report);
     
         this.toast("Заявка отправлена. Администрация ответит вам в течение 5 рабочих дней по указанной почте.", "success");
@@ -475,10 +481,12 @@
         this.argusLocation = { coords: null, manualAddress: "" };
         this._setAddressInputVisible("argus", false);
         this._syncLocationUI("argus");
-        document.querySelector("#argusMediaPreview") && (document.querySelector("#argusMediaPreview").innerHTML = "");
-        document.querySelector("#argusCharCount") && (document.querySelector("#argusCharCount").textContent = "0");
+        const mp = document.querySelector("#argusMediaPreview");
+        if (mp) mp.innerHTML = "";
+        const cc = document.querySelector("#argusCharCount");
+        if (cc) cc.textContent = "0";
       });
-    },
+    }
     
     // -------------------- Appointment form bind --------------------
     _bindAppointmentForm() {
@@ -531,9 +539,8 @@
         this.haptic("success");
         form.reset();
       });
-    },
+    }
     
-    // маленький helper, чтобы не трогать существующий esc() снаружи
     _escInline(s) {
       return String(s ?? "")
         .replaceAll("&", "&amp;")
@@ -541,19 +548,8 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
-    },
-    
-    _resetScroll() {
-      try {
-        window.scrollTo({ top: 0, behavior: "instant" });
-      } catch (_) {
-        window.scrollTo(0, 0);
-      }
-      try {
-        document.querySelector("main.main")?.scrollTo?.({ top: 0, behavior: "instant" });
-      } catch (_) {}
     }
-
+    
     // -------------------- Theme --------------------
     _bindTheme() {
       $("#themeToggle")?.addEventListener("click", () => {
@@ -920,6 +916,7 @@
       const wrap =
         prefix === "security" ? $("#securityAddressWrap") :
         prefix === "graffiti" ? $("#graffitiAddressWrap") :
+        prefix === "argus" ? $("#argusAddressWrap") :
         null;
 
       if (!wrap) return;
@@ -936,14 +933,19 @@
     }
 
     _syncLocationUI(prefix) {
-      const state = prefix === "security" ? this.securityLocation : this.graffitiLocation;
-
+      const state =
+        prefix === "security" ? this.securityLocation :
+        prefix === "argus" ? this.argusLocation :
+        this.graffitiLocation;
+      
       const hint =
         prefix === "security" ? $("#locationHint") :
+        prefix === "argus" ? $("#argusLocationHint") :
         $("#graffitiLocationHint");
-
+      
       const coordsInput =
         prefix === "security" ? $("#securityCoordinates") :
+        prefix === "argus" ? $("#argusCoordinates") :
         $("#graffitiCoordinates");
 
       const lines = [];
