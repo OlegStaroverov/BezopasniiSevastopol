@@ -751,109 +751,182 @@
     }
 
     _openAppointmentDatePicker() {
-    const input = $("#appointmentDate");
-    if (!input) return;
-  
-    // текущая дата из инпута или сегодня
-    const parseISO = (s) => {
-      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
-      if (!m) return null;
-      const y = Number(m[1]);
-      const mo = Number(m[2]) - 1;
-      const d = Number(m[3]);
-      const dt = new Date(y, mo, d);
-      if (Number.isNaN(dt.getTime())) return null;
-      return dt;
-    };
-  
-    const pad2 = (n) => String(n).padStart(2, "0");
-    const toISO = (dt) => `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
-  
-    let view = parseISO(input.value) || new Date();
-  
-    const monthNames = [
-      "Январь","Февраль","Март","Апрель","Май","Июнь",
-      "Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"
-    ];
-  
-    const render = () => {
-      const y = view.getFullYear();
-      const m = view.getMonth();
-  
-      const first = new Date(y, m, 1);
-      const startDay = (first.getDay() + 6) % 7; // понедельник=0
-      const daysInMonth = new Date(y, m + 1, 0).getDate();
-  
-      const selectedISO = String(input.value || "");
-  
-      let cells = "";
-      for (let i = 0; i < startDay; i++) {
-        cells += `<button type="button" class="dp__cell dp__cell--empty" tabindex="-1"></button>`;
-      }
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dt = new Date(y, m, d);
-        const iso = toISO(dt);
-        const isSel = iso === selectedISO;
-        cells += `<button type="button" class="dp__cell ${isSel ? "is-selected" : ""}" data-iso="${iso}">${d}</button>`;
-      }
-  
-      const bodyHTML = `
-        <div class="dp">
-          <div class="dp__head">
-            <button type="button" class="btn btn-primary btn-compact" id="dpPrev"><i class="fas fa-chevron-left"></i><span></span></button>
-            <div class="dp__title">${monthNames[m]} ${y}</div>
-            <button type="button" class="btn btn-primary btn-compact" id="dpNext"><i class="fas fa-chevron-right"></i><span></span></button>
+      const input = $("#appointmentDate");
+      if (!input) return;
+    
+      const pad2 = (n) => String(n).padStart(2, "0");
+      const toISO = (dt) => `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+    
+      const parseISO = (s) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
+        if (!m) return null;
+        const y = Number(m[1]);
+        const mo = Number(m[2]) - 1;
+        const d = Number(m[3]);
+        const dt = new Date(y, mo, d);
+        if (Number.isNaN(dt.getTime())) return null;
+        dt.setHours(0, 0, 0, 0);
+        return dt;
+      };
+    
+      const monthNames = [
+        "Январь","Февраль","Март","Апрель","Май","Июнь",
+        "Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"
+      ];
+    
+      // today (00:00)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+    
+      // month view = selected date OR today
+      let view = parseISO(input.value) || new Date(today.getFullYear(), today.getMonth(), 1);
+    
+      const render = () => {
+        const y = view.getFullYear();
+        const m = view.getMonth();
+    
+        // запрет листать на прошлые месяцы
+        const nowMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const viewMonthStart = new Date(y, m, 1);
+        const prevDisabled = viewMonthStart <= nowMonthStart;
+    
+        const selectedISO = String(input.value || "");
+    
+        // календарная сетка: понедельник=0
+        const first = new Date(y, m, 1);
+        const startDay = (first.getDay() + 6) % 7;
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+    
+        // сколько дней в предыдущем месяце
+        const daysPrevMonth = new Date(y, m, 0).getDate();
+    
+        // строим 42 клетки: добиваем днями предыдущего/следующего месяца
+        const totalCells = 42;
+        let cells = "";
+    
+        // 1) дни предыдущего месяца (в начале)
+        for (let i = 0; i < startDay; i++) {
+          const day = daysPrevMonth - (startDay - 1 - i);
+          const dt = new Date(y, m - 1, day);
+          dt.setHours(0, 0, 0, 0);
+    
+          const iso = toISO(dt);
+          const isPast = dt < today;
+          const isSel = iso === selectedISO;
+    
+          cells += `<button type="button"
+            class="dp__cell is-outside ${isSel ? "is-selected" : ""} ${isPast ? "is-disabled" : ""}"
+            data-iso="${iso}"
+            ${isPast ? "disabled" : ""}
+          >${day}</button>`;
+        }
+    
+        // 2) текущий месяц
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dt = new Date(y, m, d);
+          dt.setHours(0, 0, 0, 0);
+    
+          const iso = toISO(dt);
+          const isPast = dt < today;
+          const isSel = iso === selectedISO;
+          const isToday = dt.getTime() === today.getTime();
+    
+          cells += `<button type="button"
+            class="dp__cell ${isSel ? "is-selected" : ""} ${isPast ? "is-disabled" : ""} ${isToday ? "is-today" : ""}"
+            data-iso="${iso}"
+            ${isPast ? "disabled" : ""}
+          >${d}</button>`;
+        }
+    
+        // 3) дни следующего месяца (в конец до 42)
+        const filled = startDay + daysInMonth;
+        const remain = totalCells - filled;
+        for (let d = 1; d <= remain; d++) {
+          const dt = new Date(y, m + 1, d);
+          dt.setHours(0, 0, 0, 0);
+    
+          const iso = toISO(dt);
+          const isPast = dt < today; // как правило false, но пусть будет
+          const isSel = iso === selectedISO;
+    
+          cells += `<button type="button"
+            class="dp__cell is-outside ${isSel ? "is-selected" : ""} ${isPast ? "is-disabled" : ""}"
+            data-iso="${iso}"
+            ${isPast ? "disabled" : ""}
+          >${d}</button>`;
+        }
+    
+        const bodyHTML = `
+          <div class="dp">
+            <div class="dp__head">
+              <button type="button" class="btn btn-primary btn-compact" id="dpPrev" ${prevDisabled ? "disabled" : ""}>
+                <i class="fas fa-chevron-left"></i><span></span>
+              </button>
+              <div class="dp__title">${monthNames[m]} ${y}</div>
+              <button type="button" class="btn btn-primary btn-compact" id="dpNext">
+                <i class="fas fa-chevron-right"></i><span></span>
+              </button>
+            </div>
+    
+            <div class="dp__dow">
+              <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+            </div>
+    
+            <div class="dp__grid">${cells}</div>
           </div>
-  
-          <div class="dp__dow">
-            <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
-          </div>
-  
-          <div class="dp__grid">${cells}</div>
-        </div>
-      `;
-  
-      const cancelBtn = document.createElement("button");
-      cancelBtn.className = "btn btn-secondary btn-wide";
-      cancelBtn.type = "button";
-      cancelBtn.innerHTML = `<i class="fas fa-times"></i><span>ОТМЕНА</span>`;
-      cancelBtn.addEventListener("click", () => this.closeModal());
-  
-      this.openModal({
-        title: "Выбор даты",
-        bodyHTML,
-        actions: [cancelBtn]
-      });
-  
-      // биндим кнопки после вставки HTML
-      $("#dpPrev")?.addEventListener("click", () => {
-        view = new Date(view.getFullYear(), view.getMonth() - 1, 1);
-        render();
-      });
-  
-      $("#dpNext")?.addEventListener("click", () => {
-        view = new Date(view.getFullYear(), view.getMonth() + 1, 1);
-        render();
-      });
-  
-      $$(".dp__cell[data-iso]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const iso = btn.getAttribute("data-iso");
-          if (!iso) return;
-          input.value = iso;
-  
-          // чтобы required/валидация и логика формы сработали
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          input.dispatchEvent(new Event("change", { bubbles: true }));
-  
-          this.closeModal();
-          this.haptic("success");
+        `;
+    
+        const cancelBtn = document.createElement("button");
+        cancelBtn.className = "btn btn-secondary btn-wide";
+        cancelBtn.type = "button";
+        cancelBtn.innerHTML = `<i class="fas fa-times"></i><span>ОТМЕНА</span>`;
+        cancelBtn.addEventListener("click", () => this.closeModal());
+    
+        this.openModal({
+          title: "Выбор даты",
+          bodyHTML,
+          actions: [cancelBtn]
         });
-      });
-    };
-  
-    render();
-  }
+    
+        // Prev / Next
+        const prevBtn = $("#dpPrev");
+        if (prevBtn) {
+          prevBtn.classList.toggle("is-disabled", prevDisabled);
+          prevBtn.addEventListener("click", () => {
+            if (prevDisabled) return;
+            view = new Date(view.getFullYear(), view.getMonth() - 1, 1);
+            render();
+          });
+        }
+    
+        $("#dpNext")?.addEventListener("click", () => {
+          view = new Date(view.getFullYear(), view.getMonth() + 1, 1);
+          render();
+        });
+    
+        // Select date
+        $$(".dp__cell[data-iso]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (btn.disabled) return;
+            const iso = btn.getAttribute("data-iso");
+            if (!iso) return;
+    
+            // не даём выбрать дату раньше сегодня (на всякий случай)
+            const dt = parseISO(iso);
+            if (!dt || dt < today) return;
+    
+            input.value = iso;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+    
+            this.closeModal();
+            this.haptic("success");
+          });
+        });
+      };
+    
+      render();
+    }
     
     _syncModalLock() {
       const anyOpen =
