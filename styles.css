@@ -1598,11 +1598,6 @@ label[for="appointmentEmail"]::after {
   }
 }
 
-/* IMPORTANT: outside days must NOT look disabled (only past days are disabled) */
-.dp__cell.is-outside:not(.is-disabled):not(:disabled) {
-  opacity: 1 !important;
-}
-
 /* calendar: prevent mobile overscroll jitter */
 .dp, .dp * {
   -webkit-tap-highlight-color: transparent;
