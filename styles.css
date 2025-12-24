@@ -1602,3 +1602,41 @@ label[for="appointmentEmail"]::after {
 .dp__cell.is-outside:not(.is-disabled):not(:disabled) {
   opacity: 1 !important;
 }
+
+/* calendar: prevent mobile overscroll jitter */
+.dp, .dp * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dp__grid {
+  overscroll-behavior: contain;
+  touch-action: manipulation; /* не даём браузеру пытаться скроллить/зумить при тапах */
+}
+
+/* days from other months: slightly dim, but clickable if not disabled */
+.dp__cell.is-outside:not(.is-disabled):not(:disabled) {
+  opacity: .70;
+}
+
+/* calendar: nav buttons center icon */
+.dp__nav {
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+}
+
+.dp__nav i {
+  margin: 0 !important;
+  display: block;
+}
+
+@media (max-width: 420px) {
+  .dp__nav {
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+  }
+}
