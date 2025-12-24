@@ -1385,3 +1385,30 @@ html[data-theme="light"] .admin-v2__line {
   background: var(--stroke2);
   margin: 6px 0;
 }
+
+/* === FIX: show full descriptions (no ellipsis) for section notes and Wi-Fi subtitle === */
+#security-section .section-note,
+#wifi-section #wifiSectionSubtitle,
+#graffiti-section .section-note,
+#argus-section .section-note,
+#appointment-section .section-note {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+
+  /* in case line-clamp was used somewhere */
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: unset !important;
+
+  max-height: none !important;
+}
+
+/* === FIX: mark required email labels with asterisk (only specific labels) === */
+label[for="securityEmail"]::after,
+label[for="wifiProblemEmail"]::after,
+label[for="wifiNewEmail"]::after,
+label[for="graffitiEmail"]::after,
+label[for="argusEmail"]::after,
+label[for="appointmentEmail"]::after {
+  content: " *";
+}
