@@ -1111,23 +1111,44 @@
         prefix === "security" ? this.securityLocation :
         prefix === "argus" ? this.argusLocation :
         this.graffitiLocation;
-      
+    
       const hint =
         prefix === "security" ? $("#locationHint") :
         prefix === "argus" ? $("#argusLocationHint") :
         $("#graffitiLocationHint");
-      
+    
       const coordsInput =
         prefix === "security" ? $("#securityCoordinates") :
         prefix === "argus" ? $("#argusCoordinates") :
         $("#graffitiCoordinates");
-
+    
       const lines = [];
-      if (state.coords) lines.push(`Координаты: ${fmtCoords(state.coords)}`);
-      if (state.manualAddress?.trim()) lines.push(`Адрес: ${state.manualAddress.trim()}`);
-
-      if (hint) hint.textContent = lines.length ? lines.join(" • ") : "Укажите местоположение (адрес или точку на карте)";
-      if (coordsInput) coordsInput.value = state.coords ? fmtCoords(state.coords) : "";
+    
+      if (state?.coords?.lat != null && state?.coords?.lon != null) {
+        const lat = Number(state.coords.lat).toFixed(6);
+        const lon = Number(state.coords.lon).toFixed(6);
+        lines.push(`Координаты: ${lat}, ${lon}`);
+      }
+    
+      if (state?.manualAddress && String(state.manualAddress).trim()) {
+        lines.push(`Адрес: ${String(state.manualAddress).trim()}`);
+      }
+    
+      if (!lines.length) {
+        lines.push("Укажите местоположение (адрес или точку на карте)");
+      }
+    
+      if (hint) {
+        hint.textContent = lines.join("\n");   // каждая строка с новой строки
+        hint.setAttribute("title", hint.textContent);
+      }
+    
+      if (coordsInput) {
+        coordsInput.value =
+          state?.coords?.lat != null && state?.coords?.lon != null
+            ? `${Number(state.coords.lat).toFixed(6)}, ${Number(state.coords.lon).toFixed(6)}`
+            : "";
+      }
     }
 
     async _useCurrentLocation(prefix = "security") {
