@@ -261,7 +261,7 @@
     
       // IMPORTANT: re-bind navigation for newly inserted buttons
       this._bindNavigation();
-    },
+    }
     
     _createNavItem(section, iconClass, labelText) {
       const btn = document.createElement("button");
