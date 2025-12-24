@@ -1479,9 +1479,6 @@ label[for="appointmentEmail"]::after {
 }
 
 /* calendar: days from other months */
-.dp__cell.is-outside {
-  opacity: .55;
-}
 
 /* today ring (iOS-ish) */
 .dp__cell.is-today:not(.is-selected) {
@@ -1528,9 +1525,7 @@ label[for="appointmentEmail"]::after {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
-
-  /* фиксируем высоту сетки: 6 рядов */
-  min-height: 312px; /* 6 rows * ~44-48px + gaps */
+  height: 312px; /* фикс 6 рядов */
 }
 
 .dp__cell {
