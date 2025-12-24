@@ -1469,3 +1469,11 @@ label[for="appointmentEmail"]::after {
   opacity: 0;
   pointer-events: none;
 }
+
+/* === Location hint: each info line on new line + wrap long lines, no ellipsis === */
+.form-hint {
+  white-space: pre-wrap !important;   /* \n -> new line */
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-break: break-word !important;  /* long words wrap */
+}
