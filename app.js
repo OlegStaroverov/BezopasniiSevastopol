@@ -236,7 +236,30 @@
         const secBtn = document.querySelector('.bottom-nav .nav-item[data-section="security"] span');
         if (secBtn) secBtn.textContent = "Оборона";
       } catch (_) {}
-    
+
+      // text for "Оборона" (security section) - without touching index.html
+      try {
+        const note = document.querySelector('#security-section .section-note');
+        if (note) {
+          note.textContent =
+            "Это форма для приема сообщений о подозрительных предметах, событиях и ситуациях, которые могут представлять угрозу безопасности. " +
+            "Оперативные службы города проверят поступившую информацию и примут меры. " +
+            "Пожалуйста, заполните форму и укажите корректный email — ответ будет направлен вам по почте.";
+          note.setAttribute("title", note.textContent);
+        }
+      } catch (_) {}
+
+      // text for "Граффити" (existing section) - without touching index.html
+      try {
+        const note = document.querySelector('#graffiti-section .section-note');
+        if (note) {
+          note.textContent =
+            "В этом разделе вы можете сообщить о граффити, надписях или изображениях, портящих красоту нашего белокаменного Города-Героя. " +
+            "Укажите адрес или выберите место на карте, при необходимости добавьте фото.";
+          note.setAttribute("title", note.textContent);
+        }
+      } catch (_) {}
+      
       // 2) mark known emails as required (без правки HTML)
       try {
         ["#securityEmail", "#wifiProblemEmail", "#wifiNewEmail", "#graffitiEmail"].forEach((sel) => {
@@ -290,7 +313,9 @@
       sec.innerHTML = `
         <div class="section-head">
           <div class="section-title" title="АРГУС">АРГУС</div>
-          <div class="section-note" title="Заполните форму">Заполните форму</div>
+          <div class="section-note" title="В Севастополе действует система видеонаблюдения «Аргус», включающая более 2000 камер по всему городу. Система используется для контроля общественного порядка, помощи правоохранительным органам, выявления правонарушений и поиска пропавших людей. Если вы стали свидетелем происшествия или считаете, что ситуация требует внимания, вы можете отправить обращение через эту форму. Сообщение будет зарегистрировано и передано ответственным специалистам.">
+  В Севастополе действует система видеонаблюдения «Аргус», включающая более 2000 камер по всему городу. Система используется для контроля общественного порядка, помощи правоохранительным органам, выявления правонарушений и поиска пропавших людей. Если вы стали свидетелем происшествия или считаете, что ситуация требует внимания, вы можете отправить обращение через эту форму. Сообщение будет зарегистрировано и передано ответственным специалистам.
+</div>
         </div>
     
         <form id="argusForm" class="glass-card form-card" autocomplete="on">
@@ -371,12 +396,14 @@
       sec.id = "appointment-section";
       sec.className = "content-section";
       sec.dataset.section = "appointment";
-      sec.setAttribute("aria-label", "Запись на приём");
+      sec.setAttribute("aria-label", "Запись на прием в Департамент цифрового развития");
     
       sec.innerHTML = `
         <div class="section-head">
-          <div class="section-title" title="Запись на приём">Запись на приём</div>
-          <div class="section-note" title="Заполните форму">Заполните форму</div>
+          <div class="section-title" title="Запись на приём в Департамент цифрового развития">Запись на приём в Департамент цифрового развития</div>
+          <div class="section-note" title="Через эту форму вы можете оставить заявку на запись на приём в Департамент цифрового развития города Севастополя. Это поможет сотрудникам заранее ознакомиться с вашим вопросом и подготовиться к встрече. Пожалуйста, укажите контактные данные, желаемую дату прием и кратко опишите суть обращения.">
+            Через эту форму вы можете оставить заявку на запись на приём в Департамент цифрового развития города Севастополя. Это поможет сотрудникам заранее ознакомиться с вашим вопросом и подготовиться к встрече. Пожалуйста, укажите контактные данные, желаемую дату прием и кратко опишите суть обращения.
+          </div>
         </div>
     
         <form id="appointmentForm" class="glass-card form-card" autocomplete="on">
@@ -397,8 +424,16 @@
             </div>
     
             <div class="form-group">
-              <label for="appointmentDate">Дата приёма *</label>
-              <input id="appointmentDate" class="form-input" type="date" required />
+              <label for="appointmentDateDisplay">Дата приёма *</label>
+            
+              <div class="input-row">
+                <input id="appointmentDateDisplay" class="form-input" type="text" placeholder="Выберите дату" readonly required />
+                <button class="btn btn-primary btn-compact" id="appointmentPickDate" type="button">
+                  <i class="fas fa-calendar-alt"></i><span>Выбрать дату</span>
+                </button>
+              </div>
+            
+              <input id="appointmentDate" class="form-input is-hidden" type="date" />
             </div>
     
             <div class="form-group form-group--full">
@@ -494,7 +529,32 @@
       if (!form) return;
     
       this._bindPhoneMask("#appointmentPhone");
-    
+
+      // date picker button -> native calendar
+      const dateInput = document.querySelector("#appointmentDate");
+      const dateDisplay = document.querySelector("#appointmentDateDisplay");
+      const pickBtn = document.querySelector("#appointmentPickDate");
+      
+      const syncDate = () => {
+        if (!dateDisplay) return;
+        dateDisplay.value = dateInput?.value ? dateInput.value : "";
+      };
+      
+      if (pickBtn && dateInput) {
+        pickBtn.addEventListener("click", () => {
+          try {
+            // Chrome/Android supports showPicker()
+            if (typeof dateInput.showPicker === "function") dateInput.showPicker();
+            else dateInput.focus();
+          } catch (_) {
+            try { dateInput.focus(); } catch (_) {}
+          }
+        });
+      }
+      
+      if (dateInput) dateInput.addEventListener("change", syncDate);
+      syncDate();
+      
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
     
@@ -1144,9 +1204,10 @@
       const sub = $("#wifiSectionSubtitle");
       if (sub) {
         sub.textContent =
-          n === "search" ? "Поиск точек доступа интернета по Севастополю" :
-          n === "problem" ? "Сообщите о проблеме с точкой доступа Wi-Fi" :
-          "Предложите новую точку доступа";
+          n === "search" ? "В этом разделе вы можете найти ближайшие точки публичного Wi-Fi на карте города." :
+          n === "problem" ? "Используйте этот раздел, если публичная точка Wi-Fi не работает." :
+          "В этом разделе вы можете предложить работающую точку публичного Wi-Fi для добавления в список. Укажите адрес или отметьте место на карте и кратко опишите предложение.";
+        sub.setAttribute("title", sub.textContent);
       }
 
       $$("#wifi-section .tab").forEach((t) => {
