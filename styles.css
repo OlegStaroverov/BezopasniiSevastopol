@@ -1610,7 +1610,7 @@ label[for="appointmentEmail"]::after {
 
 /* days from other months: slightly dim, but clickable if not disabled */
 .dp__cell.is-outside:not(.is-disabled):not(:disabled) {
-  opacity: .65;
+  opacity: .58;
 }
 
 /* calendar: nav buttons center icon */
