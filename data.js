@@ -65,11 +65,13 @@
   };
 
   // -------------------- Reports storage --------------------
-  const REPORT_KEYS = {
-    security: "reports_security",
-    wifi: "reports_wifi",
-    graffiti: "reports_graffiti"
-  };
+   const REPORT_KEYS = {
+     security: "reports_security",
+     wifi: "reports_wifi",
+     graffiti: "reports_graffiti",
+     argus: "reports_argus",
+     appointment: "reports_appointment"
+   };
 
   const normalizeType = (type) => {
     const t = String(type || "").trim();
