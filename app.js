@@ -597,7 +597,7 @@
     
         await this._notifyAdmins("appointment", report);
     
-        this.toast(`Заявка оставлена. Ждём вас в (${payload.date}). Если потребуется перенос, мы уведомим вас по почте или по указанному номеру телефона.`, "success");
+        this.toast(`Заявка оставлена. Ждём вас ${payload.date}. Если потребуется перенос, мы уведомим вас по почте или по указанному номеру телефона.`, "success");
         this.haptic("success");
         form.reset();
       });
