@@ -778,8 +778,10 @@
       const today = new Date();
       today.setHours(0, 0, 0, 0);
     
-      // month view = selected date OR today
-      let view = parseISO(input.value) || new Date(today.getFullYear(), today.getMonth(), 1);
+      // view month = selected date month OR current month
+      const selected = parseISO(input.value);
+      let view = selected ? new Date(selected.getFullYear(), selected.getMonth(), 1)
+                          : new Date(today.getFullYear(), today.getMonth(), 1);
     
       const render = () => {
         const y = view.getFullYear();
@@ -792,19 +794,17 @@
     
         const selectedISO = String(input.value || "");
     
-        // календарная сетка: понедельник=0
+        // Пн=0..Вс=6
         const first = new Date(y, m, 1);
         const startDay = (first.getDay() + 6) % 7;
         const daysInMonth = new Date(y, m + 1, 0).getDate();
-    
-        // сколько дней в предыдущем месяце
         const daysPrevMonth = new Date(y, m, 0).getDate();
     
-        // строим 42 клетки: добиваем днями предыдущего/следующего месяца
+        // 42 клетки (6 недель)
         const totalCells = 42;
         let cells = "";
     
-        // 1) дни предыдущего месяца (в начале)
+        // 1) предыдущий месяц (начало сетки)
         for (let i = 0; i < startDay; i++) {
           const day = daysPrevMonth - (startDay - 1 - i);
           const dt = new Date(y, m - 1, day);
@@ -838,15 +838,16 @@
           >${d}</button>`;
         }
     
-        // 3) дни следующего месяца (в конец до 42)
+        // 3) следующий месяц (конец сетки)
         const filled = startDay + daysInMonth;
         const remain = totalCells - filled;
+    
         for (let d = 1; d <= remain; d++) {
           const dt = new Date(y, m + 1, d);
           dt.setHours(0, 0, 0, 0);
     
           const iso = toISO(dt);
-          const isPast = dt < today; // как правило false, но пусть будет
+          const isPast = dt < today; // почти всегда false, но пусть будет
           const isSel = iso === selectedISO;
     
           cells += `<button type="button"
@@ -862,7 +863,9 @@
               <button type="button" class="btn btn-primary btn-compact" id="dpPrev" ${prevDisabled ? "disabled" : ""}>
                 <i class="fas fa-chevron-left"></i><span></span>
               </button>
+    
               <div class="dp__title">${monthNames[m]} ${y}</div>
+    
               <button type="button" class="btn btn-primary btn-compact" id="dpNext">
                 <i class="fas fa-chevron-right"></i><span></span>
               </button>
@@ -876,16 +879,11 @@
           </div>
         `;
     
-        const cancelBtn = document.createElement("button");
-        cancelBtn.className = "btn btn-secondary btn-wide";
-        cancelBtn.type = "button";
-        cancelBtn.innerHTML = `<i class="fas fa-times"></i><span>ОТМЕНА</span>`;
-        cancelBtn.addEventListener("click", () => this.closeModal());
-    
+        // ВАЖНО: actions пустые — кнопки "ОТМЕНА" нет (закрытие только крестиком)
         this.openModal({
           title: "Выбор даты",
           bodyHTML,
-          actions: [cancelBtn]
+          actions: []
         });
     
         // Prev / Next
@@ -908,10 +906,10 @@
         $$(".dp__cell[data-iso]").forEach((btn) => {
           btn.addEventListener("click", () => {
             if (btn.disabled) return;
+    
             const iso = btn.getAttribute("data-iso");
             if (!iso) return;
     
-            // не даём выбрать дату раньше сегодня (на всякий случай)
             const dt = parseISO(iso);
             if (!dt || dt < today) return;
     
