@@ -1574,3 +1574,31 @@ label[for="appointmentEmail"]::after {
   filter: grayscale(.25);
   pointer-events: none;
 }
+
+/* --- Date picker: mobile fit inside modal --- */
+@media (max-width: 420px) {
+  .dp {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .dp__grid {
+    height: 276px !important; /* 6 rows * 40px + gaps */
+    gap: 6px !important;
+  }
+
+  .dp__dow {
+    gap: 6px !important;
+  }
+
+  .dp__cell {
+    height: 40px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 16px rgba(0,0,0,.10) !important;
+  }
+}
+
+/* IMPORTANT: outside days must NOT look disabled (only past days are disabled) */
+.dp__cell.is-outside:not(.is-disabled):not(:disabled) {
+  opacity: 1 !important;
+}
