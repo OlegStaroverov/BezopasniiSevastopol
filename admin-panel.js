@@ -65,6 +65,15 @@
   };
 
   const updateReportStatus = async (type, id, status) => {
+    try {
+      // если есть серверный метод — используем его
+      if (AppData && typeof AppData.setReportStatus === "function") {
+        const ok = await AppData.setReportStatus(id, status);
+        return !!ok;
+      }
+    } catch (_) {}
+  
+    // fallback (старое поведение)
     const list = await readReports(type);
     const idx = list.findIndex((r) => String(r.id) === String(id));
     if (idx < 0) return false;
