@@ -2050,8 +2050,72 @@
   window.AppData.setTheme = (t) => theme.set(t);
   window.AppData.toggleTheme = () => theme.toggle();
 
-  window.AppData.getReports = (type) => Reports.get(type);
-  window.AppData.saveReport = (type, report) => Reports.save(type, report);
+   // --- SERVER API (источник истины) ---
+   const apiBase = () => String(window.AppConfig?.api?.baseUrl || "").replace(/\/+$/, "");
+   
+   async function apiFetch(path, opts = {}) {
+     const base = apiBase();
+     if (!base) throw new Error("API baseUrl not set");
+   
+     const url = base + path;
+     const res = await fetch(url, {
+       ...opts,
+       headers: {
+         "Content-Type": "application/json",
+         ...(opts.headers || {})
+       }
+     });
+   
+     // если API отдал не-200 — считаем ошибкой
+     if (!res.ok) {
+       const t = await res.text().catch(() => "");
+       throw new Error(`API ${res.status}: ${t}`);
+     }
+     return res.json();
+   }
+   
+   // Чтение: сначала сервер, локально — только fallback (не истина)
+   window.AppData.getReports = async (type) => {
+     try {
+       const token = window.AppConfig?.api?.adminToken || "";
+       const q = type ? `?type=${encodeURIComponent(type)}` : "";
+       const json = await apiFetch(`/api/reports${q}`, {
+         method: "GET",
+         headers: { "X-Admin-Token": token }
+       });
+       return Array.isArray(json.list) ? json.list : [];
+     } catch (e) {
+       // fallback: старое хранилище, чтобы хоть что-то показать если сервер временно недоступен
+       return Reports.get(type);
+     }
+   };
+   
+   // Сохранение: сначала сервер, локально — только fallback
+   window.AppData.saveReport = async (type, report) => {
+     try {
+       const json = await apiFetch(`/api/reports`, {
+         method: "POST",
+         body: JSON.stringify({ report })
+       });
+       if (json && json.ok) return true;
+       return false;
+     } catch (e) {
+       // fallback (не истина)
+       return Reports.save(type, report);
+     }
+   };
+   
+   // Смена статуса: админка
+   window.AppData.setReportStatus = async (id, status) => {
+     const token = window.AppConfig?.api?.adminToken || "";
+     const json = await apiFetch(`/api/reports/${encodeURIComponent(id)}/status`, {
+       method: "PATCH",
+       headers: { "X-Admin-Token": token },
+       body: JSON.stringify({ status })
+     });
+     return !!json?.ok;
+   };
+   
   window.AppData.makeReport = (type, payload, extra) => Reports.makeReport(type, payload, extra);
 
   // совместимость с admin-panel.js (использует _save)
