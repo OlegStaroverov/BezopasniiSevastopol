@@ -152,3 +152,12 @@
    */
   window.MaxConfig = window.AppConfig;
 })();
+
+window.AppConfig = window.AppConfig || {};
+window.AppConfig.api = window.AppConfig.api || {};
+
+// адрес твоего Node.js (на локальной машине обычно так)
+window.AppConfig.api.baseUrl = "http://127.0.0.1:3001";
+
+// токен нужен только админке (GET + PATCH)
+window.AppConfig.api.adminToken = "change_me_very_secret";
