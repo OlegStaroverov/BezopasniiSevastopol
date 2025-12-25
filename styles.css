@@ -352,9 +352,9 @@ html[data-theme="light"] .btn-secondary {
   letter-spacing: -0.4px;
   line-height: 1.1;
 
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+   white-space: normal;
+   overflow: visible;
+   text-overflow: unset;
 }
 
 .section-note {
