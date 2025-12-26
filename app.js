@@ -1101,7 +1101,9 @@
         if (context === "security" && this.securityLocation?.coords) center = this.securityLocation.coords;
         if (context === "graffiti" && this.graffitiLocation?.coords) center = this.graffitiLocation.coords;
         if (context === "argus" && this.argusLocation?.coords) center = this.argusLocation.coords;
-    
+
+        placeOrMoveMarker(center.lat, center.lon);
+        
         if (!this.map) {
           this.map = new window.ymaps.Map("yandexMap", {
             center: [center.lat, center.lon],
@@ -1256,31 +1258,42 @@
         return;
       }
     
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos?.coords?.latitude;
-          const lon = pos?.coords?.longitude;
+      const getPos = (opts) => new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, opts);
+      });
     
-          if (typeof lat !== "number" || typeof lon !== "number") {
-            this.toast("Не удалось получить координаты", "warning");
-            this.haptic("warning");
-            return;
-          }
+      try {
+        this.toast("Определяю местоположение…", "info");
     
-          state.coords = { lat, lon };
-          state.manualAddress = "";
-          this._setAddressInputVisible(prefix, false);
-          this._syncLocationUI(prefix);
+        // 1) пробуем точнее, но даём время
+        let pos;
+        try {
+          pos = await getPos({ enableHighAccuracy: true, timeout: 20000, maximumAge: 15000 });
+        } catch (_) {
+          // 2) fallback без highAccuracy — часто спасает
+          pos = await getPos({ enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 });
+        }
     
-          this.toast("Местоположение определено", "success");
-          this.haptic("success");
-        },
-        () => {
-          this.toast("Не удалось получить геолокацию", "warning");
+        const lat = pos?.coords?.latitude;
+        const lon = pos?.coords?.longitude;
+    
+        if (typeof lat !== "number" || typeof lon !== "number") {
+          this.toast("Не удалось получить координаты", "warning");
           this.haptic("warning");
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-      );
+          return;
+        }
+    
+        state.coords = { lat, lon };
+        state.manualAddress = "";
+        this._setAddressInputVisible(prefix, false);
+        this._syncLocationUI(prefix);
+    
+        this.toast("Местоположение определено", "success");
+        this.haptic("success");
+      } catch (e) {
+        this.toast("Не удалось получить геолокацию. Попробуйте ещё раз или выберите точку на карте.", "warning");
+        this.haptic("warning");
+      }
     }
 
     // -------------------- Security --------------------
@@ -1292,10 +1305,8 @@
       this._bindUseMaxName("#useMaxName", "#securityName");
 
       $("#useCurrentLocation")?.addEventListener("click", () => this._useCurrentLocation("security"));
-      $("#selectOnMap")?.addEventListener("click", () => {
-        this.mapContext = "security";
-        this.openMap();
-      });
+      $("#selectOnMap")?.addEventListener("click", () => this.openMap("security"));
+      
       $("#showAddressInput")?.addEventListener("click", () => this._setAddressInputVisible("security", true));
 
       $("#addressInput")?.addEventListener("input", (e) => {
