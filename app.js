@@ -1101,8 +1101,6 @@
         if (context === "security" && this.securityLocation?.coords) center = this.securityLocation.coords;
         if (context === "graffiti" && this.graffitiLocation?.coords) center = this.graffitiLocation.coords;
         if (context === "argus" && this.argusLocation?.coords) center = this.argusLocation.coords;
-
-        placeOrMoveMarker(center.lat, center.lon);
         
         if (!this.map) {
           this.map = new window.ymaps.Map("yandexMap", {
