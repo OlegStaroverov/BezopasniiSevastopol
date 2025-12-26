@@ -1107,6 +1107,8 @@
             center: [center.lat, center.lon],
             zoom
           });
+
+          placeOrMoveMarker(center.lat, center.lon);
         
           // клик по карте — выбрать точку (и метка)
           this.map.events.add("click", (e) => {
@@ -1125,6 +1127,7 @@
         } else {
           // при переоткрытии — центр и resize
           try { this.map.setCenter([center.lat, center.lon], zoom, { duration: 0 }); } catch (_) {}
+          placeOrMoveMarker(center.lat, center.lon);
           try { this.map.container.fitToViewport(); } catch (_) {}
         }
     
