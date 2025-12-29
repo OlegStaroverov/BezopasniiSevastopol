@@ -109,15 +109,37 @@
       const list = await storage._load(key, []);
       return Array.isArray(list) ? list : [];
     },
-    async save(type, report) {
-      const t = normalizeType(type);
-      const key = REPORT_KEYS[t];
-      if (!key) return false;
-      const list = await storage._load(key, []);
-      const arr = Array.isArray(list) ? list : [];
-      arr.unshift(report);
-      return storage._save(key, arr);
-    },
+   async save(type, report) {
+     const t = normalizeType(type);
+     const key = REPORT_KEYS[t];
+     if (!key) return false;
+   
+     // 1) локально (можно оставить)
+     const list = await storage._load(key, []);
+     const arr = Array.isArray(list) ? list : [];
+     arr.unshift(report);
+     await storage._save(key, arr);
+   
+     // 2) главное — отправка на сервер
+     try {
+       const base = window.AppConfig?.api?.baseUrl;
+       const apiKey = window.AppConfig?.api?.appApiKey;
+       if (!base || !apiKey) return false;
+   
+       const r = await fetch(`${base}/reports`, {
+         method: "POST",
+         headers: {
+           "Content-Type": "application/json",
+           "x-api-key": apiKey,
+         },
+         body: JSON.stringify(report),
+       });
+   
+       return r.ok;
+     } catch (e) {
+       return false;
+     }
+   },
     makeReport(type, payload, extra = {}) {
       const t = normalizeType(type);
       return {
