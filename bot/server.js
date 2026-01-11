@@ -88,6 +88,45 @@ const SERVICE_TEXT =
   "Чтобы воспользоваться сервисом, перейдите в мини-приложение.\n" +
   "Кнопка для перехода находится внизу экрана и выделена синим цветом.";
 
+function formatReportForAdmin(report) {
+  const typeMap = {
+    security: "🚨 Безопасность",
+    wifi: "📶 Wi-Fi",
+    graffiti: "🎨 Граффити",
+    argus: "📷 Аргус",
+    appointment: "📅 Запись на прием в департамент",
+    unknown: "❓ Другое"
+  };
+
+  const statusMap = {
+    new: "🆕 Новое",
+    in_progress: "🛠 В работе",
+    closed: "✅ Закрыто"
+  };
+
+  const p = report.payload || {};
+
+  const statusTitle = statusMap[report.status] || report.status;
+  let text = `📝 Обращение (${statusTitle})\n\n`;
+
+  text += `📌 Тип: ${typeMap[report.type] || report.type}\n`;
+  text += `📍 Адрес: ${p.address || "—"}\n`;
+  text += `🕒 Время: ${p.datetime || report.created_at}\n\n`;
+
+  if (p.description) {
+    text += `🗒 Описание:\n${p.description}\n\n`;
+  }
+
+  if (p.contact) {
+    text += `☎️ Контакт: ${p.contact}\n`;
+  }
+
+  text += `📊 Статус: ${statusMap[report.status] || report.status}\n`;
+  text += `🆔 ID: ${report.id}`;
+
+  return text;
+}
+
 bot.on("bot_started", async (ctx) => {
   const userId = ctx.user?.user_id;
   const chatId = ctx.chat_id;
@@ -137,16 +176,17 @@ async function sendReportCard(ctx, id) {
   const payload = r.payload_json ? safeParse(r.payload_json) : null;
   const user = r.user_json ? safeParse(r.user_json) : null;
 
-  const text = [
-    `📄 Обращение ${r.id}`,
-    `Статус: ${r.status}`,
-    `Тип: ${r.type}${r.subtype ? "/" + r.subtype : ""}`,
-    `Время: ${r.timestamp}`,
-    payload?.address ? `Адрес: ${payload.address}` : "",
-    payload?.text ? `Текст: ${String(payload.text).slice(0, 1500)}` : "",
-    payload?.problem ? `Описание: ${String(payload.problem).slice(0, 1500)}` : "",
-    user?.user_id ? `От: user_id=${user.user_id}` : "",
-  ].filter(Boolean).join("\n");
+  const report = {
+    id: r.id,
+    type: r.type,
+    subtype: r.subtype,
+    status: r.status,
+    created_at: r.timestamp,
+    payload,
+    user,
+  };
+
+  const text = formatReportForAdmin(report);
 
   const kb = Keyboard.inlineKeyboard([
     [
@@ -172,11 +212,22 @@ bot.action(/adm:list:(.+)/, async (ctx) => {
   );
   if (!rows.length) return ctx.reply("Пусто.");
 
-  const lines = rows.map((r, i) => `${i + 1}. ${r.id} — ${r.type}${r.subtype ? "/" + r.subtype : ""} — ${r.timestamp}`);
+  const typeTitle = (t) => ({
+    security: "🚨 Безопасность",
+    wifi: "📶 Wi-Fi",
+    graffiti: "🎨 Граффити",
+    argus: "📷 Аргус",
+    appointment: "📅 Запись",
+  }[t] || t);
+  
+  const lines = rows.map((r, i) =>
+  `${i + 1}. ${typeTitle(r.type)} — ${r.timestamp}\n   🆔 ${r.id}`
+);
   const kb = Keyboard.inlineKeyboard(
     rows.map((r) => [Keyboard.button.callback(`Открыть ${r.id}`, `adm:open:${r.id}`)])
   );
-  await ctx.reply(`Список (${status}), последние 10:\n\n${lines.join("\n")}`, { attachments: [kb] });
+  const statusTitle = { new: "🆕 Новые", in_progress: "🛠 В работе", closed: "✅ Закрытые" }[status] || status;
+  await ctx.reply(`${statusTitle} — последние 10:\n\n${lines.join("\n")}`, { attachments: [kb] });
 });
 
 bot.action(/adm:open:(.+)/, async (ctx) => {
@@ -329,7 +380,7 @@ async function notifyAdmins(report) {
     const userId = Number(id);
     if (!Number.isFinite(userId)) continue;
     try {
-      await bot.api.sendMessageToUser(userId, formatReportShort(report), {
+      await bot.api.sendMessageToUser(userId, formatReportForAdmin(report), {
         attachments: [keyboard],
       });
     } catch (e) {
