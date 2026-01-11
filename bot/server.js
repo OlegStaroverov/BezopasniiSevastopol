@@ -2,7 +2,7 @@ const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const fs = require("fs");
-const { Bot } = require("@maxhub/max-bot-api");
+const { Bot, Keyboard } = require("@maxhub/max-bot-api");
 require("dotenv").config();
 
 // -------------------- Config --------------------
@@ -10,6 +10,57 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const PORT = Number(process.env.PORT || 3001);
 const DB_FILE = process.env.DB_FILE || "./requests.sqlite";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+
+// ---- Supabase Sync (pull reports from Supabase -> local sqlite) ----
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const SUPABASE_TABLE = process.env.SUPABASE_TABLE || "reports";
+const SYNC_INTERVAL_SEC = Number(process.env.SYNC_INTERVAL_SEC || 10);
+const SUPABASE_RETENTION_MIN = Number(process.env.SUPABASE_RETENTION_MIN || 60); // delete synced rows older than N minutes
+const ADMIN_IDS = (process.env.ADMIN_IDS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+// Optional routing by type: WIFI_ADMINS="id1,id2" etc.
+function adminsForType(type) {
+  const key = `${String(type || "").toUpperCase()}_ADMINS`;
+  const env = process.env[key];
+  const list = (env || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.length ? list : ADMIN_IDS;
+}
+
+function supabaseRestUrl(path) {
+  return `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${path}`;
+}
+
+async function supabaseFetch(path, { method = "GET", query = "", body = null, headers = {} } = {}) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set");
+  }
+  const url = supabaseRestUrl(path) + (query ? `?${query}` : "");
+  const res = await fetch(url, {
+    method,
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let json;
+  try { json = text ? JSON.parse(text) : null; } catch { json = text; }
+  if (!res.ok) {
+    const msg = typeof json === "string" ? json : JSON.stringify(json);
+    throw new Error(`Supabase ${method} ${url} -> ${res.status}: ${msg}`);
+  }
+  return json;
+}
 
 // -------------------- Bot (ваш код почти без изменений) --------------------
 if (!BOT_TOKEN || BOT_TOKEN === "PASTE_YOUR_TOKEN_HERE") {
@@ -61,6 +112,100 @@ bot.command("start", async (ctx) => {
   } catch (error) {
     console.error("Ошибка:", error.message);
   }
+
+// -------------------- Admin UI in bot --------------------
+function isBotAdmin(ctx) {
+  const uid = ctx.user?.user_id || ctx.from?.id;
+  return uid && ADMIN_IDS.includes(String(uid));
+}
+
+async function sendAdminMenu(ctx) {
+  const keyboard = Keyboard.inlineKeyboard([
+    [
+      Keyboard.button.callback("🆕 Новые", "adm:list:new"),
+      Keyboard.button.callback("✅ В работе", "adm:list:in_progress"),
+      Keyboard.button.callback("🏁 Закрытые", "adm:list:closed"),
+    ],
+  ]);
+  await ctx.reply("Админ-панель. Выберите раздел:", { attachments: [keyboard] });
+}
+
+async function sendReportCard(ctx, id) {
+  const rows = await dbAll(`SELECT * FROM reports WHERE id = ?`, [id]);
+  if (!rows.length) return ctx.reply("Не найдено.");
+  const r = rows[0];
+  const payload = r.payload_json ? safeParse(r.payload_json) : null;
+  const user = r.user_json ? safeParse(r.user_json) : null;
+
+  const text = [
+    `📄 Обращение ${r.id}`,
+    `Статус: ${r.status}`,
+    `Тип: ${r.type}${r.subtype ? "/" + r.subtype : ""}`,
+    `Время: ${r.timestamp}`,
+    payload?.address ? `Адрес: ${payload.address}` : "",
+    payload?.text ? `Текст: ${String(payload.text).slice(0, 1500)}` : "",
+    payload?.problem ? `Описание: ${String(payload.problem).slice(0, 1500)}` : "",
+    user?.user_id ? `От: user_id=${user.user_id}` : "",
+  ].filter(Boolean).join("\n");
+
+  const kb = Keyboard.inlineKeyboard([
+    [
+      Keyboard.button.callback("✅ В работу", `adm:take:${r.id}`),
+      Keyboard.button.callback("🏁 Закрыть", `adm:close:${r.id}`),
+    ],
+  ]);
+
+  await ctx.reply(text, { attachments: [kb] });
+}
+
+bot.command("admin", async (ctx) => {
+  if (!isBotAdmin(ctx)) return ctx.reply("Нет доступа.");
+  return sendAdminMenu(ctx);
+});
+
+bot.action(/adm:list:(.+)/, async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+  const status = String(ctx.match?.[1] || "");
+  const rows = await dbAll(
+    `SELECT id,type,subtype,status,timestamp FROM reports WHERE status = ? ORDER BY timestamp DESC LIMIT 10`,
+    [status]
+  );
+  if (!rows.length) return ctx.reply("Пусто.");
+
+  const lines = rows.map((r, i) => `${i + 1}. ${r.id} — ${r.type}${r.subtype ? "/" + r.subtype : ""} — ${r.timestamp}`);
+  const kb = Keyboard.inlineKeyboard(
+    rows.map((r) => [Keyboard.button.callback(`Открыть ${r.id}`, `adm:open:${r.id}`)])
+  );
+  await ctx.reply(`Список (${status}), последние 10:\n\n${lines.join("\n")}`, { attachments: [kb] });
+});
+
+bot.action(/adm:open:(.+)/, async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+  const id = String(ctx.match?.[1] || "");
+  if (!id) return;
+  await sendReportCard(ctx, id);
+});
+
+async function setLocalStatus(id, status) {
+  const updatedAt = new Date().toISOString();
+  await dbRun(`UPDATE reports SET status = ?, updatedAt = ? WHERE id = ?`, [status, updatedAt, id]);
+}
+
+bot.action(/adm:take:(.+)/, async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+  const id = String(ctx.match?.[1] || "");
+  if (!id) return;
+  await setLocalStatus(id, "in_progress");
+  await ctx.reply(`✅ Взято в работу: ${id}`);
+});
+
+bot.action(/adm:close:(.+)/, async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+  const id = String(ctx.match?.[1] || "");
+  if (!id) return;
+  await setLocalStatus(id, "closed");
+  await ctx.reply(`🏁 Закрыто: ${id}`);
+});
 });
 
 bot.on("message_created", async (ctx) => {
@@ -125,6 +270,184 @@ function dbAll(sql, params = []) {
   });
 }
 
+
+async function upsertLocalReport(report) {
+  const row = {
+    id: String(report.id),
+    type: String(report.type),
+    subtype: report.subtype ? String(report.subtype) : "",
+    status: report.status ? String(report.status) : "new",
+    timestamp: String(report.timestamp || report.created_at || new Date().toISOString()),
+    updatedAt: String(report.updatedAt || report.timestamp || report.created_at || new Date().toISOString()),
+    user_json: report.user ? JSON.stringify(report.user) : null,
+    payload_json: report.payload ? JSON.stringify(report.payload) : null,
+  };
+
+  // SQLite UPSERT
+  await dbRun(
+    `INSERT INTO reports (id,type,subtype,status,timestamp,updatedAt,user_json,payload_json)
+     VALUES (?,?,?,?,?,?,?,?)
+     ON CONFLICT(id) DO UPDATE SET
+       type=excluded.type,
+       subtype=excluded.subtype,
+       status=excluded.status,
+       timestamp=excluded.timestamp,
+       updatedAt=excluded.updatedAt,
+       user_json=excluded.user_json,
+       payload_json=excluded.payload_json`,
+    [row.id, row.type, row.subtype, row.status, row.timestamp, row.updatedAt, row.user_json, row.payload_json]
+  );
+  return row;
+}
+
+function formatReportShort(r) {
+  const p = r.payload || {};
+  const title = p.title || p.problem || p.text || "";
+  const addr = p.address || p.addr || "";
+  return [
+    `🆕 Новое обращение: ${r.type}${r.subtype ? "/" + r.subtype : ""}`,
+    `ID: ${r.id}`,
+    addr ? `Адрес: ${addr}` : "",
+    title ? `Текст: ${String(title).slice(0, 400)}` : "",
+    `Время: ${r.timestamp}`,
+  ].filter(Boolean).join("\n");
+}
+
+async function notifyAdmins(report) {
+  const ids = adminsForType(report.type);
+  if (!ids.length) return;
+
+  const keyboard = Keyboard.inlineKeyboard([
+    [
+      Keyboard.button.callback("👀 Открыть", `adm:open:${report.id}`),
+      Keyboard.button.callback("✅ В работу", `adm:take:${report.id}`),
+      Keyboard.button.callback("🏁 Закрыть", `adm:close:${report.id}`),
+    ],
+  ]);
+
+  for (const id of ids) {
+    const userId = Number(id);
+    if (!Number.isFinite(userId)) continue;
+    try {
+      await bot.api.sendMessageToUser(userId, formatReportShort(report), {
+        attachments: [keyboard],
+      });
+    } catch (e) {
+      console.error("notifyAdmins error:", e.message);
+    }
+  }
+}
+
+async function pullFromSupabaseOnce() {
+  // 1) взять новые
+  const rows = await supabaseFetch(SUPABASE_TABLE, {
+    method: "GET",
+    query: "select=*&sync_status=eq.new&order=created_at.asc&limit=50",
+  });
+
+  if (!Array.isArray(rows) || rows.length === 0) return 0;
+
+  for (const r of rows) {
+    // 2) пометить processing (чтобы не схватить дважды, если будет второй воркер)
+    try {
+      await supabaseFetch(SUPABASE_TABLE, {
+        method: "PATCH",
+        query: `id=eq.${encodeURIComponent(r.id)}`,
+        headers: { Prefer: "return=minimal" },
+        body: { sync_status: "processing", processing_at: new Date().toISOString() },
+      });
+    } catch (e) {
+      console.error("mark processing failed:", e.message);
+      continue;
+    }
+
+    // 3) сохранить локально
+    try {
+      const local = await upsertLocalReport({
+        ...r,
+        timestamp: r.timestamp || r.created_at,
+        updatedAt: r.updated_at || r.created_at,
+      });
+
+      // 4) уведомить админов
+      await notifyAdmins({
+        id: local.id,
+        type: local.type,
+        subtype: local.subtype,
+        timestamp: local.timestamp,
+        payload: r.payload ?? (r.payload_json ? JSON.parse(r.payload_json) : null),
+      });
+
+      // 5) пометить synced
+      await supabaseFetch(SUPABASE_TABLE, {
+        method: "PATCH",
+        query: `id=eq.${encodeURIComponent(r.id)}`,
+        headers: { Prefer: "return=minimal" },
+        body: { sync_status: "synced", synced_at: new Date().toISOString() },
+      });
+    } catch (e) {
+      console.error("sync one report failed:", e.message);
+      try {
+        await supabaseFetch(SUPABASE_TABLE, {
+          method: "PATCH",
+          query: `id=eq.${encodeURIComponent(r.id)}`,
+          headers: { Prefer: "return=minimal" },
+          body: { sync_status: "failed", last_error: String(e.message).slice(0, 800) },
+        });
+      } catch (_) {}
+    }
+  }
+
+  return rows.length;
+}
+
+async function cleanupSupabaseOnce() {
+  if (!SUPABASE_RETENTION_MIN || SUPABASE_RETENTION_MIN < 1) return 0;
+  const cutoff = new Date(Date.now() - SUPABASE_RETENTION_MIN * 60 * 1000).toISOString();
+
+  // сначала получим ids на удаление
+  const rows = await supabaseFetch(SUPABASE_TABLE, {
+    method: "GET",
+    query: `select=id&sync_status=eq.synced&synced_at=lt.${encodeURIComponent(cutoff)}&limit=200`,
+  });
+
+  if (!Array.isArray(rows) || rows.length === 0) return 0;
+
+  // удаляем пачкой через OR: id=in.(...)
+  const ids = rows.map((x) => x.id).filter(Boolean);
+  const inList = ids.map((x) => `"${String(x).replace(/"/g, '\"')}"`).join(",");
+  await supabaseFetch(SUPABASE_TABLE, {
+    method: "DELETE",
+    query: `id=in.(${encodeURIComponent(inList)})`,
+    headers: { Prefer: "return=minimal" },
+  });
+  return ids.length;
+}
+
+function startSupabaseSyncLoops() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn("Supabase sync disabled: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing");
+    return;
+  }
+  // Pull loop
+  setInterval(async () => {
+    try {
+      await pullFromSupabaseOnce();
+    } catch (e) {
+      console.error("pullFromSupabaseOnce error:", e.message);
+    }
+  }, Math.max(2, SYNC_INTERVAL_SEC) * 1000);
+
+  // Cleanup loop (раз в 10 минут)
+  setInterval(async () => {
+    try {
+      const deleted = await cleanupSupabaseOnce();
+      if (deleted) console.log(`Supabase cleanup deleted: ${deleted}`);
+    } catch (e) {
+      console.error("cleanupSupabaseOnce error:", e.message);
+    }
+  }, 10 * 60 * 1000);
+}
 async function initDb() {
   await dbRun(`PRAGMA journal_mode=WAL;`);
   await dbRun(`
@@ -260,6 +583,7 @@ function safeParse(s) {
 // -------------------- Start everything --------------------
 (async () => {
   await initDb();
+  startSupabaseSyncLoops();
 
   app.listen(PORT, () => {
     console.log(`[API] listening on http://0.0.0.0:${PORT}`);
