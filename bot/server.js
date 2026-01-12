@@ -272,6 +272,11 @@ async function notifyStatusChange(ctx, reportId, newStatus) {
   }
 }
 
+bot.on("message_new", async (ctx) => {
+  const t = (ctx.message?.text || "").trim();
+  if (t) console.log("message_new:", t);
+});
+
 bot.on("bot_started", async (ctx) => {
   const userId = ctx.user?.user_id;
   const chatId = ctx.chat_id;
