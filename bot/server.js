@@ -15,7 +15,7 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const SUPABASE_TABLE = process.env.SUPABASE_TABLE || "reports";
-const SYNC_INTERVAL_SEC = Number(process.env.SYNC_INTERVAL_SEC || 10);
+const SYNC_INTERVAL_SEC = Number(process.env.SYNаC_INTERVAL_SEC || 10);
 const SUPABASE_RETENTION_MIN = Number(process.env.SUPABASE_RETENTION_MIN || 60); // delete synced rows older than N minutes
 const ADMIN_IDS = (process.env.ADMIN_IDS || "")
   .split(",")
@@ -626,10 +626,12 @@ bot.action(/adm:del:do:(.+)/, async (ctx) => {
 });
 
 bot.on("message_created", async (ctx) => {
-  console.log("message_created text=", text, "uid=", getUserId(ctx), "isAdmin=", isBotAdmin(ctx), "state=", adminState.get(getUserId(ctx)));
   const text = (ctx.message?.text || "").trim();
   if (!text) return;
 
+  console.log("message_created text=", text, "uid=", getUserId(ctx), "isAdmin=", isBotAdmin(ctx), "state=", adminState.get(getUserId(ctx)));
+
+  
   // команды не трогаем
   if (text.startsWith("/")) return;
 
