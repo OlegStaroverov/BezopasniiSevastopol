@@ -763,7 +763,31 @@ function formatReportShort(r) {
   ].filter(Boolean).join("\n");
 }
 
-notifyAdmins
+async function notifyAdmins(report) {
+  const ids = adminsForType(report.type);
+  if (!ids.length) return;
+
+  const p = report.payload || {};
+  const name = (p.name || p.fullName || p.fio || p.username || "пользователя").trim();
+
+  const keyboard = Keyboard.inlineKeyboard([
+    [Keyboard.button.callback("👀 Открыть", `adm:open:${report.id}`)],
+  ]);
+
+  const text = `📩 Поступило новое обращение от ${name}`;
+
+  for (const id of ids) {
+    const userId = Number(id);
+    if (!Number.isFinite(userId)) continue;
+    try {
+      await bot.api.sendMessageToUser(userId, text, { attachments: [keyboard] });
+    } catch (e) {
+      const msg = String(e.message || "");
+      if (msg.includes("403")) continue;
+      console.error("notifyAdmins error:", e.message);
+    }
+  }
+}
 
 async function pullFromSupabaseOnce() {
   // 1) взять новые
