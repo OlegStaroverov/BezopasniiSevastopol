@@ -62,7 +62,7 @@ async function supabaseFetch(path, { method = "GET", query = "", body = null, he
   return json;
 }
 
-// -------------------- Bot (ваш код почти без изменений) --------------------
+// -------------------- Bot --------------------
 if (!BOT_TOKEN || BOT_TOKEN === "PASTE_YOUR_TOKEN_HERE") {
   console.error("ОШИБКА: Токен бота не задан!");
   console.error("Добавьте токен в файл .env: BOT_TOKEN=ваш_токен_бота");
@@ -87,6 +87,11 @@ const SERVICE_TEXT =
   "Ответ будет направлен на указанный вами email.\n\n" +
   "Чтобы воспользоваться сервисом, перейдите в мини-приложение.\n" +
   "Кнопка для перехода находится внизу экрана и выделена синим цветом.";
+
+async function getTicketNoById(id) {
+  const rows = await dbAll(`SELECT ticket_no FROM reports WHERE id = ? LIMIT 1`, [id]);
+  return rows.length ? rows[0].ticket_no : null;
+}
 
 function formatReportForAdmin(report) {
   const typeMap = {
@@ -203,6 +208,41 @@ function formatDateTimeHuman(isoOrAny) {
   return `${hh}:${mm} ${day}.${mon}.${year}`;
 }
 
+function displayAdminName(ctx) {
+  const u = ctx.user || ctx.from || {};
+  return u.name || u.username || u.first_name || `ID ${u.user_id || u.id || "?"}`;
+}
+
+async function notifyStatusChange(ctx, reportId, newStatus) {
+  const rows = await dbAll(`SELECT id, ticket_no, type FROM reports WHERE id = ? LIMIT 1`, [reportId]);
+  if (!rows.length) return;
+
+  const r = rows[0];
+  const statusText = { in_progress: "взял(а) в работу", closed: "закрыл(а)" }[newStatus] || newStatus;
+  const adminName = displayAdminName(ctx);
+
+  // получатели: профильные + общий
+  const targets = new Set([...adminsForType(r.type), ...ADMIN_IDS].map(String));
+
+  // не слать самому себе
+  const selfId = String(ctx.user?.user_id || ctx.from?.id || "");
+  if (selfId) targets.delete(selfId);
+
+  const msg = `🧑‍💼 ${adminName} ${statusText} обращение 🆔 ${r.ticket_no}`;
+
+  for (const id of targets) {
+    const uid = Number(id);
+    if (!Number.isFinite(uid)) continue;
+    try {
+      await bot.api.sendMessageToUser(uid, msg);
+    } catch (e) {
+      const m = String(e.message || "");
+      if (m.includes("403")) continue;
+      console.error("notifyStatusChange error:", e.message);
+    }
+  }
+}
+
 bot.on("bot_started", async (ctx) => {
   const userId = ctx.user?.user_id;
   const chatId = ctx.chat_id;
@@ -210,14 +250,14 @@ bot.on("bot_started", async (ctx) => {
   if (userId && !seenUsers.has(userId)) seenUsers.add(userId);
 
   try {
-    await ctx.reply(SERVICE_TEXT);
-    console.log(`Ответ на кнопку "Начать" отправлен в чат ${chatId}`);
-
-      // Если это админ — сразу открыть меню
+    // админам — сразу меню, без простыней
     if (isBotAdmin(ctx)) {
       await sendAdminMenu(ctx);
+      return;
     }
-    
+
+    // обычным — как было
+    await ctx.reply(SERVICE_TEXT);
   } catch (error) {
     console.error("Ошибка при отправке:", error.message);
   }
@@ -228,27 +268,20 @@ bot.command("start", async (ctx) => {
   if (userId && !seenUsers.has(userId)) seenUsers.add(userId);
 
   try {
-    await ctx.reply(SERVICE_TEXT);
-    console.log(`Команда /start от пользователя ${userId}`);
-    // Если это админ — сразу открыть меню
     if (isBotAdmin(ctx)) {
       await sendAdminMenu(ctx);
+      return;
     }
-    
+
+    await ctx.reply(SERVICE_TEXT);
   } catch (error) {
     console.error("Ошибка:", error.message);
   }
 });
 
 bot.command("id", async (ctx) => {
-  const uid1 = ctx.user?.user_id;
-  const uid2 = ctx.from?.id;
-  const chatId = ctx.chat_id;
-  await ctx.reply(
-    `ID пользователя (ctx.user.user_id): ${uid1 ?? "нет"}\n` +
-    `ID from (ctx.from.id): ${uid2 ?? "нет"}\n` +
-    `ID чата (ctx.chat_id): ${chatId ?? "нет"}`
-  );
+  const uid = ctx.user?.user_id || ctx.from?.id;
+  await ctx.reply(`Ваш ID: ${uid ?? "не определён"}`);
 });
 
 // -------------------- Admin UI in bot --------------------
@@ -306,8 +339,7 @@ async function sendReportCard(ctx, id) {
 
   const kb = Keyboard.inlineKeyboard([
     [
-      Keyboard.button.callback("✅ В работу", `adm:take:${r.id}`),
-      Keyboard.button.callback("🏁 Закрыть", `adm:close:${r.id}`),
+      Keyboard.button.callback("✅ Взять в работу", `adm:take:${r.id}`),
     ],
   ]);
 
@@ -360,8 +392,8 @@ bot.action(/adm:list:([^:]+):([^:]+):(\d+)/, async (ctx) => {
   if (!rows.length) return ctx.reply("Пусто.");
 
   const lines = rows.map((r, i) =>
-    `${offset + i + 1}. №${r.ticket_no} — ${typeааTitle(r.type)} — ${formatDateTimeHuman(r.timestamp)}`
-  );а
+    `${offset + i + 1}. 🆔 ${r.ticket_no} — ${typeTitle(r.type)} — ${formatDateTimeHuman(r.timestamp)}`
+  );  
 
   const nav = [];
   if (page > 0) nav.push(Keyboard.button.callback("⬅️ Назад", `adm:list:${type}:${status}:${page - 1}`));
@@ -395,16 +427,43 @@ bot.action(/adm:take:(.+)/, async (ctx) => {
   if (!isBotAdmin(ctx)) return;
   const id = String(ctx.match?.[1] || "");
   if (!id) return;
+
   await setLocalStatus(id, "in_progress");
-  await ctx.reply(`✅ Взято в работу: ${id}`);
+  await notifyStatusChange(ctx, id, "in_progress");
+  const tno = await getTicketNoById(id);
+  await ctx.reply(`✅ Взято в работу: 🆔 ${tno ?? "?"}`);
+  await sendReportCard(ctx, id);
 });
 
 bot.action(/adm:close:(.+)/, async (ctx) => {
   if (!isBotAdmin(ctx)) return;
   const id = String(ctx.match?.[1] || "");
   if (!id) return;
+
   await setLocalStatus(id, "closed");
-  await ctx.reply(`🏁 Закрыто: ${id}`);
+  await notifyStatusChange(ctx, id, "closed");
+  const tno = await getTicketNoById(id);
+  await ctx.reply(`🏁 Закрыто: 🆔 ${tno ?? "?"}`);
+  await sendReportCard(ctx, id);
+});
+
+bot.on("message_created", async (ctx) => {
+  const text = (ctx.message?.text || "").trim();
+
+  // команды не трогаем
+  if (text.startsWith("/")) return;
+
+  // если админ — открываем админку
+  if (isBotAdmin(ctx)) {
+    try {
+      await sendAdminMenu(ctx);
+    } catch (e) {
+      console.error("admin auto-menu error:", e.message);
+    }
+    return;
+  }
+
+  // обычным пользователям — ничего (или можешь оставить твою подсказку)
 });
 
 bot.on("message_created", async (ctx) => {
@@ -525,8 +584,6 @@ async function notifyAdmins(report) {
   const keyboard = Keyboard.inlineKeyboard([
     [
       Keyboard.button.callback("👀 Открыть", `adm:open:${report.id}`),
-      Keyboard.button.callback("✅ В работу", `adm:take:${report.id}`),
-      Keyboard.button.callback("🏁 Закрыть", `adm:close:${report.id}`),
     ],
   ]);
 
@@ -669,7 +726,7 @@ async function initDb() {
       timestamp TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
       user_json TEXT,
-      payload_json TEXT
+      payload_json TEXT,
       ticket_no INTEGER
     );
   `);
@@ -682,7 +739,6 @@ async function initDb() {
     );
   `);
 
-  await dbRun(`ALTER TABLE reports ADD COLUMN ticket_no INTEGER;`).catch(() => {});
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_reports_ticket_no ON reports(ticket_no);`);
 }
 
