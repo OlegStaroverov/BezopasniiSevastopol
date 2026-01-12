@@ -72,6 +72,12 @@ if (!BOT_TOKEN || BOT_TOKEN === "PASTE_YOUR_TOKEN_HERE") {
 const bot = new Bot(BOT_TOKEN);
 const seenUsers = new Set();
 
+function getSearchKey(ctx) {
+  // самый стабильный ключ для “следующего сообщения” — чат
+  // (в MAX текст и кнопки чаще всего приходят в одном chat_id)
+  return String(ctx?.chat_id || ctx?.from?.id || ctx?.user?.user_id || "");
+}
+
 const adminState = new Map(); 
 // adminState.set(userId, { mode: "search" })
 
@@ -97,7 +103,8 @@ async function getTicketNoById(id) {
 }
 
 function getUserId(ctx) {
-  return String(ctx.user?.user_id || ctx.from?.id || ctx.chat_id || "");
+  const id = ctx?.from?.id ?? ctx?.user?.user_id;
+  return id ? String(id) : "";
 }
 
 function formatReportForAdmin(report) {
@@ -321,72 +328,24 @@ bot.command("id", async (ctx) => {
 bot.command("search", async (ctx) => {
   if (!isBotAdmin(ctx)) return;
 
-  const text = (ctx.message?.text || "").trim();
-  const q = text.replace(/^\/search\s*/i, "").trim();
-  if (!q) {
-    return ctx.reply("Напишите: /search что_ищем\nНапример: /search 12 или /search +7999 или /search ivan@mail.ru");
+  const msg = (ctx.message?.text || "").trim();
+  const q = msg.replace(/^\/search\s*/i, "").trim();
+
+  // если админ сразу ввёл запрос: /search 123
+  if (q) {
+    await runSearchAndReply(ctx, q);
+    return;
   }
 
-  // если запрос число — ищем и по ticket_no тоже
-  const qNum = Number(q);
-  const like = `%${q}%`;
+  // если просто /search — включаем режим ожидания
+  const key = getSearchKey(ctx);
+  adminState.set(key, { mode: "search" });
 
-  // ограничение для НЕ глобального админа: только его категории
-  // категории вычислим так: те type, где он есть в <TYPE>_ADMINS
-  let typeFilter = null;
-  if (!isGlobalAdmin(ctx)) {
-    const uid = String(ctx.user?.user_id || ctx.from?.id || "");
-    const possibleTypes = ["security","wifi","graffiti","argus","appointment"];
-    const myTypes = possibleTypes.filter((t) => {
-      const env = process.env[`${t.toUpperCase()}_ADMINS`] || "";
-      return env.split(",").map(s=>s.trim()).filter(Boolean).includes(uid);
-    });
-    if (myTypes.length) typeFilter = myTypes;
-  }
-
-  let where = `
-    (
-      CAST(ticket_no AS TEXT) = ?
-      OR id LIKE ?
-      OR user_json LIKE ?
-      OR payload_json LIKE ?
-    )
-  `;
-
-  const params = [String(q), like, like, like];
-
-  if (typeFilter && typeFilter.length) {
-    where = `(${where}) AND type IN (${typeFilter.map(()=>"?").join(",")})`;
-    params.push(...typeFilter);
-  }
-
-  const rows = await dbAll(
-    `SELECT id, ticket_no, type, status, timestamp FROM reports
-     WHERE ${where}
-     ORDER BY timestamp DESC
-     LIMIT 10`,
-    params
+  await ctx.reply(
+    "🔎 Поиск\n\n" +
+    "Напишите одним сообщением что искать: номер 🆔, имя, телефон, email или текст.\n" +
+    "Отмена: отмена"
   );
-
-  if (!rows.length) return ctx.reply("Ничего не найдено.");
-
-  const typeTitle = (t) => ({
-    security: "🚨 Безопасность",
-    wifi: "📶 Wi-Fi",
-    graffiti: "🎨 Граффити",
-    argus: "📷 Аргус",
-    appointment: "📅 Запись",
-  }[t] || t);
-
-  const lines = rows.map((r, i) =>
-    `${i+1}. 🆔 ${r.ticket_no} — ${typeTitle(r.type)} — ${r.status} — ${formatDateTimeHuman(r.timestamp)}`
-  );
-
-  const kb = Keyboard.inlineKeyboard(
-    rows.map((r) => [Keyboard.button.callback(`👀 Открыть 🆔 ${r.ticket_no}`, `adm:open:${r.id}`)])
-  );
-
-  await ctx.reply(`Результаты поиска (до 10):\n\n${lines.join("\n")}`, { attachments: [kb] });
 });
 
 // -------------------- Admin UI in bot --------------------
@@ -411,13 +370,13 @@ async function sendAdminMenu(ctx) {
 bot.action("adm:search:start", async (ctx) => {
   if (!isBotAdmin(ctx)) return;
 
-  const uid = getUserId(ctx);
-  adminState.set(uid, { mode: "search" });
+  const key = getSearchKey(ctx);
+  adminState.set(key, { mode: "search" });
 
   await ctx.reply(
     "🔎 Поиск\n\n" +
-    "Введите одним сообщением что искать: номер 🆔, имя, телефон, email или текст.\n" +
-    "Чтобы отменить — напишите: отмена"
+    "Напишите одним сообщением что искать: номер 🆔, имя, телефон, email или текст.\n" +
+    "Для выхода из поиска - отмена"
   );
 });
 
@@ -626,52 +585,46 @@ bot.action(/adm:del:do:(.+)/, async (ctx) => {
 });
 
 bot.on("message_created", async (ctx) => {
-
   const text = (ctx.message?.text || "").trim();
   if (!text) return;
 
-  console.log("message_created text=", text, "uid=", getUserId(ctx), "isAdmin=", isBotAdmin(ctx), "state=", adminState.get(getUserId(ctx)));
+  console.log("message_created:", { text, key: getSearchKey(ctx), state: adminState.get(getSearchKey(ctx)) });
 
   // команды не трогаем
   if (text.startsWith("/")) return;
 
-  const uid = getUserId(ctx);
+  const key = getSearchKey(ctx);
 
-  // --- если админ в режиме поиска ---
-  const st = adminState.get(uid);
+  // если админ в режиме поиска — это запрос
+  const st = adminState.get(key);
   if (st?.mode === "search" && isBotAdmin(ctx)) {
-    const q = text.trim();
+    const q = text;
 
     if (q.toLowerCase() === "отмена") {
-      adminState.delete(uid);
+      adminState.delete(key);
       await ctx.reply("Ок, поиск отменён.");
       await sendAdminMenu(ctx);
       return;
     }
 
-    adminState.delete(uid);
+    adminState.delete(key);
 
-    // запускаем поиск
     await runSearchAndReply(ctx, q);
-
-    // возвращаем меню
     await sendAdminMenu(ctx);
     return;
   }
 
   // админ — меню
   if (isBotAdmin(ctx)) {
-    try { await sendAdminMenu(ctx); } catch (e) {}
+    await sendAdminMenu(ctx);
     return;
   }
 
-  // пользователь — подсказка
-  try {
-    await ctx.reply(
-      "Основные функции сервиса доступны в мини-приложении.\n\n" +
-      "Перейдите в него по синей кнопке внизу экрана."
-    );
-  } catch (e) {}
+  // обычный пользователь — подсказка
+  await ctx.reply(
+    "Основные функции сервиса доступны в мини-приложении.\n\n" +
+    "Перейдите в него по синей кнопке внизу экрана."
+  );
 });
 
 bot.command("help", async (ctx) => {
