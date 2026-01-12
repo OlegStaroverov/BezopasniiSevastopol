@@ -1,4 +1,3 @@
-
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
@@ -185,9 +184,8 @@ function formatReportForAdmin(report) {
   }
 
   // ID (всегда)
-  if (report.ticket_no) lines.push(`№ ${report.ticket_no}`);
-  lines.push(`🆔 ID: ${report.id}`);
-
+  if (report.ticket_no) lines.push(`🆔 ${report.ticket_no}`);
+  
   return lines.join("\n").replace(/\n{3,}/g, "\n\n");
 }
 
@@ -214,6 +212,12 @@ bot.on("bot_started", async (ctx) => {
   try {
     await ctx.reply(SERVICE_TEXT);
     console.log(`Ответ на кнопку "Начать" отправлен в чат ${chatId}`);
+
+      // Если это админ — сразу открыть меню
+    if (isBotAdmin(ctx)) {
+      await sendAdminMenu(ctx);
+    }
+    
   } catch (error) {
     console.error("Ошибка при отправке:", error.message);
   }
@@ -226,9 +230,25 @@ bot.command("start", async (ctx) => {
   try {
     await ctx.reply(SERVICE_TEXT);
     console.log(`Команда /start от пользователя ${userId}`);
+    // Если это админ — сразу открыть меню
+    if (isBotAdmin(ctx)) {
+      await sendAdminMenu(ctx);
+    }
+    
   } catch (error) {
     console.error("Ошибка:", error.message);
   }
+});
+
+bot.command("id", async (ctx) => {
+  const uid1 = ctx.user?.user_id;
+  const uid2 = ctx.from?.id;
+  const chatId = ctx.chat_id;
+  await ctx.reply(
+    `ID пользователя (ctx.user.user_id): ${uid1 ?? "нет"}\n` +
+    `ID from (ctx.from.id): ${uid2 ?? "нет"}\n` +
+    `ID чата (ctx.chat_id): ${chatId ?? "нет"}`
+  );
 });
 
 // -------------------- Admin UI in bot --------------------
@@ -305,8 +325,8 @@ bot.action(/adm:list:([^:]+):([^:]+):(\d+)/, async (ctx) => {
   const type = String(ctx.match?.[1] || "all");
   const status = String(ctx.match?.[2] || "new");
   const page = Number(ctx.match?.[3] || 0);
-  const limit = 10;
-  const offset = page * limit;
+  const pageSize = 10;
+  const offset = page * pageSize;
 
   const statusTitle = { new: "🆕 Новые", in_progress: "🛠 В работе", closed: "✅ Закрытые" }[status] || status;
   const typeTitle = (t) => ({
@@ -326,24 +346,34 @@ bot.action(/adm:list:([^:]+):([^:]+):(\d+)/, async (ctx) => {
     params.push(type);
   }
 
-  const rows = await dbAll(
-    `SELECT id,ticket_no,type,subtype,status,timestamp FROM reports ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
-    [...params, limit, offset]
+  const rowsPlus = await dbAll(
+    `SELECT id,ticket_no,type,subtype,status,timestamp
+     FROM reports ${where}
+     ORDER BY timestamp DESC
+     LIMIT ? OFFSET ?`,
+    [...params, pageSize + 1, offset]
   );
+  
+  const hasNext = rowsPlus.length > pageSize;
+  const rows = rowsPlus.slice(0, pageSize);
 
   if (!rows.length) return ctx.reply("Пусто.");
 
   const lines = rows.map((r, i) =>
-    `${offset + i + 1}. №${r.ticket_no} — ${typeTitle(r.type)} — ${formatDateTimeHuman(r.timestamp)}`
-  );
+    `${offset + i + 1}. №${r.ticket_no} — ${typeааTitle(r.type)} — ${formatDateTimeHuman(r.timestamp)}`
+  );а
 
   const nav = [];
   if (page > 0) nav.push(Keyboard.button.callback("⬅️ Назад", `adm:list:${type}:${status}:${page - 1}`));
-  nav.push(Keyboard.button.callback("➡️ Далее", `adm:list:${type}:${status}:${page + 1}`));
+  if (hasNext) nav.push(Keyboard.button.callback("➡️ Далее", `adm:list:${type}:${status}:${page + 1}`));
 
+  const kbRows = rows.map((r) => [
+    Keyboard.button.callback(`👀 Открыть №${r.ticket_no ?? "?"}`, `adm:open:${r.id}`)
+  ]);
+  
   const kb = Keyboard.inlineKeyboard([
-    ...rows.map((r) => [Keyboard.button.callback(`👀 Открыть ${r.id}`, `adm:open:${r.id}`)]),
-    nav,
+    ...kbRows,
+    ...(nav.length ? [nav] : []),
   ]);
 
   await ctx.reply(`${typeTitle(type)} / ${statusTitle}\nСтраница: ${page + 1}\n\n${lines.join("\n\n")}`, { attachments: [kb] });
@@ -549,6 +579,7 @@ async function pullFromSupabaseOnce() {
       // 4) уведомить админов
       await notifyAdmins({
         id: local.id,
+        ticket_no: local.ticket_no,
         type: local.type,
         subtype: local.subtype,
         status: local.status,            
