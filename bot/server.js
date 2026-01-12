@@ -306,9 +306,10 @@ bot.on("bot_started", async (ctx) => {
 });
 
 bot.command("start", async (ctx) => {
+  if (isBotAdmin(ctx)) { try { await upsertAdminPeer(ctx); } catch (_) {} }
   const userId = ctx.from?.id;
   if (userId && !seenUsers.has(userId)) seenUsers.add(userId);
-
+  
   try {
     if (isBotAdmin(ctx)) {
       await sendAdminMenu(ctx);
@@ -421,6 +422,7 @@ async function sendReportCard(ctx, id) {
 
 bot.command("admin", async (ctx) => {
   if (!isBotAdmin(ctx)) return ctx.reply("Нет доступа.");
+  try { await upsertAdminPeer(ctx); } catch (_) {}
   return sendAdminMenu(ctx);
 });
 
@@ -564,6 +566,10 @@ bot.action(/adm:del:do:(.+)/, async (ctx) => {
 bot.on("message_created", async (ctx) => {
   const text = (ctx.message?.text || "").trim();
   if (!text) return;
+
+  if (isBotAdmin(ctx)) {
+  try { await upsertAdminPeer(ctx); } catch (_) {}
+}
 
   console.log("message_created:", { text, key: getSearchKey(ctx), state: adminState.get(getSearchKey(ctx)) });
 
@@ -716,12 +722,37 @@ async function notifyAdmins(report) {
   for (const id of ids) {
     const userId = Number(id);
     if (!Number.isFinite(userId)) continue;
+
+    // 1) пробуем в user
     try {
       await bot.api.sendMessageToUser(userId, text, { attachments: [keyboard] });
+      continue;
     } catch (e) {
-      const msg = String(e.message || "");
+      const msg = String(e?.message || "");
+
+      // 403 — просто пропускаем как раньше
       if (msg.includes("403")) continue;
-      console.error("notifyAdmins error:", e.message);
+
+      // если не 404 — это реальная ошибка, логируем
+      const is404 = msg.includes("404") || msg.toLowerCase().includes("not found");
+      if (!is404) {
+        console.error("notifyAdmins error:", msg);
+        continue;
+      }
+    }
+
+    // 2) fallback: шлём в chat_id
+    try {
+      const chatId = await getAdminChatId(String(userId));
+      if (!chatId) {
+        console.error("notifyAdmins fallback: no chat_id saved for user", userId);
+        continue;
+      }
+
+      // ВАЖНО: если в твоей версии API метод иначе называется — скажи, подстрою.
+      await bot.api.sendMessageToChat(Number(chatId), text, { attachments: [keyboard] });
+    } catch (e2) {
+      console.error("notifyAdmins fallback error:", String(e2?.message || e2));
     }
   }
 }
@@ -857,6 +888,14 @@ async function initDb() {
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_reports_type_time ON reports(type, timestamp);`);
 
   await dbRun(`
+    CREATE TABLE IF NOT EXISTS admin_peers (
+      user_id TEXT PRIMARY KEY,
+      chat_id TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+  `);
+  
+  await dbRun(`
     CREATE TABLE IF NOT EXISTS counters (
       name TEXT PRIMARY KEY,
       value INTEGER NOT NULL
@@ -864,6 +903,25 @@ async function initDb() {
   `);
 
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_reports_ticket_no ON reports(ticket_no);`);
+}
+
+async function upsertAdminPeer(ctx) {
+  const userId = String(ctx?.user?.user_id || ctx?.from?.id || "");
+  const chatId = String(ctx?.chat_id || "");
+  if (!userId || !chatId) return;
+
+  const updatedAt = new Date().toISOString();
+  await dbRun(
+    `INSERT INTO admin_peers (user_id, chat_id, updatedAt)
+     VALUES (?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET chat_id=excluded.chat_id, updatedAt=excluded.updatedAt`,
+    [userId, chatId, updatedAt]
+  );
+}
+
+async function getAdminChatId(userId) {
+  const rows = await dbAll(`SELECT chat_id FROM admin_peers WHERE user_id = ? LIMIT 1`, [String(userId)]);
+  return rows.length ? String(rows[0].chat_id) : null;
 }
 
 async function nextTicketNo() {
