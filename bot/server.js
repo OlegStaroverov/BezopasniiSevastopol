@@ -1,3 +1,4 @@
+
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
@@ -325,29 +326,6 @@ bot.command("id", async (ctx) => {
   await ctx.reply(`Ваш ID: ${uid ?? "не определён"}`);
 });
 
-bot.command("search", async (ctx) => {
-  if (!isBotAdmin(ctx)) return;
-
-  const msg = (ctx.message?.text || "").trim();
-  const q = msg.replace(/^\/search\s*/i, "").trim();
-
-  // если админ сразу ввёл запрос: /search 123
-  if (q) {
-    await runSearchAndReply(ctx, q);
-    return;
-  }
-
-  // если просто /search — включаем режим ожидания
-  const key = getSearchKey(ctx);
-  adminState.set(key, { mode: "search" });
-
-  await ctx.reply(
-    "🔎 Поиск\n\n" +
-    "Напишите одним сообщением что искать: номер 🆔, имя, телефон, email или текст.\n" +
-    "Отмена: отмена"
-  );
-});
-
 // -------------------- Admin UI in bot --------------------
 function isBotAdmin(ctx) {
   const uid = ctx.user?.user_id || ctx.from?.id;
@@ -362,7 +340,6 @@ async function sendAdminMenu(ctx) {
     [Keyboard.button.callback("📷 Аргус", "adm:type:argus")],
     [Keyboard.button.callback("📅 Запись", "adm:type:appointment")],
     [Keyboard.button.callback("📦 Все категории", "adm:type:all")],
-    [Keyboard.button.callback("🔎 Поиск", "adm:search:start")], 
   ]);
   await ctx.reply("Админ-панель. Выберите категорию:", { attachments: [keyboard] });
 }
