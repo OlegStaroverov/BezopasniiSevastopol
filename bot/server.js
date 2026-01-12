@@ -97,7 +97,7 @@ async function getTicketNoById(id) {
 }
 
 function getUserId(ctx) {
-  return String(ctx.user?.user_id || ctx.from?.id || "");
+  return String(ctx.user?.user_id || ctx.from?.id || ctx.chat_id || "");
 }
 
 function formatReportForAdmin(report) {
@@ -176,7 +176,7 @@ function formatReportForAdmin(report) {
   if (report.type === "appointment") {
     const apptDate = p.appointmentDate || p.appointment_date || p.date || p.selectedDate || p.visitDate || "";
     if (apptDate) {
-      lines.push(`📅 Запись на дату: ${apptDate}`);
+      lines.push(`📅 Запись на дату: ${formatDateOnlyHuman(apptDate)}`);
       lines.push("");
     }
   }
@@ -227,6 +227,14 @@ function formatDateTimeHuman(isoOrAny) {
   const hh = pad(d.getHours());
   const mm = pad(d.getMinutes());
   return `${hh}:${mm} ${day}.${mon}.${year}`;
+}
+
+function formatDateOnlyHuman(any) {
+  const d = new Date(any);
+  if (Number.isNaN(d.getTime())) return String(any);
+
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
 }
 
 function displayAdminName(ctx) {
@@ -754,30 +762,7 @@ function formatReportShort(r) {
   ].filter(Boolean).join("\n");
 }
 
-async function notifyAdmins(report) {
-  const ids = adminsForType(report.type);
-  if (!ids.length) return;
-
-  const keyboard = Keyboard.inlineKeyboard([
-    [
-      Keyboard.button.callback("👀 Открыть", `adm:open:${report.id}`),
-    ],
-  ]);
-
-  for (const id of ids) {
-    const userId = Number(id);
-    if (!Number.isFinite(userId)) continue;
-    try {
-      await bot.api.sendMessageToUser(userId, formatReportForAdmin(report), {
-        attachments: [keyboard],
-      });
-    } catch (e) {
-      const msg = String(e.message || "");
-      if (msg.includes("403")) continue; // молча пропускаем невалидные id
-      console.error("notifyAdmins error:", e.message);
-    }
-  }
-}
+notifyAdmins
 
 async function pullFromSupabaseOnce() {
   // 1) взять новые
