@@ -461,7 +461,7 @@ async function upsertLocalReport(report) {
   // SQLite UPSERT
   await dbRun(
     `INSERT INTO reports (id,type,subtype,status,timestamp,updatedAt,user_json,payload_json, ticket_no)
-     VALUES (?,?,?,?,?,?,?,?)
+     VALUES (?,?,?,?,?,?,?,?,?)
      ON CONFLICT(id) DO UPDATE SET
        type=excluded.type,
        subtype=excluded.subtype,
