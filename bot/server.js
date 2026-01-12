@@ -128,15 +128,6 @@ function formatReportForAdmin(report) {
   // --- время ---
   const rawTime = p.datetime || p.dateTime || report.created_at || report.timestamp || "";
   const timeLine = rawTime ? formatDateTimeHuman(rawTime) : "";
-
-  // Для записи на приём — выбранная дата
-  if (report.type === "appointment") {
-    const apptDate = p.appointmentDate || p.appointment_date || p.date || p.selectedDate || p.visitDate || "";
-    if (apptDate) {
-      lines.push(`📅 Запись на дату: ${apptDate}`);
-      lines.push("");
-    }
-  }
   
   // --- место: адрес / гео / оба ---
   const address = p.address || p.addr || p.locationAddress || "";
@@ -181,6 +172,15 @@ function formatReportForAdmin(report) {
     lines.push("");
   }
 
+  // Для записи на приём — выбранная дата
+  if (report.type === "appointment") {
+    const apptDate = p.appointmentDate || p.appointment_date || p.date || p.selectedDate || p.visitDate || "";
+    if (apptDate) {
+      lines.push(`📅 Запись на дату: ${apptDate}`);
+      lines.push("");
+    }
+  }
+  
   // Местоположение
   if (address || geoLine) {
     lines.push("📍 Местоположение:");
