@@ -72,6 +72,9 @@ if (!BOT_TOKEN || BOT_TOKEN === "PASTE_YOUR_TOKEN_HERE") {
 const bot = new Bot(BOT_TOKEN);
 const seenUsers = new Set();
 
+const adminState = new Map(); 
+// adminState.set(userId, { mode: "search" })
+
 const SERVICE_TEXT =
   "Безопасный Севастополь — официальный сервис для приёма обращений жителей города.\n\n" +
   "Через мини-приложение вы можете:\n" +
@@ -91,6 +94,10 @@ const SERVICE_TEXT =
 async function getTicketNoById(id) {
   const rows = await dbAll(`SELECT ticket_no FROM reports WHERE id = ? LIMIT 1`, [id]);
   return rows.length ? rows[0].ticket_no : null;
+}
+
+function getUserId(ctx) {
+  return String(ctx.user?.user_id || ctx.from?.id || "");
 }
 
 function formatReportForAdmin(report) {
@@ -122,6 +129,15 @@ function formatReportForAdmin(report) {
   const rawTime = p.datetime || p.dateTime || report.created_at || report.timestamp || "";
   const timeLine = rawTime ? formatDateTimeHuman(rawTime) : "";
 
+  // Для записи на приём — выбранная дата
+  if (report.type === "appointment") {
+    const apptDate = p.appointmentDate || p.appointment_date || p.date || p.selectedDate || p.visitDate || "";
+    if (apptDate) {
+      lines.push(`📅 Запись на дату: ${apptDate}`);
+      lines.push("");
+    }
+  }
+  
   // --- место: адрес / гео / оба ---
   const address = p.address || p.addr || p.locationAddress || "";
   const lat =
@@ -374,9 +390,23 @@ async function sendAdminMenu(ctx) {
     [Keyboard.button.callback("📷 Аргус", "adm:type:argus")],
     [Keyboard.button.callback("📅 Запись", "adm:type:appointment")],
     [Keyboard.button.callback("📦 Все категории", "adm:type:all")],
+    [Keyboard.button.callback("🔎 Поиск", "adm:search:start")], 
   ]);
   await ctx.reply("Админ-панель. Выберите категорию:", { attachments: [keyboard] });
 }
+
+bot.action("adm:search:start", async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+
+  const uid = getUserId(ctx);
+  adminState.set(uid, { mode: "search" });
+
+  await ctx.reply(
+    "🔎 Поиск\n\n" +
+    "Введите одним сообщением что искать: номер 🆔, имя, телефон, email или текст.\n" +
+    "Чтобы отменить — напишите: отмена"
+  );
+});
 
 bot.action(/adm:type:(.+)/, async (ctx) => {
   if (!isBotAdmin(ctx)) return;
@@ -473,7 +503,7 @@ bot.action(/adm:list:([^:]+):([^:]+):(\d+)/, async (ctx) => {
   }
 
   const rowsPlus = await dbAll(
-    `SELECT id,ticket_no,type,subtype,status,timestamp
+    `SELECT id,ticket_no,type,subtype,status,timestamp,payload_json
      FROM reports ${where}
      ORDER BY timestamp DESC
      LIMIT ? OFFSET ?`,
@@ -485,9 +515,19 @@ bot.action(/adm:list:([^:]+):([^:]+):(\d+)/, async (ctx) => {
 
   if (!rows.length) return ctx.reply("Пусто.");
 
-  const lines = rows.map((r, i) =>
-    `${offset + i + 1}. 🆔 ${r.ticket_no} — ${typeTitle(r.type)} — ${formatDateTimeHuman(r.timestamp)}`
-  );  
+  const lines = rows.map((r, i) => {
+    const p = r.payload_json ? safeParse(r.payload_json) : null;
+    const name = (p?.name || p?.fullName || p?.fio || p?.username || "").trim();
+    const email = (p?.email || p?.mail || p?.contactEmail || "").trim();
+    const dt = formatDateTimeHuman(r.timestamp);
+  
+    const parts = [];
+    parts.push(`${offset + i + 1}. 🆔 ${r.ticket_no}`);
+    if (name) parts.push(`👤 ${name}`);
+    if (email) parts.push(`✉️ ${email}`);
+    parts.push(`🕒 ${dt}`);
+    return parts.join("\n");
+  });
 
   const nav = [];
   if (page > 0) nav.push(Keyboard.button.callback("⬅️ Назад", `adm:list:${type}:${status}:${page - 1}`));
@@ -526,6 +566,7 @@ bot.action(/adm:take:(.+)/, async (ctx) => {
   await notifyStatusChange(ctx, id, "in_progress");
   const tno = await getTicketNoById(id);
   await ctx.reply(`✅ Взято в работу: 🆔 ${tno ?? "?"}`);
+  await sendAdminMenu(ctx);
 });
 
 bot.action(/adm:close:(.+)/, async (ctx) => {
@@ -537,6 +578,7 @@ bot.action(/adm:close:(.+)/, async (ctx) => {
   await notifyStatusChange(ctx, id, "closed");
   const tno = await getTicketNoById(id);
   await ctx.reply(`🏁 Закрыто: 🆔 ${tno ?? "?"}`);
+  await sendAdminMenu(ctx);
 });
 
 bot.action(/adm:del:ask:(.+)/, async (ctx) => {
@@ -571,30 +613,49 @@ bot.action(/adm:del:do:(.+)/, async (ctx) => {
 });
 
 bot.on("message_created", async (ctx) => {
-  const messageText = ctx.message?.text;
   const text = (ctx.message?.text || "").trim();
+  if (!text) return;
 
-  // если это команда или похоже на команду — НЕ открываем меню
+  // команды не трогаем
   if (text.startsWith("/")) return;
 
-  // если админ — открываем админку
-  if (isBotAdmin(ctx)) {
-    try {
+  const uid = getUserId(ctx);
+
+  // --- если админ в режиме поиска ---
+  const st = adminState.get(uid);
+  if (st?.mode === "search" && isBotAdmin(ctx)) {
+    const q = text.trim();
+
+    if (q.toLowerCase() === "отмена") {
+      adminState.delete(uid);
+      await ctx.reply("Ок, поиск отменён.");
       await sendAdminMenu(ctx);
-    } catch (e) {
-      console.error("admin auto-menu error:", e.message);
+      return;
     }
+
+    adminState.delete(uid);
+
+    // запускаем поиск
+    await runSearchAndReply(ctx, q);
+
+    // возвращаем меню
+    await sendAdminMenu(ctx);
     return;
   }
 
+  // админ — меню
+  if (isBotAdmin(ctx)) {
+    try { await sendAdminMenu(ctx); } catch (e) {}
+    return;
+  }
+
+  // пользователь — подсказка
   try {
     await ctx.reply(
       "Основные функции сервиса доступны в мини-приложении.\n\n" +
       "Перейдите в него по синей кнопке внизу экрана."
     );
-  } catch (error) {
-    console.error("Ошибка:", error.message);
-  }
+  } catch (e) {}
 });
 
 bot.command("help", async (ctx) => {
@@ -983,6 +1044,74 @@ app.patch("/api/reports/:id/status", requireAdmin, async (req, res) => {
 
 function safeParse(s) {
   try { return JSON.parse(s); } catch (_) { return null; }
+}
+
+async function runSearchAndReply(ctx, q) {
+  const uid = getUserId(ctx);
+  const isGlobal = ADMIN_IDS.includes(uid);
+
+  let typeFilter = null;
+  if (!isGlobal) {
+    const possibleTypes = ["security", "wifi", "graffiti", "argus", "appointment"];
+    const myTypes = possibleTypes.filter((t) => {
+      const env = process.env[`${t.toUpperCase()}_ADMINS`] || "";
+      return env.split(",").map(s => s.trim()).filter(Boolean).includes(uid);
+    });
+    if (myTypes.length) typeFilter = myTypes;
+  }
+
+  const like = `%${q}%`;
+
+  let where = `
+    (
+      CAST(ticket_no AS TEXT) = ?
+      OR id LIKE ?
+      OR payload_json LIKE ?
+      OR user_json LIKE ?
+    )
+  `;
+  const params = [String(q), like, like, like];
+
+  if (typeFilter && typeFilter.length) {
+    where = `(${where}) AND type IN (${typeFilter.map(() => "?").join(",")})`;
+    params.push(...typeFilter);
+  }
+
+  const rows = await dbAll(
+    `SELECT id, ticket_no, type, status, timestamp, payload_json
+     FROM reports
+     WHERE ${where}
+     ORDER BY timestamp DESC
+     LIMIT 10`,
+    params
+  );
+
+  if (!rows.length) {
+    await ctx.reply("Ничего не найдено.");
+    return;
+  }
+
+  const statusTitle = (s) => ({ new: "🆕 Новое", in_progress: "🛠 В работе", closed: "✅ Закрыто" }[s] || s);
+
+  const lines = rows.map((r, i) => {
+    const p = r.payload_json ? safeParse(r.payload_json) : null;
+    const name = (p?.name || p?.fullName || p?.fio || p?.username || "").trim();
+    const email = (p?.email || p?.mail || p?.contactEmail || "").trim();
+    const dt = formatDateTimeHuman(r.timestamp);
+
+    const parts = [];
+    parts.push(`${i + 1}. 🆔 ${r.ticket_no} — ${statusTitle(r.status)}`);
+    if (name) parts.push(`👤 ${name}`);
+    if (email) parts.push(`✉️ ${email}`);
+    parts.push(`🕒 ${dt}`);
+    return parts.join("\n");
+  });
+
+  const kb = Keyboard.inlineKeyboard(
+    rows.map((r) => [Keyboard.button.callback(`👀 Открыть 🆔 ${r.ticket_no}`, `adm:open:${r.id}`)])
+  );
+
+  await ctx.reply(`Результаты поиска (до 10):\n\n${lines.join("\n\n")}`, { attachments: [kb] });
 }
 
 // -------------------- Start everything --------------------
