@@ -194,6 +194,11 @@ function formatReportForAdmin(report) {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n");
 }
 
+function isGlobalAdmin(ctx) {
+  const uid = String(ctx.user?.user_id || ctx.from?.id || "");
+  return uid && ADMIN_IDS.includes(uid);
+}
+
 function formatDateTimeHuman(isoOrAny) {
   // Если пришло ISO типа 2026-01-11T20:04:49.182678+00:00
   const d = new Date(isoOrAny);
@@ -284,6 +289,77 @@ bot.command("id", async (ctx) => {
   await ctx.reply(`Ваш ID: ${uid ?? "не определён"}`);
 });
 
+bot.command("search", async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+
+  const text = (ctx.message?.text || "").trim();
+  const q = text.replace(/^\/search\s*/i, "").trim();
+  if (!q) {
+    return ctx.reply("Напишите: /search что_ищем\nНапример: /search 12 или /search +7999 или /search ivan@mail.ru");
+  }
+
+  // если запрос число — ищем и по ticket_no тоже
+  const qNum = Number(q);
+  const like = `%${q}%`;
+
+  // ограничение для НЕ глобального админа: только его категории
+  // категории вычислим так: те type, где он есть в <TYPE>_ADMINS
+  let typeFilter = null;
+  if (!isGlobalAdmin(ctx)) {
+    const uid = String(ctx.user?.user_id || ctx.from?.id || "");
+    const possibleTypes = ["security","wifi","graffiti","argus","appointment"];
+    const myTypes = possibleTypes.filter((t) => {
+      const env = process.env[`${t.toUpperCase()}_ADMINS`] || "";
+      return env.split(",").map(s=>s.trim()).filter(Boolean).includes(uid);
+    });
+    if (myTypes.length) typeFilter = myTypes;
+  }
+
+  let where = `
+    (
+      CAST(ticket_no AS TEXT) = ?
+      OR id LIKE ?
+      OR user_json LIKE ?
+      OR payload_json LIKE ?
+    )
+  `;
+
+  const params = [String(q), like, like, like];
+
+  if (typeFilter && typeFilter.length) {
+    where = `(${where}) AND type IN (${typeFilter.map(()=>"?").join(",")})`;
+    params.push(...typeFilter);
+  }
+
+  const rows = await dbAll(
+    `SELECT id, ticket_no, type, status, timestamp FROM reports
+     WHERE ${where}
+     ORDER BY timestamp DESC
+     LIMIT 10`,
+    params
+  );
+
+  if (!rows.length) return ctx.reply("Ничего не найдено.");
+
+  const typeTitle = (t) => ({
+    security: "🚨 Безопасность",
+    wifi: "📶 Wi-Fi",
+    graffiti: "🎨 Граффити",
+    argus: "📷 Аргус",
+    appointment: "📅 Запись",
+  }[t] || t);
+
+  const lines = rows.map((r, i) =>
+    `${i+1}. 🆔 ${r.ticket_no} — ${typeTitle(r.type)} — ${r.status} — ${formatDateTimeHuman(r.timestamp)}`
+  );
+
+  const kb = Keyboard.inlineKeyboard(
+    rows.map((r) => [Keyboard.button.callback(`👀 Открыть 🆔 ${r.ticket_no}`, `adm:open:${r.id}`)])
+  );
+
+  await ctx.reply(`Результаты поиска (до 10):\n\n${lines.join("\n")}`, { attachments: [kb] });
+});
+
 // -------------------- Admin UI in bot --------------------
 function isBotAdmin(ctx) {
   const uid = ctx.user?.user_id || ctx.from?.id;
@@ -320,6 +396,7 @@ bot.action(/adm:type:(.+)/, async (ctx) => {
 async function sendReportCard(ctx, id) {
   const rows = await dbAll(`SELECT * FROM reports WHERE id = ?`, [id]);
   if (!rows.length) return ctx.reply("Не найдено.");
+
   const r = rows[0];
   const payload = r.payload_json ? safeParse(r.payload_json) : null;
   const user = r.user_json ? safeParse(r.user_json) : null;
@@ -337,11 +414,29 @@ async function sendReportCard(ctx, id) {
 
   const text = formatReportForAdmin(report);
 
-  const kb = Keyboard.inlineKeyboard([
-    [
-      Keyboard.button.callback("✅ Взять в работу", `adm:take:${r.id}`),
-    ],
-  ]);
+  // Кнопки зависят от статуса
+  let kbRows = [];
+
+  if (r.status === "new") {
+    kbRows = [
+      [Keyboard.button.callback(`✅ Взять в работу 🆔 ${r.ticket_no}`, `adm:take:${r.id}`)],
+      [Keyboard.button.callback(`🏁 Закрыть 🆔 ${r.ticket_no}`, `adm:close:${r.id}`)],
+    ];
+  } else if (r.status === "in_progress") {
+    kbRows = [
+      [Keyboard.button.callback(`🏁 Закрыть 🆔 ${r.ticket_no}`, `adm:close:${r.id}`)],
+    ];
+  } else if (r.status === "closed") {
+    kbRows = [
+      [Keyboard.button.callback(`🗑 Удалить 🆔 ${r.ticket_no}`, `adm:del:ask:${r.id}`)],
+    ];
+  } else {
+    kbRows = [
+      [Keyboard.button.callback(`🏁 Закрыть 🆔 ${r.ticket_no}`, `adm:close:${r.id}`)],
+    ];
+  }
+
+  const kb = Keyboard.inlineKeyboard(kbRows);
 
   await ctx.reply(text, { attachments: [kb] });
 }
@@ -432,7 +527,6 @@ bot.action(/adm:take:(.+)/, async (ctx) => {
   await notifyStatusChange(ctx, id, "in_progress");
   const tno = await getTicketNoById(id);
   await ctx.reply(`✅ Взято в работу: 🆔 ${tno ?? "?"}`);
-  await sendReportCard(ctx, id);
 });
 
 bot.action(/adm:close:(.+)/, async (ctx) => {
@@ -444,7 +538,37 @@ bot.action(/adm:close:(.+)/, async (ctx) => {
   await notifyStatusChange(ctx, id, "closed");
   const tno = await getTicketNoById(id);
   await ctx.reply(`🏁 Закрыто: 🆔 ${tno ?? "?"}`);
-  await sendReportCard(ctx, id);
+});
+
+bot.action(/adm:del:ask:(.+)/, async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+  const id = String(ctx.match?.[1] || "");
+  if (!id) return;
+
+  const tno = await getTicketNoById(id);
+
+  const kb = Keyboard.inlineKeyboard([
+    [Keyboard.button.callback(`❌ Нет`, `adm:del:cancel:${id}`)],
+    [Keyboard.button.callback(`✅ Да, удалить 🆔 ${tno ?? "?"}`, `adm:del:do:${id}`)],
+  ]);
+
+  await ctx.reply(`Удалить обращение 🆔 ${tno ?? "?"}?`, { attachments: [kb] });
+});
+
+bot.action(/adm:del:cancel:(.+)/, async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+  await ctx.reply("Ок, не удаляю.");
+});
+
+bot.action(/adm:del:do:(.+)/, async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+  const id = String(ctx.match?.[1] || "");
+  if (!id) return;
+
+  const tno = await getTicketNoById(id);
+
+  await dbRun(`DELETE FROM reports WHERE id = ?`, [id]);
+  await ctx.reply(`🗑 Удалено обращение 🆔 ${tno ?? "?"}`);
 });
 
 bot.on("message_created", async (ctx) => {
@@ -452,15 +576,6 @@ bot.on("message_created", async (ctx) => {
 
   // команды не трогаем
   if (messageText && messageText.startsWith("/")) return;
-
-  try {
-    await ctx.reply(
-      "Основные функции сервиса доступны в мини-приложении.\n\n" +
-      "Перейдите в него по синей кнопке внизу экрана."
-    );
-  } catch (error) {
-    console.error("Ошибка:", error.message);
-  }
 
   // если админ — открываем админку
   if (isBotAdmin(ctx)) {
@@ -470,6 +585,15 @@ bot.on("message_created", async (ctx) => {
       console.error("admin auto-menu error:", e.message);
     }
     return;
+  }
+
+  try {
+    await ctx.reply(
+      "Основные функции сервиса доступны в мини-приложении.\n\n" +
+      "Перейдите в него по синей кнопке внизу экрана."
+    );
+  } catch (error) {
+    console.error("Ошибка:", error.message);
   }
 });
 
