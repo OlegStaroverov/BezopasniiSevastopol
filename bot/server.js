@@ -151,6 +151,7 @@ bot.command("start", async (ctx) => {
   } catch (error) {
     console.error("Ошибка:", error.message);
   }
+});
 
 // -------------------- Admin UI in bot --------------------
 function isBotAdmin(ctx) {
@@ -256,7 +257,6 @@ bot.action(/adm:close:(.+)/, async (ctx) => {
   if (!id) return;
   await setLocalStatus(id, "closed");
   await ctx.reply(`🏁 Закрыто: ${id}`);
-});
 });
 
 bot.on("message_created", async (ctx) => {
