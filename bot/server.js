@@ -90,41 +90,118 @@ const SERVICE_TEXT =
 
 function formatReportForAdmin(report) {
   const typeMap = {
-    security: "🚨 Безопасность",
-    wifi: "📶 Wi-Fi",
-    graffiti: "🎨 Граффити",
-    argus: "📷 Аргус",
-    appointment: "📅 Запись на прием в департамент",
-    unknown: "❓ Другое"
+    security: { title: "🛡 Обращение — Безопасность" },
+    wifi: { title: "🌐 Обращение — Wi-Fi" },
+    graffiti: { title: "🎨 Обращение — Граффити" },
+    argus: { title: "📷 Обращение — Аргус" },
+    appointment: { title: "📅 Обращение — Запись на приём" },
   };
 
   const statusMap = {
     new: "🆕 Новое",
     in_progress: "🛠 В работе",
-    closed: "✅ Закрыто"
+    closed: "✅ Закрыто",
   };
 
   const p = report.payload || {};
 
-  const statusTitle = statusMap[report.status] || report.status;
-  let text = `📝 Обращение (${statusTitle})\n\n`;
+  // --- вытаскиваем контакты из разных возможных ключей ---
+  const name =
+    p.name || p.fullName || p.fio || p.username || "";
+  const phone =
+    p.phone || p.tel || p.contactPhone || "";
+  const email =
+    p.email || p.mail || p.contactEmail || "";
 
-  text += `📌 Тип: ${typeMap[report.type] || report.type}\n`;
-  text += `📍 Адрес: ${p.address || "—"}\n`;
-  text += `🕒 Время: ${p.datetime || report.created_at}\n\n`;
+  // --- время ---
+  const rawTime = p.datetime || p.dateTime || report.created_at || report.timestamp || "";
+  const timeLine = rawTime ? formatDateTimeHuman(rawTime) : "";
 
-  if (p.description) {
-    text += `🗒 Описание:\n${p.description}\n\n`;
+  // --- место: адрес / гео / оба ---
+  const address = p.address || p.addr || p.locationAddress || "";
+  const lat =
+    p.lat ?? p.latitude ?? (p.geo && p.geo.lat);
+  const lng =
+    p.lng ?? p.longitude ?? (p.geo && p.geo.lng);
+
+  const geoLine =
+    (lat !== undefined && lng !== undefined)
+      ? `📡 Геолокация: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`
+      : "";
+
+  // --- описание ---
+  const description =
+    p.description || p.problem || p.text || p.message || "";
+
+  // --- медиа (пока только подсчёт по метаданным) ---
+  const media = Array.isArray(p.media) ? p.media : [];
+  const photos = media.filter((m) => String(m.type || "").startsWith("image/")).length;
+  const videos = media.filter((m) => String(m.type || "").startsWith("video/")).length;
+
+  // --- заголовки ---
+  const header = (typeMap[report.type]?.title) || `📝 Обращение — ${String(report.type || "Другое")}`;
+  const statusTitle = statusMap[report.status] || ""; // чтобы не показывать "undefined"
+
+  const lines = [];
+
+  lines.push(header);
+  if (statusTitle) lines.push(`📊 Статус: ${statusTitle}`);
+  lines.push(""); // пустая строка
+
+  // Контакты
+  if (name) lines.push(`👤 ${name}`);
+  if (phone) lines.push(`📞 ${phone}`);
+  if (email) lines.push(`✉️ ${email}`);
+  if (name || phone || email) lines.push("");
+
+  // Время
+  if (timeLine) {
+    lines.push(`🕒 ${timeLine}`);
+    lines.push("");
   }
 
-  if (p.contact) {
-    text += `☎️ Контакт: ${p.contact}\n`;
+  // Местоположение
+  if (address || geoLine) {
+    lines.push("📍 Местоположение:");
+    if (address) lines.push(address);
+    if (geoLine) lines.push(geoLine);
+    lines.push("");
   }
 
-  text += `📊 Статус: ${statusMap[report.status] || report.status}\n`;
-  text += `🆔 ID: ${report.id}`;
+  // Описание
+  if (description) {
+    lines.push("📝 Описание:");
+    lines.push(description);
+    lines.push("");
+  }
 
-  return text;
+  // Медиа
+  if (photos || videos) {
+    lines.push("📎 Медиа:");
+    if (photos) lines.push(`📷 Фото (${photos})`);
+    if (videos) lines.push(`🎥 Видео (${videos})`);
+    lines.push("");
+  }
+
+  // ID (всегда)
+  lines.push(`🆔 ID: ${report.id}`);
+  if (report.ticket_no) lines.push(`№ ${report.ticket_no}`);
+
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+function formatDateTimeHuman(isoOrAny) {
+  // Если пришло ISO типа 2026-01-11T20:04:49.182678+00:00
+  const d = new Date(isoOrAny);
+  if (Number.isNaN(d.getTime())) return String(isoOrAny);
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = pad(d.getDate());
+  const mon = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  return `${hh}:${mm} ${day}.${mon}.${year}`;
 }
 
 bot.on("bot_started", async (ctx) => {
@@ -161,14 +238,30 @@ function isBotAdmin(ctx) {
 
 async function sendAdminMenu(ctx) {
   const keyboard = Keyboard.inlineKeyboard([
+    [Keyboard.button.callback("🚨 Безопасность", "adm:type:security")],
+    [Keyboard.button.callback("📶 Wi-Fi", "adm:type:wifi")],
+    [Keyboard.button.callback("🎨 Граффити", "adm:type:graffiti")],
+    [Keyboard.button.callback("📷 Аргус", "adm:type:argus")],
+    [Keyboard.button.callback("📅 Запись", "adm:type:appointment")],
+    [Keyboard.button.callback("📦 Все категории", "adm:type:all")],
+  ]);
+  await ctx.reply("Админ-панель. Выберите категорию:", { attachments: [keyboard] });
+}
+
+bot.action(/adm:type:(.+)/, async (ctx) => {
+  if (!isBotAdmin(ctx)) return;
+  const type = String(ctx.match?.[1] || "all");
+
+  const kb = Keyboard.inlineKeyboard([
     [
-      Keyboard.button.callback("🆕 Новые", "adm:list:new"),
-      Keyboard.button.callback("✅ В работе", "adm:list:in_progress"),
-      Keyboard.button.callback("🏁 Закрытые", "adm:list:closed"),
+      Keyboard.button.callback("🆕 Новые", `adm:list:${type}:new:0`),
+      Keyboard.button.callback("🛠 В работе", `adm:list:${type}:in_progress:0`),
+      Keyboard.button.callback("✅ Закрытые", `adm:list:${type}:closed:0`),
     ],
   ]);
-  await ctx.reply("Админ-панель. Выберите раздел:", { attachments: [keyboard] });
-}
+
+  await ctx.reply("Выберите статус:", { attachments: [kb] });
+});
 
 async function sendReportCard(ctx, id) {
   const rows = await dbAll(`SELECT * FROM reports WHERE id = ?`, [id]);
@@ -204,31 +297,54 @@ bot.command("admin", async (ctx) => {
   return sendAdminMenu(ctx);
 });
 
-bot.action(/adm:list:(.+)/, async (ctx) => {
+bot.action(/adm:list:([^:]+):([^:]+):(\d+)/, async (ctx) => {
   if (!isBotAdmin(ctx)) return;
-  const status = String(ctx.match?.[1] || "");
-  const rows = await dbAll(
-    `SELECT id,type,subtype,status,timestamp FROM reports WHERE status = ? ORDER BY timestamp DESC LIMIT 10`,
-    [status]
-  );
-  if (!rows.length) return ctx.reply("Пусто.");
 
+  const type = String(ctx.match?.[1] || "all");
+  const status = String(ctx.match?.[2] || "new");
+  const page = Number(ctx.match?.[3] || 0);
+  const limit = 10;
+  const offset = page * limit;
+
+  const statusTitle = { new: "🆕 Новые", in_progress: "🛠 В работе", closed: "✅ Закрытые" }[status] || status;
   const typeTitle = (t) => ({
     security: "🚨 Безопасность",
     wifi: "📶 Wi-Fi",
     graffiti: "🎨 Граффити",
     argus: "📷 Аргус",
     appointment: "📅 Запись",
+    all: "📦 Все категории",
   }[t] || t);
-  
-  const lines = rows.map((r, i) =>
-  `${i + 1}. ${typeTitle(r.type)} — ${r.timestamp}\n   🆔 ${r.id}`
-);
-  const kb = Keyboard.inlineKeyboard(
-    rows.map((r) => [Keyboard.button.callback(`Открыть ${r.id}`, `adm:open:${r.id}`)])
+
+  let where = "WHERE status = ?";
+  const params = [status];
+
+  if (type !== "all") {
+    where += " AND type = ?";
+    params.push(type);
+  }
+
+  const rows = await dbAll(
+    `SELECT id,type,subtype,status,timestamp FROM reports ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
   );
-  const statusTitle = { new: "🆕 Новые", in_progress: "🛠 В работе", closed: "✅ Закрытые" }[status] || status;
-  await ctx.reply(`${statusTitle} — последние 10:\n\n${lines.join("\n")}`, { attachments: [kb] });
+
+  if (!rows.length) return ctx.reply("Пусто.");
+
+  const lines = rows.map((r, i) =>
+    `${offset + i + 1}. ${typeTitle(r.type)} — ${formatDateTimeHuman(r.timestamp)}\n   🆔 ${r.id}`
+  );
+
+  const nav = [];
+  if (page > 0) nav.push(Keyboard.button.callback("⬅️ Назад", `adm:list:${type}:${status}:${page - 1}`));
+  nav.push(Keyboard.button.callback("➡️ Далее", `adm:list:${type}:${status}:${page + 1}`));
+
+  const kb = Keyboard.inlineKeyboard([
+    ...rows.map((r) => [Keyboard.button.callback(`👀 Открыть ${r.id}`, `adm:open:${r.id}`)]),
+    nav,
+  ]);
+
+  await ctx.reply(`${typeTitle(type)} / ${statusTitle}\nСтраница: ${page + 1}\n\n${lines.join("\n\n")}`, { attachments: [kb] });
 });
 
 bot.action(/adm:open:(.+)/, async (ctx) => {
@@ -384,6 +500,8 @@ async function notifyAdmins(report) {
         attachments: [keyboard],
       });
     } catch (e) {
+      const msg = String(e.message || "");
+      if (msg.includes("403")) continue; // молча пропускаем невалидные id
       console.error("notifyAdmins error:", e.message);
     }
   }
@@ -425,9 +543,11 @@ async function pullFromSupabaseOnce() {
         id: local.id,
         type: local.type,
         subtype: local.subtype,
-        timestamp: local.timestamp,
+        status: local.status,            
+        created_at: local.timestamp,     
         payload: r.payload ?? (r.payload_json ? JSON.parse(r.payload_json) : null),
-      });
+        user: r.user ?? null,
+      });        
 
       // 5) пометить synced
       await supabaseFetch(SUPABASE_TABLE, {
