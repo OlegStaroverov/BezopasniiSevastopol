@@ -420,7 +420,6 @@ async function sendReportCard(ctx, id) {
   if (r.status === "new") {
     kbRows = [
       [Keyboard.button.callback(`✅ Взять в работу 🆔 ${r.ticket_no}`, `adm:take:${r.id}`)],
-      [Keyboard.button.callback(`🏁 Закрыть 🆔 ${r.ticket_no}`, `adm:close:${r.id}`)],
     ];
   } else if (r.status === "in_progress") {
     kbRows = [
@@ -573,9 +572,10 @@ bot.action(/adm:del:do:(.+)/, async (ctx) => {
 
 bot.on("message_created", async (ctx) => {
   const messageText = ctx.message?.text;
+  const text = (ctx.message?.text || "").trim();
 
-  // команды не трогаем
-  if (messageText && messageText.startsWith("/")) return;
+  // если это команда или похоже на команду — НЕ открываем меню
+  if (text.startsWith("/")) return;
 
   // если админ — открываем админку
   if (isBotAdmin(ctx)) {
