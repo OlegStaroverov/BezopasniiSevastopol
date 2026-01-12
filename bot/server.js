@@ -91,8 +91,6 @@ const SERVICE_TEXT =
   "Чтобы воспользоваться сервисом, перейдите в мини-приложение.\n" +
   "Кнопка для перехода находится внизу экрана и выделена синим цветом.";
 
-const ALL_TYPES = ["security", "wifi", "graffiti", "argus", "appointment"];
-
 async function getTicketNoById(id) {
   const rows = await dbAll(`SELECT ticket_no FROM reports WHERE id = ? LIMIT 1`, [id]);
   return rows.length ? rows[0].ticket_no : null;
@@ -100,17 +98,6 @@ async function getTicketNoById(id) {
 
 function getUserId(ctx) {
   return String(ctx.user?.user_id || ctx.from?.id || ctx.chat_id || "");
-}
-
-function getActorId(ctx) {
-  // кто именно админ (для прав, профилей, сравнения с ADMIN_IDS)
-  return String(ctx.user?.user_id || ctx.from?.id || "");
-}
-
-function getStateKey(ctx) {
-  // ключ для режима поиска — максимально стабильный
-  // В MAX чаще всего стабилен chat_id для и текста, и кнопок
-  return String(ctx.chat_id || getActorId(ctx) || "");
 }
 
 function formatReportForAdmin(report) {
@@ -224,7 +211,7 @@ function formatReportForAdmin(report) {
 }
 
 function isGlobalAdmin(ctx) {
-  const uid = getActorId(ctx);
+  const uid = String(ctx.user?.user_id || ctx.from?.id || "");
   return uid && ADMIN_IDS.includes(uid);
 }
 
@@ -334,31 +321,78 @@ bot.command("id", async (ctx) => {
 bot.command("search", async (ctx) => {
   if (!isBotAdmin(ctx)) return;
 
-  const key = getStateKey(ctx);
-  adminState.set(key, { mode: "search" });
+  const text = (ctx.message?.text || "").trim();
+  const q = text.replace(/^\/search\s*/i, "").trim();
+  if (!q) {
+    return ctx.reply("Напишите: /search что_ищем\nНапример: /search 12 или /search +7999 или /search ivan@mail.ru");
+  }
 
-  await ctx.reply(
-    "🔎 Поиск\n\n" +
-    "Напишите одним сообщением: номер 🆔, имя, телефон, email или текст.\n" +
-    "Отмена: отмена"
+  // если запрос число — ищем и по ticket_no тоже
+  const qNum = Number(q);
+  const like = `%${q}%`;
+
+  // ограничение для НЕ глобального админа: только его категории
+  // категории вычислим так: те type, где он есть в <TYPE>_ADMINS
+  let typeFilter = null;
+  if (!isGlobalAdmin(ctx)) {
+    const uid = String(ctx.user?.user_id || ctx.from?.id || "");
+    const possibleTypes = ["security","wifi","graffiti","argus","appointment"];
+    const myTypes = possibleTypes.filter((t) => {
+      const env = process.env[`${t.toUpperCase()}_ADMINS`] || "";
+      return env.split(",").map(s=>s.trim()).filter(Boolean).includes(uid);
+    });
+    if (myTypes.length) typeFilter = myTypes;
+  }
+
+  let where = `
+    (
+      CAST(ticket_no AS TEXT) = ?
+      OR id LIKE ?
+      OR user_json LIKE ?
+      OR payload_json LIKE ?
+    )
+  `;
+
+  const params = [String(q), like, like, like];
+
+  if (typeFilter && typeFilter.length) {
+    where = `(${where}) AND type IN (${typeFilter.map(()=>"?").join(",")})`;
+    params.push(...typeFilter);
+  }
+
+  const rows = await dbAll(
+    `SELECT id, ticket_no, type, status, timestamp FROM reports
+     WHERE ${where}
+     ORDER BY timestamp DESC
+     LIMIT 10`,
+    params
   );
+
+  if (!rows.length) return ctx.reply("Ничего не найдено.");
+
+  const typeTitle = (t) => ({
+    security: "🚨 Безопасность",
+    wifi: "📶 Wi-Fi",
+    graffiti: "🎨 Граффити",
+    argus: "📷 Аргус",
+    appointment: "📅 Запись",
+  }[t] || t);
+
+  const lines = rows.map((r, i) =>
+    `${i+1}. 🆔 ${r.ticket_no} — ${typeTitle(r.type)} — ${r.status} — ${formatDateTimeHuman(r.timestamp)}`
+  );
+
+  const kb = Keyboard.inlineKeyboard(
+    rows.map((r) => [Keyboard.button.callback(`👀 Открыть 🆔 ${r.ticket_no}`, `adm:open:${r.id}`)])
+  );
+
+  await ctx.reply(`Результаты поиска (до 10):\n\n${lines.join("\n")}`, { attachments: [kb] });
 });
 
 // -------------------- Admin UI in bot --------------------
 function isBotAdmin(ctx) {
-  const uid = getActorId(ctx);
-  if (!uid) return false;
-
-  // общий админ
-  if (ADMIN_IDS.includes(uid)) return true;
-
-  // профильный админ
-  for (const t of ALL_TYPES) {
-    const env = process.env[`${t.toUpperCase()}_ADMINS`] || "";
-    const list = env.split(",").map(s => s.trim()).filter(Boolean);
-    if (list.includes(uid)) return true;
-  }
-  return false;
+  const uid = ctx.user?.user_id || ctx.from?.id;
+  return uid && ADMIN_IDS.includes(String(uid));
 }
 
 async function sendAdminMenu(ctx) {
@@ -377,13 +411,13 @@ async function sendAdminMenu(ctx) {
 bot.action("adm:search:start", async (ctx) => {
   if (!isBotAdmin(ctx)) return;
 
-  const key = getStateKey(ctx);
-  adminState.set(key, { mode: "search" });
+  const uid = getUserId(ctx);
+  adminState.set(uid, { mode: "search" });
 
   await ctx.reply(
     "🔎 Поиск\n\n" +
-    "Напишите одним сообщением: номер 🆔, имя, телефон, email или текст.\n" +
-    "Отмена: отмена"
+    "Введите одним сообщением что искать: номер 🆔, имя, телефон, email или текст.\n" +
+    "Чтобы отменить — напишите: отмена"
   );
 });
 
@@ -592,47 +626,52 @@ bot.action(/adm:del:do:(.+)/, async (ctx) => {
 });
 
 bot.on("message_created", async (ctx) => {
+
   const text = (ctx.message?.text || "").trim();
   if (!text) return;
+
+  console.log("message_created text=", text, "uid=", getUserId(ctx), "isAdmin=", isBotAdmin(ctx), "state=", adminState.get(getUserId(ctx)));
 
   // команды не трогаем
   if (text.startsWith("/")) return;
 
-  const actorId = getActorId(ctx);
-  const key = getStateKey(ctx);
+  const uid = getUserId(ctx);
 
-  // лог — если надо
-  // console.log("msg:", text, "actorId:", actorId, "key:", key, "state:", adminState.get(key));
-
-  // 1) если админ в режиме поиска — обрабатываем как запрос
-  const st = adminState.get(key);
+  // --- если админ в режиме поиска ---
+  const st = adminState.get(uid);
   if (st?.mode === "search" && isBotAdmin(ctx)) {
-    const q = text;
+    const q = text.trim();
 
     if (q.toLowerCase() === "отмена") {
-      adminState.delete(key);
+      adminState.delete(uid);
       await ctx.reply("Ок, поиск отменён.");
       await sendAdminMenu(ctx);
       return;
     }
 
-    adminState.delete(key);
+    adminState.delete(uid);
+
+    // запускаем поиск
     await runSearchAndReply(ctx, q);
+
+    // возвращаем меню
     await sendAdminMenu(ctx);
     return;
   }
 
-  // 2) если это админ — показываем меню (как у тебя)
+  // админ — меню
   if (isBotAdmin(ctx)) {
-    await sendAdminMenu(ctx);
+    try { await sendAdminMenu(ctx); } catch (e) {}
     return;
   }
 
-  // 3) обычный пользователь — подсказка
-  await ctx.reply(
-    "Основные функции сервиса доступны в мини-приложении.\n\n" +
-    "Перейдите в него по синей кнопке внизу экрана."
-  );
+  // пользователь — подсказка
+  try {
+    await ctx.reply(
+      "Основные функции сервиса доступны в мини-приложении.\n\n" +
+      "Перейдите в него по синей кнопке внизу экрана."
+    );
+  } catch (e) {}
 });
 
 bot.command("help", async (ctx) => {
@@ -1025,7 +1064,7 @@ function safeParse(s) {
 }
 
 async function runSearchAndReply(ctx, q) {
-  const uid = getActorId(ctx);
+  const uid = getUserId(ctx);
   const isGlobal = ADMIN_IDS.includes(uid);
 
   let typeFilter = null;
