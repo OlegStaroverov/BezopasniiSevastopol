@@ -1,3 +1,4 @@
+
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
@@ -638,10 +639,11 @@ async function initDb() {
       updatedAt TEXT NOT NULL,
       user_json TEXT,
       payload_json TEXT
+      ticket_no INTEGER
     );
   `);
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_reports_type_time ON reports(type, timestamp);`);
-}
+
   await dbRun(`
     CREATE TABLE IF NOT EXISTS counters (
       name TEXT PRIMARY KEY,
@@ -651,6 +653,7 @@ async function initDb() {
 
   await dbRun(`ALTER TABLE reports ADD COLUMN ticket_no INTEGER;`).catch(() => {});
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_reports_ticket_no ON reports(ticket_no);`);
+}
 
 async function nextTicketNo() {
   // гарантируем строку счётчика
