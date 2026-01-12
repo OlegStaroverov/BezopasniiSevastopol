@@ -184,8 +184,8 @@ function formatReportForAdmin(report) {
   }
 
   // ID (всегда)
-  lines.push(`🆔 ID: ${report.id}`);
   if (report.ticket_no) lines.push(`№ ${report.ticket_no}`);
+  lines.push(`🆔 ID: ${report.id}`);
 
   return lines.join("\n").replace(/\n{3,}/g, "\n\n");
 }
@@ -276,6 +276,7 @@ async function sendReportCard(ctx, id) {
     subtype: r.subtype,
     status: r.status,
     created_at: r.timestamp,
+    ticket_no: r.ticket_no,
     payload,
     user,
   };
@@ -325,14 +326,14 @@ bot.action(/adm:list:([^:]+):([^:]+):(\d+)/, async (ctx) => {
   }
 
   const rows = await dbAll(
-    `SELECT id,type,subtype,status,timestamp FROM reports ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+    `SELECT id,ticket_no,type,subtype,status,timestamp FROM reports ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );
 
   if (!rows.length) return ctx.reply("Пусто.");
 
   const lines = rows.map((r, i) =>
-    `${offset + i + 1}. ${typeTitle(r.type)} — ${formatDateTimeHuman(r.timestamp)}\n   🆔 ${r.id}`
+    `${offset + i + 1}. №${r.ticket_no} — ${typeTitle(r.type)} — ${formatDateTimeHuman(r.timestamp)}`
   );
 
   const nav = [];
@@ -439,6 +440,11 @@ function dbAll(sql, params = []) {
 
 
 async function upsertLocalReport(report) {
+
+  const exists = await dbAll(`SELECT ticket_no FROM reports WHERE id = ? LIMIT 1`, [String(report.id)]);
+  const currentTicket = exists.length ? exists[0].ticket_no : null;
+  const ticketNo = currentTicket || (await nextTicketNo());
+  
   const row = {
     id: String(report.id),
     type: String(report.type),
@@ -448,11 +454,12 @@ async function upsertLocalReport(report) {
     updatedAt: String(report.updatedAt || report.timestamp || report.created_at || new Date().toISOString()),
     user_json: report.user ? JSON.stringify(report.user) : null,
     payload_json: report.payload ? JSON.stringify(report.payload) : null,
+    ticket_no: ticketNo,
   };
 
   // SQLite UPSERT
   await dbRun(
-    `INSERT INTO reports (id,type,subtype,status,timestamp,updatedAt,user_json,payload_json)
+    `INSERT INTO reports (id,type,subtype,status,timestamp,updatedAt,user_json,payload_json, ticket_no)
      VALUES (?,?,?,?,?,?,?,?)
      ON CONFLICT(id) DO UPDATE SET
        type=excluded.type,
@@ -462,7 +469,7 @@ async function upsertLocalReport(report) {
        updatedAt=excluded.updatedAt,
        user_json=excluded.user_json,
        payload_json=excluded.payload_json`,
-    [row.id, row.type, row.subtype, row.status, row.timestamp, row.updatedAt, row.user_json, row.payload_json]
+    [row.id, row.type, row.subtype, row.status, row.timestamp, row.updatedAt, row.user_json, row.payload_json, row.ticket_no]
   );
   return row;
 }
@@ -634,6 +641,27 @@ async function initDb() {
     );
   `);
   await dbRun(`CREATE INDEX IF NOT EXISTS idx_reports_type_time ON reports(type, timestamp);`);
+}
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS counters (
+      name TEXT PRIMARY KEY,
+      value INTEGER NOT NULL
+    );
+  `);
+
+  await dbRun(`ALTER TABLE reports ADD COLUMN ticket_no INTEGER;`).catch(() => {});
+  await dbRun(`CREATE INDEX IF NOT EXISTS idx_reports_ticket_no ON reports(ticket_no);`);
+
+async function nextTicketNo() {
+  // гарантируем строку счётчика
+  await dbRun(`INSERT OR IGNORE INTO counters (name, value) VALUES ('ticket_no', 0)`);
+
+  // атомарно увеличиваем
+  await dbRun(`UPDATE counters SET value = value + 1 WHERE name = 'ticket_no'`);
+
+  // читаем новое значение
+  const rows = await dbAll(`SELECT value FROM counters WHERE name = 'ticket_no'`);
+  return Number(rows?.[0]?.value || 0);
 }
 
 // -------------------- Express API --------------------
