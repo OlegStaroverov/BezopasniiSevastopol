@@ -448,27 +448,9 @@ bot.action(/adm:close:(.+)/, async (ctx) => {
 });
 
 bot.on("message_created", async (ctx) => {
-  const text = (ctx.message?.text || "").trim();
-
-  // команды не трогаем
-  if (text.startsWith("/")) return;
-
-  // если админ — открываем админку
-  if (isBotAdmin(ctx)) {
-    try {
-      await sendAdminMenu(ctx);
-    } catch (e) {
-      console.error("admin auto-menu error:", e.message);
-    }
-    return;
-  }
-
-  // обычным пользователям — ничего (или можешь оставить твою подсказку)
-});
-
-bot.on("message_created", async (ctx) => {
   const messageText = ctx.message?.text;
 
+  // команды не трогаем
   if (messageText && messageText.startsWith("/")) return;
 
   try {
@@ -478,6 +460,16 @@ bot.on("message_created", async (ctx) => {
     );
   } catch (error) {
     console.error("Ошибка:", error.message);
+  }
+
+  // если админ — открываем админку
+  if (isBotAdmin(ctx)) {
+    try {
+      await sendAdminMenu(ctx);
+    } catch (e) {
+      console.error("admin auto-menu error:", e.message);
+    }
+    return;
   }
 });
 
