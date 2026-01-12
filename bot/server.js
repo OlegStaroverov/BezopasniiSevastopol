@@ -621,6 +621,7 @@ bot.action(/adm:del:do:(.+)/, async (ctx) => {
 });
 
 bot.on("message_created", async (ctx) => {
+  console.log("message_created text=", text, "uid=", getUserId(ctx), "isAdmin=", isBotAdmin(ctx), "state=", adminState.get(getUserId(ctx)));
   const text = (ctx.message?.text || "").trim();
   if (!text) return;
 
