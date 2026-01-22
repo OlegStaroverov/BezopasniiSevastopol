@@ -489,12 +489,10 @@
         if (!ok) return;
     
         const report = AppData.makeReport("argus", payload, { user: this._userSnapshot() });
-        const saved = await AppData.saveReport("argus", report);
-        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
+        const sent = await this._submitReport(report);
+        if (!sent) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
     
-        await this._notifyAdmins("argus", report);
-    
-        this.toast("Заявка отправлена. Администрация ответит вам в течение 5 рабочих дней по указанной почте.", "success");
+        await this.alertOk("Готово", `<div class="placeholder" style="white-space:normal;text-align:center"><b>Обращение отправлено</b><br/><br/>Мы сообщим в боте, когда администрация просмотрит обращение и возьмёт его в работу.</div>`, "ОК");
         this.haptic("success");
         form.reset();
         this.argusLocation = { coords: null, manualAddress: "" };
@@ -584,10 +582,8 @@
         if (!ok) return;
     
         const report = AppData.makeReport("appointment", payload, { user: this._userSnapshot() });
-        const saved = await AppData.saveReport("appointment", report);
-        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
-    
-        await this._notifyAdmins("appointment", report);
+        const sent = await this._submitReport(report);
+        if (!sent) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
     
         this.toast(`Заявка оставлена. Ждём вас ${payload.date}. Если потребуется перенос, мы уведомим вас по почте или по указанному номеру телефона.`, "success");
         this.haptic("success");
@@ -724,6 +720,36 @@
 
       this._syncModalLock();
     }
+
+    alertOk(title, bodyHTML, okText = "ОК") {
+      return new Promise((resolve) => {
+        const okBtn = document.createElement("button");
+        okBtn.type = "button";
+        okBtn.className = "btn btn-primary btn-wide";
+        okBtn.innerHTML = `<i class="fas fa-check"></i><span>${esc(okText)}</span>`;
+        okBtn.addEventListener("click", () => {
+          this.closeModal();
+          resolve(true);
+        });
+        this.openModal({ title, bodyHTML, actions: [okBtn] });
+      });
+    }
+
+    showLoading(text = "Отправляем...") {
+      this.openModal({
+        title: "Подождите",
+        bodyHTML: `<div class="loading-box"><div class="spinner"></div><div class="loading-text">${esc(text)}</div></div>`,
+        actions: [],
+      });
+    }
+
+    async _submitReport(report) {
+      this.showLoading("Записываем обращение...");
+      const res = await AppData.submitReport(report);
+      this.closeModal();
+      return !!res?.ok;
+    }
+
 
     closeModal() {
       const modal = $("#modal");
@@ -1340,12 +1366,10 @@
         if (!ok) return;
 
         const report = AppData.makeReport("security", payload, { user: this._userSnapshot() });
-        const saved = await AppData.saveReport("security", report);
-        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
+        const sent = await this._submitReport(report);
+        if (!sent) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
 
-        await this._notifyAdmins("security", report);
-
-        this.toast("Обращение отправлено", "success");
+        await this.alertOk("Готово", `<div class="placeholder" style="white-space:normal;text-align:center"><b>Обращение отправлено</b><br/><br/>Мы сообщим в боте, когда администрация просмотрит обращение и возьмёт его в работу.</div>`, "ОК");
         this.haptic("success");
         form.reset();
         this.securityLocation = { coords: null, manualAddress: "" };
@@ -1408,12 +1432,10 @@
         if (!ok) return;
 
         const report = AppData.makeReport("graffiti", payload, { user: this._userSnapshot() });
-        const saved = await AppData.saveReport("graffiti", report);
-        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
+        const sent = await this._submitReport(report);
+        if (!sent) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
 
-        await this._notifyAdmins("graffiti", report);
-
-        this.toast("Обращение отправлено", "success");
+        await this.alertOk("Готово", `<div class="placeholder" style="white-space:normal;text-align:center"><b>Обращение отправлено</b><br/><br/>Мы сообщим в боте, когда администрация просмотрит обращение и возьмёт его в работу.</div>`, "ОК");
         this.haptic("success");
         form.reset();
         this.graffitiLocation = { coords: null, manualAddress: "" };
@@ -1797,12 +1819,10 @@ renderWifiResults(points, opts = {}) {
         if (!ok) return;
 
         const report = AppData.makeReport("wifi_problem", payload, { user: this._userSnapshot() });
-        const saved = await AppData.saveReport("wifi_problem", report);
-        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
+        const sent = await this._submitReport(report);
+        if (!sent) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
 
-        await this._notifyAdmins("wifi", report);
-
-        this.toast("Обращение отправлено", "success");
+        await this.alertOk("Готово", `<div class="placeholder" style="white-space:normal;text-align:center"><b>Обращение отправлено</b><br/><br/>Мы сообщим в боте, когда администрация просмотрит обращение и возьмёт его в работу.</div>`, "ОК");
         this.haptic("success");
         form.reset();
       });
@@ -1833,12 +1853,10 @@ renderWifiResults(points, opts = {}) {
         if (!ok) return;
 
         const report = AppData.makeReport("wifi_suggestion", payload, { user: this._userSnapshot() });
-        const saved = await AppData.saveReport("wifi_suggestion", report);
-        if (!saved) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
+        const sent = await this._submitReport(report);
+        if (!sent) { this.toast("Не удалось сохранить обращение", "danger"); this.haptic("error"); return; }
 
-        await this._notifyAdmins("wifi", report);
-
-        this.toast("Обращение отправлено", "success");
+        await this.alertOk("Готово", `<div class="placeholder" style="white-space:normal;text-align:center"><b>Обращение отправлено</b><br/><br/>Мы сообщим в боте, когда администрация просмотрит обращение и возьмёт его в работу.</div>`, "ОК");
         this.haptic("success");
         form.reset();
       });
@@ -2015,33 +2033,7 @@ renderWifiResults(points, opts = {}) {
 
     // -------------------- Email notify (optional) --------------------
     async _notifyAdmins(type, report) {
-      try {
-        if (!window.EmailService?.sendEmail) return;
-        const emails = window.EmailService.getAdminEmails?.() || {};
-        const to =
-          type === "security" ? emails.security :
-          type === "wifi" ? emails.wifi :
-          type === "graffiti" ? emails.graffiti :
-          "";
-        if (!to) return;
-
-        const subject =
-          type === "security" ? "Новое обращение: Безопасность" :
-          type === "wifi" ? "Новое обращение: Wi‑Fi" :
-          "Новое обращение: Граффити";
-
-        const text = JSON.stringify(report, null, 2);
-
-        await window.EmailService.sendEmail({
-          to,
-          subject,
-          text,
-          html: `<pre style="white-space:pre-wrap">${esc(text)}</pre>`,
-          meta: { reportType: type, reportId: report.id }
-        });
-      } catch (_) {
-        // не блокируем UX
-      }
+      return;
     }
   }
 
@@ -2051,6 +2043,7 @@ renderWifiResults(points, opts = {}) {
       if (!window.AppData) throw new Error("AppData missing");
       if (window.__MAX_APP__) return; // защита от двойного запуска
       window.__MAX_APP__ = new MaxMiniApp();
+      document.body.classList.add("is-ready");
     } catch (e) {
       console.error(e);
       alert("Ошибка инициализации приложения. Проверьте файлы data.js/app.js.");
