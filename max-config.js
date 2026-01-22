@@ -7,25 +7,11 @@
 */
 
 (() => {
-  "use strict";
-
-   window.ADMIN_USER_IDS = [
-     "13897373",
-     "90334880"
-   ];
-   
-   /**
+  "use strict";/**
     * (опционально, но рекомендую)
     * Разделение админов по секциям.
     * Если секцию не указать — доступ берется из ADMIN_USER_IDS.
-    */
-   window.ADMIN_ACCESS = {
-     security: ["13897373", "90334880"],
-     wifi: ["13897373", "90334880"],
-     graffiti: ["13897373", "90334880"]
-   };
-
-  /**
+    *//**
    * Основной конфиг приложения
    */
   window.AppConfig = {
@@ -160,4 +146,3 @@ window.AppConfig.api.baseUrl = "https://dxkonuznrzdtoiocnhcc.supabase.co/functio
 window.AppConfig.api.appApiKey = "DVOS201220072001";
 
 // токен нужен только админке (GET + PATCH)
-window.AppConfig.api.adminToken = "change_me_very_secret";
