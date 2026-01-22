@@ -2033,6 +2033,7 @@ renderWifiResults(points, opts = {}) {
       }
 
       return {
+        botUserId: (this._userSnapshot()?.id || ""),
         name: clampStr($(nameSel)?.value, 140).trim(),
         phone: clampStr($(phoneSel)?.value, 40).trim(),
         email: clampStr($(emailSel)?.value, 180).trim(),
@@ -2043,6 +2044,7 @@ renderWifiResults(points, opts = {}) {
         description: clampStr($(descriptionSel)?.value, 1000).trim(),
         media
       };
+
     }
 
     _validateCommon(payload, { requireLocation }) {
@@ -2097,14 +2099,29 @@ renderWifiResults(points, opts = {}) {
     }
 
     _userSnapshot() {
-      if (!this.user) return null;
+      // Пытаемся достать MAX user id максимально надёжно
+      const u = this.user || this.WebApp?.initDataUnsafe?.user || null;
+    
+      // MAX/платформы иногда кладут id в разные поля
+      const idRaw =
+        (u && (u.id ?? u.user_id ?? u.userId)) ??
+        this.WebApp?.initDataUnsafe?.user?.id ??
+        this.WebApp?.initDataUnsafe?.user?.user_id ??
+        null;
+    
+      const id = idRaw != null ? String(idRaw) : "";
+    
+      // Если совсем не нашли — вернём null (чтобы не ломать текущую логику)
+      if (!id) return null;
+    
       return {
-        id: this.user.id ?? null,
-        username: this.user.username ?? "",
-        first_name: this.user.first_name ?? "",
-        last_name: this.user.last_name ?? ""
+        id, // <-- ЭТОТ ID = тот, что нужен для бота (/id)
+        username: (u?.username ?? ""),
+        first_name: (u?.first_name ?? u?.firstName ?? ""),
+        last_name: (u?.last_name ?? u?.lastName ?? "")
       };
     }
+
 
     // -------------------- Email notify (optional) --------------------
     // -------------------- Email notify (optional) --------------------
