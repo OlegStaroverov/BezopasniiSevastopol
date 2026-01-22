@@ -4,7 +4,15 @@
   "use strict";
 
   // -------------------- Helpers --------------------
-  const $ = (sel, root = document) => root.querySelector(sel);
+  
+  // -------------------- Theme --------------------
+  function applyTheme(theme) {
+    const t = theme === "light" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", t);
+    try { document.body && document.body.setAttribute("data-theme", t); } catch (_) {}
+    try { window.AppData?.setTheme?.(t); } catch (_) {}
+  }
+const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
   const clampStr = (v, max = 1500) => {
@@ -73,7 +81,7 @@
         safe(() => { try { this.WebApp?.ready?.(); } catch (_) {} }, "WebApp.ready");
     
         // theme
-        safe(() => { try { AppData?.setTheme?.(AppData.getTheme()); } catch (_) {} }, "theme.init");
+        safe(() => { try { applyTheme(AppData.getTheme()); } catch (_) {} }, "theme.init");
         safe(() => this._syncThemeIcon(), "theme.icon");
     
         // user/admin
@@ -98,7 +106,27 @@
         safe(() => this._bindAppointmentForm(), "bind.appointmentForm");
     
         // initial render
-        safe(() => this.switchSection("home", { silent: true }), "render.section");
+        safe(() => this.switchSection("home", {
+      const btn = document.getElementById("themeToggle");
+      if (!btn) return;
+
+      btn.addEventListener("click", () => {
+        const next = window.AppData?.toggleTheme?.() || "dark";
+        applyTheme(next);
+        this._syncThemeIcon();
+        try { this.WebApp?.setHeaderColor?.(next === "light" ? "#ffffff" : "#0b0f19"); } catch (_) {}
+      });
+
+      // apply on load (and if host changes theme)
+      applyTheme(window.AppData?.getTheme?.() || "dark");
+      try {
+        this.WebApp?.onEvent?.("theme_changed", () => {
+          const t = this.WebApp?.themeParams?.bg_color ? "light" : (window.AppData?.getTheme?.() || "dark");
+          applyTheme(t);
+          this._syncThemeIcon();
+        });
+      } catch (_) {}
+), "render.section");
         safe(() => this.switchWifiTab("search", { silent: true }), "render.wifiTab");
         safe(() => { this.wifiBaseList = (window.wifiPoints || []); }, "wifi.baseList");
         safe(() => { this.wifiWithDistance = false; }, "wifi.distanceFlag");
