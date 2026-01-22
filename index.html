@@ -49,8 +49,65 @@
     </header>
 
     <main class="main" role="main">
+
+      <!-- HOME -->
+      <section id="home-section" class="content-section is-active" data-section="home" aria-label="Главная">
+        <div class="home-hero glass-card">
+          <div class="home-hero__title">Безопасный Севастополь</div>
+          <div class="home-hero__sub">Выберите раздел — и заполните обращение за пару минут</div>
+        </div>
+
+        <div class="home-grid">
+          <button class="home-card" type="button" data-go="security">
+            <div class="home-card__icon"><i class="fas fa-shield-alt"></i></div>
+            <div class="home-card__body">
+              <div class="home-card__title">Подозрительное</div>
+              <div class="home-card__text">Сообщить о ситуации, предметах и событиях</div>
+            </div>
+            <div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
+          </button>
+
+          <button class="home-card" type="button" data-go="wifi">
+            <div class="home-card__icon"><i class="fas fa-wifi"></i></div>
+            <div class="home-card__body">
+              <div class="home-card__title">Wi‑Fi</div>
+              <div class="home-card__text">Найти точки доступа и оставить заявку</div>
+            </div>
+            <div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
+          </button>
+
+          <button class="home-card" type="button" data-go="graffiti">
+            <div class="home-card__icon"><i class="fas fa-spray-can"></i></div>
+            <div class="home-card__body">
+              <div class="home-card__title">Граффити</div>
+              <div class="home-card__text">Сообщить о надписях и изображениях</div>
+            </div>
+            <div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
+          </button>
+
+          <button class="home-card" type="button" data-go="argus">
+            <div class="home-card__icon"><i class="fas fa-eye"></i></div>
+            <div class="home-card__body">
+              <div class="home-card__title">АРГУС</div>
+              <div class="home-card__text">Обращение по системе видеонаблюдения</div>
+            </div>
+            <div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
+          </button>
+
+          <button class="home-card" type="button" data-go="appointment">
+            <div class="home-card__icon"><i class="fas fa-calendar-alt"></i></div>
+            <div class="home-card__body">
+              <div class="home-card__title">Запись</div>
+              <div class="home-card__text">Записаться на приём</div>
+            </div>
+            <div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
+          </button>
+        </div>
+      </section>
+
+
       <!-- SECURITY -->
-      <section id="security-section" class="content-section is-active" data-section="security" aria-label="Безопасность">
+      <section id="security-section" class="content-section" data-section="security" aria-label="Безопасность">
         <div class="section-head">
           <div class="section-title" title="Сообщить о чем-либо подозрительном">Сообщить о подозрительном</div>
           <div class="section-note" title="Заполните форму">Заполните форму</div>
@@ -432,22 +489,13 @@
   </div>
 </section>
 
-      <!-- ADMIN -->
-      <section id="admin-section" class="content-section" data-section="admin" aria-label="Админ">
-        <div class="section-head">
-          <div class="section-title" title="Админ">Админ</div>
-          <div class="section-note" title="Обращения и статистика">Управление</div>
-        </div>
-        <div class="glass-card form-card">
-          <div class="placeholder" id="adminPlaceholder">
-            Админ-панель загружается…
-          </div>
-        </div>
-      </section>
-    </main>
+      </main>
 
     <nav class="bottom-nav" role="navigation" aria-label="Навигация">
-      <button class="nav-item is-active" data-section="security" type="button">
+      <button class="nav-item is-active" data-section="home" type="button">
+        <i class="fas fa-home"></i><span>Главная</span>
+      </button>
+      <button class="nav-item" data-section="security" type="button">
         <i class="fas fa-shield-alt"></i><span>Безопасность</span>
       </button>
       <button class="nav-item" data-section="wifi" type="button">
