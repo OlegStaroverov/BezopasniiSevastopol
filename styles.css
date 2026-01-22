@@ -1670,3 +1670,17 @@ body.is-ready .home-card:nth-child(6) { animation-delay: 360ms; }
 }
 .oktext{ font-size:15px; opacity:.9; }
 @keyframes pop{ from{ transform:scale(.85); opacity:.2 } to{ transform:scale(1); opacity:1 } }
+
+/* -------------------- Modal loading -------------------- */
+.loading-row{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  justify-content:center;
+  padding: 10px 0;
+  text-align:center;
+}
+.loading-text{
+  font-weight:700;
+  letter-spacing:.2px;
+}
