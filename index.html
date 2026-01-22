@@ -1,569 +1,557 @@
 <!DOCTYPE html>
-
-<html data-theme="dark" lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
-<meta content="yes" name="apple-mobile-web-app-capable"/>
-<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
-<meta content="telephone=no" name="format-detection"/>
-<meta content="#0A84FF" data-theme-color="dark" name="theme-color"/>
-<meta content="#0A84FF" name="msapplication-navbutton-color"/>
-<title>Безопасный Севастополь</title>
-<!-- MAX Bridge -->
-<script src="https://st.max.ru/js/max-web-app.js"></script>
-<!-- Fonts / Icons -->
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet"/>
-<!-- Yandex Maps -->
-<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
-<link href="styles.css" rel="stylesheet"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="theme-color" content="#0A84FF" data-theme-color="dark" />
+  <meta name="msapplication-navbutton-color" content="#0A84FF" />
+  <title>Безопасный Севастополь</title>
+
+  <!-- MAX Bridge -->
+  <script src="https://st.max.ru/js/max-web-app.js"></script>
+
+  <!-- Fonts / Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+
+  <!-- Yandex Maps -->
+  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
+
+  <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
-<div class="app-shell" id="appShell">
-<!-- Topbar -->
-<header class="topbar" role="banner">
-<div class="topbar-left">
-<div class="brand">
-<div aria-hidden="true" class="brand-mark"><i class="fas fa-shield-alt"></i></div>
-<div class="brand-text">
-<div class="brand-title" title="Безопасный Севастополь">Безопасный Севастополь</div>
-</div>
-</div>
-</div>
-<div class="topbar-right">
-<button aria-label="Сменить тему" class="icon-btn" id="themeToggle" type="button">
-<i aria-hidden="true" class="fas fa-moon"></i>
-</button>
-<!-- compatibility -->
-<button aria-hidden="true" class="icon-btn is-hidden" id="themeToggleSmall" tabindex="-1" type="button">
-<i aria-hidden="true" class="fas fa-moon"></i>
-</button>
-</div>
-</header>
-<main class="main" role="main">
-<!-- HOME -->
-<section aria-label="Главная" class="content-section is-active" data-section="home" id="home-section">
-<div class="home-hero glass-card">
-<div class="home-hero__title">Безопасный Севастополь</div>
-<div class="home-hero__sub">Выберите раздел — и заполните обращение за пару минут</div>
-</div>
-<div class="home-grid">
-<button class="home-card" data-go="security" type="button">
-<div class="home-card__icon"><i class="fas fa-shield-alt"></i></div>
-<div class="home-card__body">
-<div class="home-card__title">Подозрительное</div>
-<div class="home-card__text">Сообщить о ситуации, предметах и событиях</div>
-</div>
-<div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
-</button>
-<button class="home-card" data-go="wifi" type="button">
-<div class="home-card__icon"><i class="fas fa-wifi"></i></div>
-<div class="home-card__body">
-<div class="home-card__title">Wi‑Fi</div>
-<div class="home-card__text">Найти точки доступа и оставить заявку</div>
-</div>
-<div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
-</button>
-<button class="home-card" data-go="graffiti" type="button">
-<div class="home-card__icon"><i class="fas fa-spray-can"></i></div>
-<div class="home-card__body">
-<div class="home-card__title">Граффити</div>
-<div class="home-card__text">Сообщить о надписях и изображениях</div>
-</div>
-<div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
-</button>
-<button class="home-card" data-go="argus" type="button">
-<div class="home-card__icon"><i class="fas fa-eye"></i></div>
-<div class="home-card__body">
-<div class="home-card__title">АРГУС</div>
-<div class="home-card__text">Обращение по системе видеонаблюдения</div>
-</div>
-<div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
-</button>
-<button class="home-card" data-go="appointment" type="button">
-<div class="home-card__icon"><i class="fas fa-calendar-alt"></i></div>
-<div class="home-card__body">
-<div class="home-card__title">Запись</div>
-<div class="home-card__text">Записаться на приём</div>
-</div>
-<div class="home-card__chev"><i class="fas fa-chevron-right"></i></div>
-</button>
-</div>
-</section>
-<!-- SECURITY -->
-<section aria-label="Безопасность" class="content-section" data-section="security" id="security-section">
-<div class="section-head">
-<div class="section-title" title="Сообщить о чем-либо подозрительном">Сообщить о подозрительном</div>
-<div class="section-note" title="Заполните форму">Заполните форму</div>
-</div>
-<form autocomplete="on" class="glass-card form-card" id="securityForm">
-<div class="form-grid">
-<div class="form-group">
-<label for="securityName">Имя *</label>
-<div class="input-row">
-<input class="form-input" id="securityName" placeholder="Ваше имя" required="" type="text"/>
-<button class="btn btn-primary btn-compact" id="useMaxName" type="button">
-<i class="fas fa-user-check"></i><span>Из MAX</span>
-</button>
-</div>
-</div>
-<div class="form-group">
-<label for="securityPhone">Телефон *</label>
-<input class="form-input" id="securityPhone" inputmode="tel" placeholder="+7" required="" type="tel"/>
-</div>
-<div class="form-group">
-<label for="securityEmail">Email</label>
-<input class="form-input" id="securityEmail" inputmode="email" placeholder="name@mail.ru" type="email"/>
-</div>
-<div class="form-group">
-<label>Локация *</label>
-<div class="field" data-media-opt="1"><label class="checkbox"><input id="securityForm_wantMedia" name="wantMedia" type="checkbox"/><span>Хочу приложить фото или видео</span></label><div class="hint">Если включить — после отправки формы бот попросит прислать фото/видео отдельным сообщением.</div></div><div class="location-actions">
-<button class="btn btn-primary location-btn" id="useCurrentLocation" type="button">МОЕ МЕСТОПОЛОЖЕНИЕ</button>
-<button class="btn btn-primary location-btn" id="selectOnMap" type="button">ВЫБРАТЬ НА КАРТЕ</button>
-<button class="btn btn-primary location-btn" id="showAddressInput" type="button">УКАЗАТЬ АДРЕС</button>
-</div>
-<div class="address-input-wrapper" hidden="" id="securityAddressWrap">
-<input autocomplete="street-address" class="form-input" id="addressInput" placeholder="Введите адрес или описание места" type="text"/>
-</div>
-<div class="form-hint" id="locationHint">Укажите местоположение (адрес или точку на карте)</div>
-<input class="form-input is-hidden" id="securityCoordinates" readonly="" type="text"/>
-</div>
-<div class="form-group form-group--full">
-<label for="securityDescription">Описание *</label>
-<textarea class="form-textarea" id="securityDescription" placeholder="Опишите ситуацию максимально подробно" required="" rows="5"></textarea>
-<div class="meta-row">
-<div aria-live="polite" class="meta"><span id="charCount">0</span>/500</div>
-</div>
-</div>
-<div class="form-group form-group--full">
-<label>Медиа</label>
-<div class="upload" id="uploadArea">
-<div class="upload-ui">
-<i class="fas fa-cloud-upload-alt"></i>
-<div class="upload-text">
-<div class="upload-title" title="Добавить фото/видео">Добавить фото/видео</div>
-<div class="upload-sub" title="Перетащите или выберите файлы">Перетащите или выберите</div>
-</div>
-</div>
-</div>
-<div class="media-preview" id="mediaPreview"></div>
-</div>
-</div>
-<div class="actions">
-<button class="btn btn-primary btn-wide" id="submitSecurity" type="submit">
-<i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
-</button>
-</div>
-</form>
-</section>
-<!-- WIFI -->
-<section aria-label="Wi-Fi" class="content-section" data-section="wifi" id="wifi-section">
-<div class="section-head">
-<div class="section-title" title="Wi-Fi">Wi-Fi</div>
-<div class="section-note" id="wifiSectionSubtitle" title="Поиск / Проблема / Новая точка">Поиск точек доступа интернета по Севастополю</div>
-</div>
-<div class="glass-card">
-<div aria-label="Wi-Fi вкладки" class="tabs" role="tablist">
-<button aria-selected="true" class="tab is-active" data-tab="search" role="tab" type="button">ПОИСК</button>
-<button aria-selected="false" class="tab" data-tab="problem" id="tab-problem" role="tab" type="button">ПРОБЛЕМА</button>
-<button aria-selected="false" class="tab" data-tab="new" role="tab" type="button">НОВАЯ ТОЧКА</button>
-</div>
-<!-- SEARCH -->
-<div class="tab-content is-active" data-tab-content="search">
-<div class="stack">
-<div class="form-group">
-<label for="wifiSearch">Поиск по адресу/месту</label>
-<input class="form-input" id="wifiSearch" placeholder="" type="text"/>
-<div class="form-hint">Например: Нахимова, парк, МФЦ, АЗС, остановка</div>
-<!-- Категория (фильтр) -->
-<label for="wifiTypeFilter">Категория</label>
-<select aria-label="Категория Wi-Fi" class="form-select" id="wifiTypeFilter">
-<option value="all">Все категории</option>
-</select>
-<div class="meta-row">
-<div class="meta" title="Найдено"><span id="wifiCount">0</span> найдено</div>
-<div aria-live="polite" class="meta" id="wifiLoading" style="display:none">Поиск…</div>
-</div>
-</div>
-<div class="actions">
-<button class="btn btn-primary btn-wide" id="findNearby" type="button">
-<i class="fas fa-crosshairs"></i><span>НАЙТИ БЛИЖАЙШИЕ</span>
-</button>
-</div>
-<div class="empty-state" id="wifiEmpty" style="display:none" title="Ничего не найдено">Ничего не найдено</div>
-<div aria-label="Список Wi-Fi точек" class="wifi-groups" id="wifiResults"></div>
-</div>
-</div>
-<!-- PROBLEM -->
-<div class="tab-content" data-tab-content="problem">
-<form autocomplete="on" class="glass-card form-card" id="wifiProblemForm">
-<div class="form-grid">
-<div class="form-group">
-<label for="wifiProblemName">Имя *</label>
-<div class="input-row">
-<input class="form-input" id="wifiProblemName" placeholder="Ваше имя" required="" type="text"/>
-<button class="btn btn-primary btn-compact" id="useMaxNameWifiProblem" type="button">
-<i class="fas fa-user-check"></i><span>Из MAX</span>
-</button>
-</div>
-</div>
-<div class="form-group">
-<label for="wifiProblemPhone">Телефон *</label>
-<input class="form-input" id="wifiProblemPhone" inputmode="tel" placeholder="+7" required="" type="tel"/>
-</div>
-<div class="form-group">
-<label for="wifiProblemEmail">Email</label>
-<input class="form-input" id="wifiProblemEmail" inputmode="email" placeholder="name@mail.ru" type="email"/>
-</div>
-<div class="form-group">
-<label for="wifiProblemPlace">Место/адрес *</label>
-<input class="form-input" id="wifiProblemPlace" placeholder="Где не работает" required="" type="text"/>
-</div>
-<div class="form-group form-group--full">
-<label for="wifiProblemDescription">Описание *</label>
-<textarea class="form-textarea" id="wifiProblemDescription" placeholder="Что именно не работает" required="" rows="4"></textarea>
-</div>
-</div>
-<div class="field" data-media-opt="1"><label class="checkbox"><input id="wifiProblemForm_wantMedia" name="wantMedia" type="checkbox"/><span>Хочу приложить фото или видео</span></label><div class="hint">Если включить — после отправки формы бот попросит прислать фото/видео отдельным сообщением.</div></div><div class="actions">
-<button class="btn btn-primary btn-wide" id="submitWifiProblem" type="submit">
-<i class="fas fa-bug"></i><span>ОТПРАВИТЬ</span>
-</button>
-</div>
-</form>
-</div>
-<!-- NEW -->
-<div class="tab-content" data-tab-content="new">
-<form autocomplete="on" class="glass-card form-card" id="wifiNewForm">
-<div class="form-grid">
-<div class="form-group">
-<label for="wifiNewName">Имя *</label>
-<div class="input-row">
-<input class="form-input" id="wifiNewName" placeholder="Ваше имя" required="" type="text"/>
-<button class="btn btn-primary btn-compact" id="useMaxNameWifiNew" type="button">
-<i class="fas fa-user-check"></i><span>Из MAX</span>
-</button>
-</div>
-</div>
-<div class="form-group">
-<label for="wifiNewPhone">Телефон *</label>
-<input class="form-input" id="wifiNewPhone" inputmode="tel" placeholder="+7" required="" type="tel"/>
-</div>
-<div class="form-group">
-<label for="wifiNewEmail">Email</label>
-<input class="form-input" id="wifiNewEmail" inputmode="email" placeholder="name@mail.ru" type="email"/>
-</div>
-<div class="form-group">
-<label for="wifiNewPlace">Место/адрес *</label>
-<input class="form-input" id="wifiNewPlace" placeholder="Где находится точка" required="" type="text"/>
-</div>
-<div class="form-group form-group--full">
-<label for="wifiNewDescription">Описание *</label>
-<textarea class="form-textarea" id="wifiNewDescription" placeholder="Доп. детали (название места, ориентир)" required="" rows="4"></textarea>
-</div>
-</div>
-<div class="field" data-media-opt="1"><label class="checkbox"><input id="wifiNewForm_wantMedia" name="wantMedia" type="checkbox"/><span>Хочу приложить фото или видео</span></label><div class="hint">Если включить — после отправки формы бот попросит прислать фото/видео отдельным сообщением.</div></div><div class="actions">
-<button class="btn btn-primary btn-wide" id="submitWifiNew" type="submit">
-<i class="fas fa-plus-circle"></i><span>ОТПРАВИТЬ</span>
-</button>
-</div>
-</form>
-</div>
-</div>
-</section>
-<!-- GRAFFITI (полная копия Security по структуре) -->
-<section aria-label="Граффити" class="content-section" data-section="graffiti" id="graffiti-section">
-<div class="section-head">
-<div class="section-title" title="Граффити">Граффити</div>
-<div class="section-note" title="Сообщить о граффити">Заполните форму</div>
-</div>
-<form autocomplete="on" class="glass-card form-card" id="graffitiForm">
-<div class="form-grid">
-<div class="form-group">
-<label for="graffitiName">Имя *</label>
-<div class="input-row">
-<input class="form-input" id="graffitiName" placeholder="Ваше имя" required="" type="text"/>
-<button class="btn btn-primary btn-compact" id="useMaxNameGraffiti" type="button">
-<i class="fas fa-user-check"></i><span>Из MAX</span>
-</button>
-</div>
-</div>
-<div class="form-group">
-<label for="graffitiPhone">Телефон *</label>
-<input class="form-input" id="graffitiPhone" inputmode="tel" placeholder="+7" required="" type="tel"/>
-</div>
-<div class="form-group">
-<label for="graffitiEmail">Email</label>
-<input class="form-input" id="graffitiEmail" inputmode="email" placeholder="name@mail.ru" type="email"/>
-</div>
-<div class="form-group">
-<label>Локация *</label>
-<div class="field" data-media-opt="1"><label class="checkbox"><input id="graffitiForm_wantMedia" name="wantMedia" type="checkbox"/><span>Хочу приложить фото или видео</span></label><div class="hint">Если включить — после отправки формы бот попросит прислать фото/видео отдельным сообщением.</div></div><div class="location-actions">
-<button class="btn btn-primary location-btn" id="graffitiUseCurrentLocation" type="button">МОЕ МЕСТОПОЛОЖЕНИЕ</button>
-<button class="btn btn-primary location-btn" id="graffitiSelectOnMap" type="button">ВЫБРАТЬ НА КАРТЕ</button>
-<button class="btn btn-primary location-btn" id="graffitiShowAddressInput" type="button">УКАЗАТЬ АДРЕС</button>
-</div>
-<div class="address-input-wrapper" hidden="" id="graffitiAddressWrap">
-<input autocomplete="street-address" class="form-input" id="graffitiAddressInput" placeholder="Введите адрес или описание места" type="text"/>
-</div>
-<div class="form-hint" id="graffitiLocationHint">Укажите местоположение (адрес или точку на карте)</div>
-<input class="form-input is-hidden" id="graffitiCoordinates" readonly="" type="text"/>
-</div>
-<div class="form-group form-group--full">
-<label for="graffitiDescription">Описание *</label>
-<textarea class="form-textarea" id="graffitiDescription" placeholder="Опишите граффити максимально подробно" required="" rows="5"></textarea>
-<div class="meta-row">
-<div aria-live="polite" class="meta"><span id="graffitiCharCount">0</span>/500</div>
-</div>
-</div>
-<div class="form-group form-group--full">
-<label>Медиа</label>
-<div class="upload" id="graffitiUploadArea">
-<div class="upload-ui">
-<i class="fas fa-cloud-upload-alt"></i>
-<div class="upload-text">
-<div class="upload-title" title="Добавить фото/видео">Добавить фото/видео</div>
-<div class="upload-sub" title="Перетащите или выберите файлы">Перетащите или выберите</div>
-</div>
-</div>
-</div>
-<div class="media-preview" id="graffitiMediaPreview"></div>
-</div>
-</div>
-<div class="actions">
-<button class="btn btn-primary btn-wide" id="submitGraffiti" type="submit">
-<i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
-</button>
-</div>
-</form>
-</section>
-<!-- ARGUS -->
-<section aria-label="АРГУС" class="content-section" data-section="argus" id="argus-section">
-<div class="section-head">
-<div class="section-title">АРГУС</div>
-<div class="section-note">Сообщить по системе видеонаблюдения</div>
-</div>
-<form autocomplete="on" class="glass-card form-card" id="argusForm">
-<div class="form-grid">
-<div class="form-group">
-<label for="argusName">Имя *</label>
-<div class="input-row">
-<input class="form-input" id="argusName" placeholder="Ваше имя" required="" type="text"/>
-<button class="btn btn-primary btn-compact" id="useMaxNameArgus" type="button">
-<i class="fas fa-user-check"></i><span>Из MAX</span>
-</button>
-</div>
-</div>
-<div class="form-group">
-<label for="argusPhone">Телефон *</label>
-<input class="form-input" id="argusPhone" inputmode="tel" placeholder="+7" required="" type="tel"/>
-</div>
-<div class="form-group">
-<label for="argusEmail">Email *</label>
-<input class="form-input" id="argusEmail" inputmode="email" placeholder="example@mail.ru" required="" type="email"/>
-</div>
-<div class="form-group">
-<label>Местоположение *</label>
-<div class="btn-row">
-<button class="btn btn-ghost btn-wide" id="argusUseCurrentLocation" type="button">
-<i class="fas fa-location-crosshairs"></i><span>Моё местоположение</span>
-</button>
-<button class="btn btn-ghost btn-wide" id="argusSelectOnMap" type="button">
-<i class="fas fa-map-marked-alt"></i><span>Выбрать на карте</span>
-</button>
-</div>
-<button class="btn btn-soft btn-wide" id="argusShowAddressInput" type="button">
-<i class="fas fa-pen"></i><span>Ввести адрес вручную</span>
-</button>
-<div class="is-hidden" id="argusAddressWrap" style="margin-top: var(--space-2);">
-<input class="form-input" id="argusAddressInput" placeholder="Адрес" type="text"/>
-</div>
-<div class="hint" id="argusLocationHint"></div>
-<div class="coords" id="argusCoordinates"></div>
-</div>
-<div class="form-group">
-<label for="argusDescription">Описание *</label>
-<textarea class="form-input form-textarea" id="argusDescription" placeholder="Опишите ситуацию" required="" rows="6"></textarea>
-<div class="char-counter"><span id="argusCharCount">0</span>/1500</div>
-</div>
-</div>
-<div class="field" data-media-opt="1"><label class="checkbox"><input id="argusForm_wantMedia" name="wantMedia" type="checkbox"/><span>Хочу приложить фото или видео</span></label><div class="hint">Если включить — после отправки формы бот попросит прислать фото/видео отдельным сообщением.</div></div><div class="actions">
-<button class="btn btn-primary btn-wide" id="submitArgus" type="submit">
-<i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
-</button>
-</div>
-</form>
-</section>
-<!-- APPOINTMENT -->
-<section aria-label="Запись на приём" class="content-section" data-section="appointment" id="appointment-section">
-<div class="section-head">
-<div class="section-title">Запись на приём</div>
-<div class="section-note">Заполните заявку</div>
-</div>
-<form autocomplete="on" class="glass-card form-card" id="appointmentForm">
-<div class="form-grid">
-<div class="form-group">
-<label for="apptName">Имя *</label>
-<div class="input-row">
-<input class="form-input" id="apptName" placeholder="Ваше имя" required="" type="text"/>
-<button class="btn btn-primary btn-compact" id="useMaxNameAppt" type="button">
-<i class="fas fa-user-check"></i><span>Из MAX</span>
-</button>
-</div>
-</div>
-<div class="form-group">
-<label for="apptPhone">Телефон *</label>
-<input class="form-input" id="apptPhone" inputmode="tel" placeholder="+7" required="" type="tel"/>
-</div>
-<div class="form-group">
-<label for="apptEmail">Email *</label>
-<input class="form-input" id="apptEmail" inputmode="email" placeholder="example@mail.ru" required="" type="email"/>
-</div>
-<div class="form-group">
-<label for="apptDate">Желаемая дата *</label>
-<input class="form-input" id="apptDate" required="" type="date"/>
-</div>
-<div class="form-group">
-<label for="apptDescription">Комментарий</label>
-<textarea class="form-input form-textarea" id="apptDescription" placeholder="Кратко опишите вопрос (необязательно)" rows="5"></textarea>
-<div class="char-counter"><span id="apptCharCount">0</span>/1500</div>
-</div>
-</div>
-<div class="field" data-media-opt="1"><label class="checkbox"><input id="appointmentForm_wantMedia" name="wantMedia" type="checkbox"/><span>Хочу приложить фото или видео</span></label><div class="hint">Если включить — после отправки формы бот попросит прислать фото/видео отдельным сообщением.</div></div><div class="actions">
-<button class="btn btn-primary btn-wide" id="submitAppointment" type="submit">
-<i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
-</button>
-</div>
-</form>
-</section>
-<!-- CONTACTS -->
-<section aria-label="Контакты" class="content-section" data-section="contacts">
-<div class="section-head">
-<div class="section-title">Контакты</div>
-<div class="section-note">Экстренные и городские службы</div>
-</div>
-<div class="glass-card stack">
-<!-- МЧС -->
-<div class="contact-item">
-<div class="contact-title">МЧС России</div>
-<div class="contact-row">
-<i class="fas fa-phone"></i>
-<a href="tel:101">101</a>
-</div>
-</div>
-<!-- Полиция -->
-<div class="contact-item">
-<div class="contact-title">Полиция</div>
-<div class="contact-row">
-<i class="fas fa-phone"></i>
-<a href="tel:102">102</a>
-</div>
-</div>
-<!-- Скорая -->
-<div class="contact-item">
-<div class="contact-title">Скорая медицинская помощь</div>
-<div class="contact-row">
-<i class="fas fa-phone"></i>
-<a href="tel:103">103</a>
-</div>
-</div>
-<!-- Газовая служба -->
-<div class="contact-item">
-<div class="contact-title">Аварийная газовая служба</div>
-<div class="contact-row">
-<i class="fas fa-phone"></i>
-<a href="tel:104">104</a>
-</div>
-</div>
-<!-- Единый номер -->
-<div class="contact-item">
-<div class="contact-title">Единый номер экстренных служб</div>
-<div class="contact-row">
-<i class="fas fa-phone"></i>
-<a href="tel:112">112</a>
-</div>
-</div>
-<!-- Правительство -->
-<div class="contact-item">
-<div class="contact-title">Правительство Севастополя</div>
-<div class="contact-row">
-<i class="fas fa-phone"></i>
-<a href="tel:+78692531032">+7 (8692) 53-10-32</a>
-</div>
-<div class="contact-row">
-<i class="fas fa-envelope"></i>
-<a href="mailto:pravitelstvo@sevastopol.gov.ru">
+  <div class="app-shell" id="appShell">
+    <!-- Topbar -->
+    <header class="topbar" role="banner">
+      <div class="topbar-left">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"><i class="fas fa-shield-alt"></i></div>
+          <div class="brand-text">
+            <div class="brand-title" title="Безопасный Севастополь">Безопасный Севастополь</div>
+          </div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" id="themeToggle" type="button" aria-label="Сменить тему">
+          <i class="fas fa-moon" aria-hidden="true"></i>
+        </button>
+        <!-- compatibility -->
+        <button class="icon-btn is-hidden" id="themeToggleSmall" type="button" aria-hidden="true" tabindex="-1">
+          <i class="fas fa-moon" aria-hidden="true"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="main" role="main">
+      <!-- SECURITY -->
+      <section id="home-section" class="content-section is-active" data-section="home" aria-label="Главная">
+        <div class="section-head">
+          <div class="section-title" title="Что вы хотите сделать?">Что вы хотите сделать?</div>
+          <div class="section-note" title="Выберите раздел">Выберите действие</div>
+        </div>
+        <div class="glass-card home-hero">
+          <div class="home-hero-title">Безопасный Севастополь</div>
+          <div class="home-hero-sub">Быстрый доступ к основным функциям</div>
+        </div>
+        <div class="home-actions" id="homeActions">
+          <button class="action-btn" type="button" data-go="security">
+            <i class="fas fa-shield-alt"></i>
+            <div class="action-text">
+              <div class="action-title">Сообщить о подозрительных событиях, людях или предметах</div>
+              <div class="action-sub">Оставьте обращение — службы проверят информацию</div>
+            </div>
+            <i class="fas fa-chevron-right action-arrow"></i>
+          </button>
+          <button class="action-btn" type="button" data-go="wifi">
+            <i class="fas fa-wifi"></i>
+            <div class="action-text">
+              <div class="action-title">Найти ближайший бесплатный Wi‑Fi</div>
+              <div class="action-sub">Поиск точек и сообщения о проблемах</div>
+            </div>
+            <i class="fas fa-chevron-right action-arrow"></i>
+          </button>
+          <button class="action-btn" type="button" data-go="graffiti">
+            <i class="fas fa-spray-can"></i>
+            <div class="action-text">
+              <div class="action-title">Сообщить о граффити или надписях</div>
+              <div class="action-sub">Укажите место и описание</div>
+            </div>
+            <i class="fas fa-chevron-right action-arrow"></i>
+          </button>
+
+          <button class="action-btn" type="button" data-go="argus">
+            <i class="fas fa-eye"></i>
+            <div class="action-text">
+              <div class="action-title">Сообщить в «Аргус» о ситуации (видеонаблюдение)</div>
+              <div class="action-sub">Оставьте обращение — передадим специалистам</div>
+            </div>
+            <i class="fas fa-chevron-right action-arrow"></i>
+          </button>
+
+          <button class="action-btn" type="button" data-go="appointment">
+            <i class="fas fa-calendar-alt"></i>
+            <div class="action-text">
+              <div class="action-title">Записаться на приём</div>
+              <div class="action-sub">Выберите дату и оставьте контакт</div>
+            </div>
+            <i class="fas fa-chevron-right action-arrow"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- SECURITY -->
+      <section id="security-section" class="content-section" data-section="security" aria-label="Безопасность">
+        <div class="section-head">
+          <div class="section-title" title="Сообщить о чем-либо подозрительном">Сообщить о подозрительном</div>
+          <div class="section-note" title="Заполните форму">Заполните форму</div>
+        </div>
+
+        <form id="securityForm" class="glass-card form-card" autocomplete="on">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="securityName">Имя *</label>
+              <div class="input-row">
+                <input id="securityName" class="form-input" type="text" placeholder="Ваше имя" required />
+                <button class="btn btn-primary btn-compact" id="useMaxName" type="button">
+                  <i class="fas fa-user-check"></i><span>Из MAX</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="securityPhone">Телефон *</label>
+              <input id="securityPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
+            </div>
+
+            <div class="form-group">
+              <label for="securityEmail">Email</label>
+              <input id="securityEmail" class="form-input" type="email" inputmode="email" placeholder="name@mail.ru" />
+            </div>
+
+            <div class="form-group">
+              <label>Локация *</label>
+              <div class="location-actions">
+                <button type="button" class="btn btn-primary location-btn" id="useCurrentLocation">МОЕ МЕСТОПОЛОЖЕНИЕ</button>
+                <button type="button" class="btn btn-primary location-btn" id="selectOnMap">ВЫБРАТЬ НА КАРТЕ</button>
+                <button type="button" class="btn btn-primary location-btn" id="showAddressInput">УКАЗАТЬ АДРЕС</button>
+              </div>
+
+              <div class="address-input-wrapper" id="securityAddressWrap" hidden>
+                <input type="text" id="addressInput" class="form-input" autocomplete="street-address" placeholder="Введите адрес или описание места" />
+              </div>
+
+              <div class="form-hint" id="locationHint">Укажите местоположение (адрес или точку на карте)</div>
+              <input id="securityCoordinates" class="form-input is-hidden" type="text" readonly />
+            </div>
+
+            <div class="form-group form-group--full">
+              <label for="securityDescription">Описание *</label>
+              <textarea id="securityDescription" class="form-textarea" rows="5" placeholder="Опишите ситуацию максимально подробно" required></textarea>
+              <div class="meta-row">
+                <div class="meta" aria-live="polite"><span id="charCount">0</span>/500</div>
+              </div>
+            </div>
+
+            <div class="form-group form-group--full">
+              <label>Хотите приложить медиа?</label>
+              <div class="segmented segmented-2" role="radiogroup" aria-label="Хотите приложить медиа?">
+                <label class="seg-btn">
+                  <input type="radio" name="securityMediaChoice" value="yes" />
+                  <span>Да</span>
+                </label>
+                <label class="seg-btn">
+                  <input type="radio" name="securityMediaChoice" value="no" checked />
+                  <span>Нет</span>
+                </label>
+              </div>
+              <div class="form-hint">Файлы не загружаются — в обращение передадим только отметку: да/нет.</div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary btn-wide" id="submitSecurity" type="submit">
+              <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- WIFI -->
+      <section id="wifi-section" class="content-section" data-section="wifi" aria-label="Wi-Fi">
+        <div class="section-head">
+          <div class="section-title" title="Wi-Fi">Wi-Fi</div>
+          <div class="section-note" id="wifiSectionSubtitle" title="Поиск / Проблема / Новая точка">Поиск точек доступа интернета по Севастополю</div>
+        </div>
+
+        <div class="glass-card">
+          <div class="tabs" role="tablist" aria-label="Wi-Fi вкладки">
+            <button class="tab is-active" data-tab="search" type="button" role="tab" aria-selected="true">ПОИСК</button>
+            <button class="tab" id="tab-problem" data-tab="problem" type="button" role="tab" aria-selected="false">ПРОБЛЕМА</button>
+            <button class="tab" data-tab="new" type="button" role="tab" aria-selected="false">НОВАЯ ТОЧКА</button>
+          </div>
+
+          <!-- SEARCH -->
+          <div class="tab-content is-active" data-tab-content="search">
+            <div class="stack">
+              <div class="form-group">
+                <label for="wifiSearch">Поиск по адресу/месту</label>
+                <input id="wifiSearch" class="form-input" type="text" placeholder="" />
+                <div class="form-hint">Например: Нахимова, парк, МФЦ, АЗС, остановка</div>
+
+                <!-- Категория (фильтр) -->
+                <label for="wifiTypeFilter">Категория</label>
+                <select id="wifiTypeFilter" class="form-select" aria-label="Категория Wi-Fi">
+                  <option value="all">Все категории</option>
+                </select>
+
+                <div class="meta-row">
+                  <div class="meta" title="Найдено"><span id="wifiCount">0</span> найдено</div>
+                  <div class="meta" id="wifiLoading" aria-live="polite" style="display:none">Поиск…</div>
+                </div>
+              </div>
+
+              <div class="actions">
+                <button class="btn btn-primary btn-wide" id="findNearby" type="button">
+                  <i class="fas fa-crosshairs"></i><span>НАЙТИ БЛИЖАЙШИЕ</span>
+                </button>
+              </div>
+
+              <div id="wifiEmpty" class="empty-state" style="display:none" title="Ничего не найдено">Ничего не найдено</div>
+              <div id="wifiResults" class="wifi-groups" aria-label="Список Wi-Fi точек"></div>
+            </div>
+          </div>
+
+          <!-- PROBLEM -->
+          <div class="tab-content" data-tab-content="problem">
+            <form id="wifiProblemForm" class="glass-card form-card" autocomplete="on">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="wifiProblemName">Имя *</label>
+                  <div class="input-row">
+                    <input id="wifiProblemName" class="form-input" type="text" placeholder="Ваше имя" required />
+                    <button class="btn btn-primary btn-compact" id="useMaxNameWifiProblem" type="button">
+                      <i class="fas fa-user-check"></i><span>Из MAX</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="wifiProblemPhone">Телефон *</label>
+                  <input id="wifiProblemPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
+                </div>
+                <div class="form-group">
+                  <label for="wifiProblemEmail">Email</label>
+                  <input id="wifiProblemEmail" class="form-input" type="email" inputmode="email" placeholder="name@mail.ru" />
+                </div>
+                <div class="form-group">
+                  <label for="wifiProblemPlace">Место/адрес *</label>
+                  <input id="wifiProblemPlace" class="form-input" type="text" placeholder="Где не работает" required />
+                </div>
+                <div class="form-group form-group--full">
+                  <label for="wifiProblemDescription">Описание *</label>
+                  <textarea id="wifiProblemDescription" class="form-textarea" rows="4" placeholder="Что именно не работает" required></textarea>
+                </div>
+              </div>
+
+              <div class="actions">
+                <button class="btn btn-primary btn-wide" id="submitWifiProblem" type="submit">
+                  <i class="fas fa-bug"></i><span>ОТПРАВИТЬ</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- NEW -->
+          <div class="tab-content" data-tab-content="new">
+            <form id="wifiNewForm" class="glass-card form-card" autocomplete="on">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="wifiNewName">Имя *</label>
+                  <div class="input-row">
+                    <input id="wifiNewName" class="form-input" type="text" placeholder="Ваше имя" required />
+                    <button class="btn btn-primary btn-compact" id="useMaxNameWifiNew" type="button">
+                      <i class="fas fa-user-check"></i><span>Из MAX</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="wifiNewPhone">Телефон *</label>
+                  <input id="wifiNewPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
+                </div>
+                <div class="form-group">
+                  <label for="wifiNewEmail">Email</label>
+                  <input id="wifiNewEmail" class="form-input" type="email" inputmode="email" placeholder="name@mail.ru" />
+                </div>
+                <div class="form-group">
+                  <label for="wifiNewPlace">Место/адрес *</label>
+                  <input id="wifiNewPlace" class="form-input" type="text" placeholder="Где находится точка" required />
+                </div>
+                <div class="form-group form-group--full">
+                  <label for="wifiNewDescription">Описание *</label>
+                  <textarea id="wifiNewDescription" class="form-textarea" rows="4" placeholder="Доп. детали (название места, ориентир)" required></textarea>
+                </div>
+              </div>
+
+              <div class="actions">
+                <button class="btn btn-primary btn-wide" id="submitWifiNew" type="submit">
+                  <i class="fas fa-plus-circle"></i><span>ОТПРАВИТЬ</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- GRAFFITI (полная копия Security по структуре) -->
+      <section id="graffiti-section" class="content-section" data-section="graffiti" aria-label="Граффити">
+        <div class="section-head">
+          <div class="section-title" title="Граффити">Граффити</div>
+          <div class="section-note" title="Сообщить о граффити">Заполните форму</div>
+        </div>
+
+        <form id="graffitiForm" class="glass-card form-card" autocomplete="on">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="graffitiName">Имя *</label>
+              <div class="input-row">
+                <input id="graffitiName" class="form-input" type="text" placeholder="Ваше имя" required />
+                <button class="btn btn-primary btn-compact" id="useMaxNameGraffiti" type="button">
+                  <i class="fas fa-user-check"></i><span>Из MAX</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="graffitiPhone">Телефон *</label>
+              <input id="graffitiPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
+            </div>
+
+            <div class="form-group">
+              <label for="graffitiEmail">Email</label>
+              <input id="graffitiEmail" class="form-input" type="email" inputmode="email" placeholder="name@mail.ru" />
+            </div>
+
+            <div class="form-group">
+              <label>Локация *</label>
+              <div class="location-actions">
+                <button type="button" class="btn btn-primary location-btn" id="graffitiUseCurrentLocation">МОЕ МЕСТОПОЛОЖЕНИЕ</button>
+                <button type="button" class="btn btn-primary location-btn" id="graffitiSelectOnMap">ВЫБРАТЬ НА КАРТЕ</button>
+                <button type="button" class="btn btn-primary location-btn" id="graffitiShowAddressInput">УКАЗАТЬ АДРЕС</button>
+              </div>
+
+              <div class="address-input-wrapper" id="graffitiAddressWrap" hidden>
+                <input type="text" id="graffitiAddressInput" class="form-input" autocomplete="street-address" placeholder="Введите адрес или описание места" />
+              </div>
+
+              <div class="form-hint" id="graffitiLocationHint">Укажите местоположение (адрес или точку на карте)</div>
+              <input id="graffitiCoordinates" class="form-input is-hidden" type="text" readonly />
+            </div>
+
+            <div class="form-group form-group--full">
+              <label for="graffitiDescription">Описание *</label>
+              <textarea id="graffitiDescription" class="form-textarea" rows="5" placeholder="Опишите граффити максимально подробно" required></textarea>
+              <div class="meta-row">
+                <div class="meta" aria-live="polite"><span id="graffitiCharCount">0</span>/500</div>
+              </div>
+            </div>
+
+            <div class="form-group form-group--full">
+              <label>Хотите приложить медиа?</label>
+              <div class="segmented segmented-2" role="radiogroup" aria-label="Хотите приложить медиа?">
+                <label class="seg-btn">
+                  <input type="radio" name="graffitiMediaChoice" value="yes" />
+                  <span>Да</span>
+                </label>
+                <label class="seg-btn">
+                  <input type="radio" name="graffitiMediaChoice" value="no" checked />
+                  <span>Нет</span>
+                </label>
+              </div>
+              <div class="form-hint">Файлы не загружаются — в обращение передадим только отметку: да/нет.</div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary btn-wide" id="submitGraffiti" type="submit">
+              <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- CONTACTS -->
+<section class="content-section" data-section="contacts" aria-label="Контакты">
+  <div class="section-head">
+    <div class="section-title">Контакты</div>
+    <div class="section-note">Экстренные и городские службы</div>
+  </div>
+
+  <div class="glass-card stack">
+
+    <!-- МЧС -->
+    <div class="contact-item">
+      <div class="contact-title">МЧС России</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:101">101</a>
+      </div>
+    </div>
+    
+    <!-- Полиция -->
+    <div class="contact-item">
+      <div class="contact-title">Полиция</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:102">102</a>
+      </div>
+    </div>
+    
+    <!-- Скорая -->
+    <div class="contact-item">
+      <div class="contact-title">Скорая медицинская помощь</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:103">103</a>
+      </div>
+    </div>
+    
+    <!-- Газовая служба -->
+    <div class="contact-item">
+      <div class="contact-title">Аварийная газовая служба</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:104">104</a>
+      </div>
+    </div>
+    
+    <!-- Единый номер -->
+    <div class="contact-item">
+      <div class="contact-title">Единый номер экстренных служб</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:112">112</a>
+      </div>
+    </div>
+    
+    <!-- Правительство -->
+    <div class="contact-item">
+      <div class="contact-title">Правительство Севастополя</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:+78692531032">+7 (8692) 53-10-32</a>
+      </div>
+      <div class="contact-row">
+        <i class="fas fa-envelope"></i>
+        <a href="mailto:pravitelstvo@sevastopol.gov.ru">
           pravitelstvo@sevastopol.gov.ru
         </a>
-</div>
-</div>
-<!-- ДЦР -->
-<div class="contact-item">
-<div class="contact-title">Департамент цифрового развития</div>
-<div class="contact-row">
-<i class="fas fa-phone"></i>
-<a href="tel:+78692417676">(8692) 41-76-76</a>
-</div>
-<div class="contact-row">
-<i class="fas fa-envelope"></i>
-<a href="mailto:dcr@sev.gov.ru">dcr@sev.gov.ru</a>
-</div>
-</div>
-<!-- Соцсети -->
-<div class="contact-item">
-<div class="contact-title">Социальные сети</div>
-<div class="contact-row">
-<i class="fab fa-vk"></i>
-<a href="https://vk.com/club192631244" rel="noopener" target="_blank">
+      </div>
+    </div>
+
+    <!-- ДЦР -->
+    <div class="contact-item">
+      <div class="contact-title">Департамент цифрового развития</div>
+      <div class="contact-row">
+        <i class="fas fa-phone"></i>
+        <a href="tel:+78692417676">(8692) 41-76-76</a>
+      </div>
+      <div class="contact-row">
+        <i class="fas fa-envelope"></i>
+        <a href="mailto:dcr@sev.gov.ru">dcr@sev.gov.ru</a>
+      </div>
+    </div>
+
+    <!-- Соцсети -->
+    <div class="contact-item">
+      <div class="contact-title">Социальные сети</div>
+
+      <div class="contact-row">
+        <i class="fab fa-vk"></i>
+        <a href="https://vk.com/club192631244" target="_blank" rel="noopener">
           Департамент цифрового развития (ВКонтакте)
         </a>
-</div>
-<div class="contact-row">
-<i class="fab fa-telegram-plane"></i>
-<a href="https://t.me/digital_sevastopol" rel="noopener" target="_blank">
+      </div>
+
+      <div class="contact-row">
+        <i class="fab fa-telegram-plane"></i>
+        <a href="https://t.me/digital_sevastopol" target="_blank" rel="noopener">
           Цифровой Севастополь (Telegram)
         </a>
-</div>
-</div>
-</div>
+      </div>
+    </div>
+
+  </div>
 </section>
 </main>
-<nav aria-label="Навигация" class="bottom-nav" role="navigation"><button class="nav-item" data-section="home" type="button"><i class="fas fa-home"></i><span>Главная</span></button><button class="nav-item" data-section="security" type="button"><i class="fas fa-shield-alt"></i><span>Безопасность</span></button><button class="nav-item" data-section="wifi" type="button"><i class="fas fa-wifi"></i><span>Wi‑Fi</span></button><button class="nav-item" data-section="graffiti" type="button"><i class="fas fa-paint-brush"></i><span>Граффити</span></button><button class="nav-item" data-section="argus" type="button"><i class="fas fa-eye"></i><span>АРГУС</span></button><button class="nav-item" data-section="appointment" type="button"><i class="fas fa-calendar-alt"></i><span>Запись</span></button><button class="nav-item" data-section="contacts" type="button"><i class="fas fa-phone"></i><span>Контакты</span></button></nav>
-</div>
-<!-- Universal modal -->
-<div aria-hidden="true" class="modal" id="modal">
-<div class="modal-backdrop" data-close="modal"></div>
-<div aria-labelledby="modalTitle" aria-modal="true" class="modal-sheet" role="dialog">
-<div class="modal-head">
-<div class="modal-title" id="modalTitle" title="Подтверждение">Подтверждение</div>
-<button aria-label="Закрыть" class="icon-btn" data-close="modal" type="button"><i class="fas fa-times"></i></button>
-</div>
-<div class="modal-body" id="modalBody"></div>
-<div class="modal-actions" id="modalActions"></div>
-</div>
-</div>
-<!-- Map modal -->
-<div aria-hidden="true" class="modal" id="mapModal">
-<div class="modal-backdrop" data-close="mapModal"></div>
-<div aria-labelledby="mapModalTitle" aria-modal="true" class="modal-sheet modal-sheet--map" role="dialog">
-<div class="modal-head">
-<div class="modal-title" id="mapModalTitle" title="Выбор точки">Карта</div>
-<button aria-label="Закрыть" class="icon-btn" data-close="mapModal" type="button"><i class="fas fa-times"></i></button>
-</div>
-<div class="modal-body modal-body--map">
-<div class="yandex-map" id="yandexMap"></div>
-</div>
-<div class="modal-actions">
-<button class="btn btn-primary btn-wide" id="confirmMapSelection" type="button">
-<i class="fas fa-check"></i><span>ПОДТВЕРДИТЬ</span>
-</button>
-</div>
-</div>
-</div>
-<script src="max-config.js"></script>
-<script src="data.js"></script>
-<script src="app.js"></script>
+
+    <nav class="bottom-nav" role="navigation" aria-label="Навигация">
+      <button class="nav-item is-active" data-section="home" type="button">
+        <i class="fas fa-home"></i><span>Главная</span>
+      </button>
+      <button class="nav-item" data-section="security" type="button">
+        <i class="fas fa-shield-alt"></i><span>Безопасность</span>
+      </button>
+      <button class="nav-item" data-section="wifi" type="button">
+        <i class="fas fa-wifi"></i><span>Wi-Fi</span>
+      </button>
+      <button class="nav-item" data-section="graffiti" type="button">
+        <i class="fas fa-spray-can"></i><span>Граффити</span>
+      </button>
+      <button class="nav-item" data-section="contacts" type="button">
+        <i class="fas fa-phone-alt"></i><span>Контакты</span>
+      </button>
+      </nav>
+  </div>
+
+  <!-- Universal modal -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="modal"></div>
+    <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <div class="modal-title" id="modalTitle" title="Подтверждение">Подтверждение</div>
+        <button class="icon-btn" data-close="modal" type="button" aria-label="Закрыть"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+
+  <!-- Map modal -->
+  <div class="modal" id="mapModal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="mapModal"></div>
+    <div class="modal-sheet modal-sheet--map" role="dialog" aria-modal="true" aria-labelledby="mapModalTitle">
+      <div class="modal-head">
+        <div class="modal-title" id="mapModalTitle" title="Выбор точки">Карта</div>
+        <button class="icon-btn" data-close="mapModal" type="button" aria-label="Закрыть"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body modal-body--map">
+        <div id="yandexMap" class="yandex-map"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary btn-wide" id="confirmMapSelection" type="button">
+          <i class="fas fa-check"></i><span>ПОДТВЕРДИТЬ</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Saving overlay -->
+  <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
+    <div class="loading-backdrop"></div>
+    <div class="loading-card glass-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <div class="loading-text" id="loadingText">Записываем ваше обращение…</div>
+    </div>
+  </div>
+
+  <script src="max-config.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
