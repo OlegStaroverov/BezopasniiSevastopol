@@ -39,7 +39,7 @@
       this.user = null;
       this.isAdmin = false;
 
-      this.section = "security";
+      this.section = "home";
       this.wifiTab = "search";
       this.wifiBaseList = (window.wifiPoints || []);
       this.wifiWithDistance = false;
@@ -78,8 +78,6 @@
     
         // user/admin
         safe(() => { this.user = this.WebApp?.initDataUnsafe?.user || null; }, "user.read");
-        safe(() => { this.isAdmin = this._isAdminUser(this.user); }, "admin.check");
-        safe(() => this._syncAdminNav(), "admin.nav");
     
         // binds
         safe(() => this._enableTapClickBridge(), "tap.bridge");
@@ -100,7 +98,7 @@
         safe(() => this._bindAppointmentForm(), "bind.appointmentForm");
     
         // initial render
-        safe(() => this.switchSection("security", { silent: true }), "render.section");
+        safe(() => this.switchSection("home", { silent: true }), "render.section");
         safe(() => this.switchWifiTab("search", { silent: true }), "render.wifiTab");
         safe(() => { this.wifiBaseList = (window.wifiPoints || []); }, "wifi.baseList");
         safe(() => { this.wifiWithDistance = false; }, "wifi.distanceFlag");
@@ -111,18 +109,6 @@
         console.error("[INIT] fatal error:", fatal);
         try { this.toast("Ошибка инициализации приложения", "danger"); } catch (_) {}
       }
-    }
-
-    // -------------------- Admin --------------------
-    _isAdminUser(user) {
-      const uid = user?.id != null ? String(user.id) : "";
-      const admins = (window.ADMIN_USER_IDS || []).map(String);
-      return !!uid && admins.includes(uid);
-    }
-
-    _syncAdminNav() {
-      const adminBtn = $(`.bottom-nav .nav-item[data-section="admin"]`);
-      if (adminBtn) adminBtn.style.display = this.isAdmin ? "" : "none";
     }
 
         // -------------------- Tap/Click bridge (MAX WebView compatibility) --------------------
@@ -192,17 +178,23 @@
           this.haptic("light");
         });
       });
+
+
+      $$("[data-go]").forEach((btn) => {
+        if (btn.dataset.goBound === "1") return;
+        btn.dataset.goBound = "1";
+        btn.addEventListener("click", () => {
+          const sec = btn.dataset.go;
+          if (!sec) return;
+          this.switchSection(sec);
+          this.haptic("light");
+        });
+      });
     }
 
     switchSection(section, opts = {}) {
       const s = String(section || "").trim();
       if (!s) return;
-
-      if (s === "admin" && !this.isAdmin) {
-        this.toast("Доступ только для администраторов", "warning");
-        this.haptic("warning");
-        return;
-      }
 
       this.section = s;
 
