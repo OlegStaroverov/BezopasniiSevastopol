@@ -202,9 +202,16 @@
     if (name) el.value = name;
   }
 
-  async function submitForm(type, payload) {
+  async function submitForm(type, payload, wantMedia = false) {
     const user = getMaxUser();
     const report = window.AppData?.makeReport?.(type, payload, { user }) || { id: String(Date.now()), type, payload, user };
+
+    if (wantMedia) {
+      report.status = "draft";
+      report.sync_status = "draft_media";
+      report.payload = report.payload || {};
+      report.payload.wantMedia = true;
+    }
 
     openLoading("Сохраняем обращение…");
     const r = await window.AppData?.submitReport?.(report);
