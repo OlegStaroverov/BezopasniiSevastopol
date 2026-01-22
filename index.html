@@ -385,6 +385,122 @@
         </form>
       </section>
 
+
+      <!-- ARGUS -->
+      <section id="argus-section" class="content-section" data-section="argus" aria-label="АРГУС">
+        <div class="section-head">
+          <div class="section-title">АРГУС</div>
+          <div class="section-note">Сообщить по системе видеонаблюдения</div>
+        </div>
+
+        <form id="argusForm" class="glass-card form-card" autocomplete="on">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="argusName">Имя *</label>
+              <div class="input-row">
+                <input id="argusName" class="form-input" type="text" placeholder="Ваше имя" required />
+                <button class="btn btn-primary btn-compact" id="useMaxNameArgus" type="button">
+                  <i class="fas fa-user-check"></i><span>Из MAX</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="argusPhone">Телефон *</label>
+              <input id="argusPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
+            </div>
+
+            <div class="form-group">
+              <label for="argusEmail">Email *</label>
+              <input id="argusEmail" class="form-input" type="email" inputmode="email" placeholder="example@mail.ru" required />
+            </div>
+
+            <div class="form-group">
+              <label>Местоположение *</label>
+              <div class="btn-row">
+                <button class="btn btn-ghost btn-wide" id="argusUseCurrentLocation" type="button">
+                  <i class="fas fa-location-crosshairs"></i><span>Моё местоположение</span>
+                </button>
+                <button class="btn btn-ghost btn-wide" id="argusSelectOnMap" type="button">
+                  <i class="fas fa-map-marked-alt"></i><span>Выбрать на карте</span>
+                </button>
+              </div>
+              <button class="btn btn-soft btn-wide" id="argusShowAddressInput" type="button">
+                <i class="fas fa-pen"></i><span>Ввести адрес вручную</span>
+              </button>
+
+              <div id="argusAddressWrap" class="is-hidden" style="margin-top: var(--space-2);">
+                <input id="argusAddressInput" class="form-input" type="text" placeholder="Адрес" />
+              </div>
+
+              <div class="hint" id="argusLocationHint"></div>
+              <div class="coords" id="argusCoordinates"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="argusDescription">Описание *</label>
+              <textarea id="argusDescription" class="form-input form-textarea" rows="6" placeholder="Опишите ситуацию" required></textarea>
+              <div class="char-counter"><span id="argusCharCount">0</span>/1500</div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary btn-wide" id="submitArgus" type="submit">
+              <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- APPOINTMENT -->
+      <section id="appointment-section" class="content-section" data-section="appointment" aria-label="Запись на приём">
+        <div class="section-head">
+          <div class="section-title">Запись на приём</div>
+          <div class="section-note">Заполните заявку</div>
+        </div>
+
+        <form id="appointmentForm" class="glass-card form-card" autocomplete="on">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="apptName">Имя *</label>
+              <div class="input-row">
+                <input id="apptName" class="form-input" type="text" placeholder="Ваше имя" required />
+                <button class="btn btn-primary btn-compact" id="useMaxNameAppt" type="button">
+                  <i class="fas fa-user-check"></i><span>Из MAX</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="apptPhone">Телефон *</label>
+              <input id="apptPhone" class="form-input" type="tel" inputmode="tel" placeholder="+7" required />
+            </div>
+
+            <div class="form-group">
+              <label for="apptEmail">Email *</label>
+              <input id="apptEmail" class="form-input" type="email" inputmode="email" placeholder="example@mail.ru" required />
+            </div>
+
+            <div class="form-group">
+              <label for="apptDate">Желаемая дата *</label>
+              <input id="apptDate" class="form-input" type="date" required />
+            </div>
+
+            <div class="form-group">
+              <label for="apptDescription">Комментарий</label>
+              <textarea id="apptDescription" class="form-input form-textarea" rows="5" placeholder="Кратко опишите вопрос (необязательно)"></textarea>
+              <div class="char-counter"><span id="apptCharCount">0</span>/1500</div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary btn-wide" id="submitAppointment" type="submit">
+              <i class="fas fa-paper-plane"></i><span>ОТПРАВИТЬ</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
       <!-- CONTACTS -->
 <section class="content-section" data-section="contacts" aria-label="Контакты">
   <div class="section-head">
@@ -501,8 +617,14 @@
       <button class="nav-item" data-section="wifi" type="button">
         <i class="fas fa-wifi"></i><span>Wi-Fi</span>
       </button>
+      <button class="nav-item" data-section="argus" type="button">
+        <i class="fas fa-video"></i><span>АРГУС</span>
+      </button>
       <button class="nav-item" data-section="graffiti" type="button">
         <i class="fas fa-spray-can"></i><span>Граффити</span>
+      </button>
+      <button class="nav-item" data-section="appointment" type="button">
+        <i class="fas fa-calendar-check"></i><span>Запись</span>
       </button>
       <button class="nav-item" data-section="contacts" type="button">
         <i class="fas fa-phone-alt"></i><span>Контакты</span>
