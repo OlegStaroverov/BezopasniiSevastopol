@@ -1923,13 +1923,14 @@ renderWifiResults(points, opts = {}) {
       const btn = $(btnSel);
       const input = $(inputSel);
       if (!btn || !input) return;
-
-      // 1) Кнопка "Подставить имя из MAX" (если она есть рядом с полем)
+    
+      // Кнопка "Подставить имя из MAX" (если она есть рядом с полем)
       btn.addEventListener("click", () => {
         const fn = this.user?.first_name || "";
         const ln = this.user?.last_name || "";
         const full = [fn, ln].filter(Boolean).join(" ").trim();
         const name = full || this.user?.username || "";
+    
         if (name) {
           input.value = name;
           this.toast("Имя подставлено", "success");
@@ -1939,68 +1940,40 @@ renderWifiResults(points, opts = {}) {
           this.haptic("warning");
         }
       });
-
-      // 2) Мягкая логика для телефона (по правилам пользователя).
-      // Ничего не ломаем: применяем только префикс на первом символе ввода.
-      const sanitize = (v) => String(v || "").replace(/[^\d+]/g, "");
-      const applyPhoneRule = (v) => {
-        v = sanitize(v);
-
-        if (!v) return v;
-
-        // если начинает с + — ничего не подставляем
-        if (v.startsWith("+")) return v;
-
-        // если начинается вводить 7 — подставь в самое начало +
-        if (v.startsWith("7")) return "+" + v;
-
-        // если начинается вводить 8 — ничего не подставляй
-        if (v.startsWith("8")) return v;
-
-        // если начинается вводить любую другую цифру кроме 7 и 8 — подставляй +7
-        if (/^\d/.test(v)) return "+7" + v;
-
-        return v;
-      };
-
-      input.addEventListener("input", () => {
-        const before = String(input.value || "");
-        const after = applyPhoneRule(before);
-        if (after !== before) input.value = after;
-      });
     }
-
+    
     _bindPhoneMask(sel) {
       const input = $(sel);
       if (!input) return;
-
+    
+      // ВАЖНО: эта логика ДОЛЖНА висеть ТОЛЬКО на телефоне,
+      // иначе она будет вычищать буквы в имени.
       const sanitize = (v) => String(v || "").replace(/[^\d+]/g, "");
       const applyPhoneRule = (v) => {
         v = sanitize(v);
         if (!v) return v;
-
+    
         // если начинает с + — ничего не подставляем
         if (v.startsWith("+")) return v;
-
+    
         // если начинается вводить 7 — подставь в самое начало +
         if (v.startsWith("7")) return "+" + v;
-
+    
         // если начинается вводить 8 — ничего не подставляй
         if (v.startsWith("8")) return v;
-
+    
         // если начинается вводить любую другую цифру кроме 7 и 8 — подставляй +7
         if (/^\d/.test(v)) return "+7" + v;
-
+    
         return v;
       };
-
+    
       input.addEventListener("input", () => {
         const before = String(input.value || "");
         const after = applyPhoneRule(before);
         if (after !== before) input.value = after;
       });
     }
-
 
     _bindMediaPreview(inputSel, previewSel) {
       const input = $(inputSel);
