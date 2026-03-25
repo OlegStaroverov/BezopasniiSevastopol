@@ -1,9 +1,8 @@
-/* data.js
-   Единое хранилище и данные мини-приложения MAX
-   - Тема (dark/light)
-   - Обращения (security / wifi / graffiti)
-   - Данные Wi-Fi точек в строгом формате
-*/
+/**
+ * data.js
+ * Конфигурация и справочные данные мини‑приложения.
+ * Здесь хранится базовый URL сервера и параметры запроса для отправки обращений.
+ */
 
 (() => {
   "use strict";
@@ -43,7 +42,6 @@
   const uid = () =>
     "RPT-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
 
-  // -------------------- Theme --------------------
   const THEME_KEY = "theme";
 
   const theme = {
@@ -64,7 +62,6 @@
     }
   };
 
-  // -------------------- Reports storage --------------------
    const REPORT_KEYS = {
      security: "reports_security",
      wifi: "reports_wifi",
@@ -81,7 +78,7 @@
 
   const storage = {
     async _save(key, value) {
-      // MAX SecureStorage -> localStorage
+
       try {
         if (window.WebApp?.SecureStorage?.setItem) {
           await window.WebApp.SecureStorage.setItem(STORAGE_PREFIX + key, safeJSON.stringify(value));
@@ -114,23 +111,22 @@
      const key = REPORT_KEYS[t];
      if (!key) return false;
    
-     // 1) локально (можно оставить)
+
      const list = await storage._load(key, []);
      const arr = Array.isArray(list) ? list : [];
      arr.unshift(report);
      await storage._save(key, arr);
    
-     // 2) главное — отправка на сервер
+
      try {
        const base = window.AppConfig?.api?.baseUrl;
        const apiKey = window.AppConfig?.api?.appApiKey;
        if (!base || !apiKey) return false;
    
-       const r = await fetch(`${base}/reports`, {
+       const r = await fetch(`${base}/api/reports`, {
          method: "POST",
          headers: {
            "Content-Type": "application/json",
-           "x-api-key": apiKey,
          },
          body: JSON.stringify(report),
        });
@@ -155,8 +151,6 @@
     }
   };
 
-  // -------------------- Wi-Fi points --------------------
-  // Исходные данные (как в проекте)
   const WIFI_POINTS_RAW = [
       {
         id: 1,
@@ -2047,7 +2041,6 @@
       }
     ];
 
-  // Нормализация: строгий формат
   const normalizeWifiPoint = (p, idx) => {
     const obj = p && typeof p === "object" ? p : {};
     const coords = obj.coordinates && typeof obj.coordinates === "object" ? obj.coordinates : {};
@@ -2066,13 +2059,11 @@
 
   const WIFI_POINTS = WIFI_POINTS_RAW.map(normalizeWifiPoint).filter((p) => p.name);
 
-  // -------------------- Public API --------------------
   window.AppData = window.AppData || {};
   window.AppData.getTheme = () => theme.get();
   window.AppData.setTheme = (t) => theme.set(t);
   window.AppData.toggleTheme = () => theme.toggle();
 
-   // --- SERVER API (источник истины) ---
    const apiBase = () => String(window.AppConfig?.api?.baseUrl || "").replace(/\/+$/, "");
    
    async function apiFetch(path, opts = {}) {
@@ -2088,7 +2079,7 @@
        }
      });
    
-     // если API отдал не-200 — считаем ошибкой
+
      if (!res.ok) {
        const t = await res.text().catch(() => "");
        throw new Error(`API ${res.status}: ${t}`);
@@ -2096,7 +2087,7 @@
      return res.json();
    }
    
-   // Чтение: сначала сервер, локально — только fallback (не истина)
+
    window.AppData.getReports = async (type) => {
      try {
        const token = window.AppConfig?.api?.adminToken || "";
@@ -2107,12 +2098,12 @@
        });
        return Array.isArray(json.list) ? json.list : [];
      } catch (e) {
-       // fallback: старое хранилище, чтобы хоть что-то показать если сервер временно недоступен
+
        return Reports.get(type);
      }
    };
    
-   // Сохранение: сначала сервер, локально — только fallback
+
    window.AppData.saveReport = async (type, report) => {
      try {
        const json = await apiFetch(`/api/reports`, {
@@ -2122,12 +2113,12 @@
        if (json && json.ok) return true;
        return false;
      } catch (e) {
-       // fallback (не истина)
+
        return Reports.save(type, report);
      }
    };
    
-   // Смена статуса: админка
+
    window.AppData.setReportStatus = async (id, status) => {
      const token = window.AppConfig?.api?.adminToken || "";
      const json = await apiFetch(`/api/reports/${encodeURIComponent(id)}/status`, {
@@ -2140,7 +2131,6 @@
    
   window.AppData.makeReport = (type, payload, extra) => Reports.makeReport(type, payload, extra);
 
-  // совместимость с admin-panel.js (использует _save)
   window.AppData._save = (key, value) => storage._save(key.replace(STORAGE_PREFIX, ""), value);
   window.AppData._load = (key, fallback) => storage._load(key.replace(STORAGE_PREFIX, ""), fallback);
 
